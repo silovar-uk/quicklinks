@@ -781,6 +781,176 @@
       background: linear-gradient(transparent, white);
     }
 
+
+    .view-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 6px 0 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.86);
+      box-shadow: 0 6px 16px rgba(15,23,42,.04);
+      flex: 0 0 auto;
+    }
+
+    .seg-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #64748b;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .seg-btn.active {
+      color: white;
+      background: #111827;
+    }
+
+    .per-page-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 6px 0 10px;
+      padding: 8px;
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 18px;
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 8px 20px rgba(15,23,42,.04);
+    }
+
+    .pager.bottom { margin: 10px 0 0; }
+
+    .pager-info {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .pager-actions {
+      display: inline-flex;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+
+    .list.simple {
+      gap: 6px;
+    }
+
+    .simple-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 16px;
+      background: rgba(255,255,255,.94);
+      padding: 8px;
+      box-shadow: 0 6px 16px rgba(15,23,42,.05);
+    }
+
+    .simple-row.selecting {
+      border-color: #fecaca;
+      background: #fffafa;
+    }
+
+    .simple-row.selected {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, .12), 0 6px 16px rgba(15,23,42,.05);
+    }
+
+    .simple-main {
+      min-width: 0;
+    }
+
+    .simple-title {
+      color: #172033;
+      font-size: 14px;
+      line-height: 1.3;
+      font-weight: 950;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
+
+    .simple-sub {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 800;
+      min-width: 0;
+    }
+
+    .simple-url {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .simple-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .simple-actions .btn {
+      min-height: 32px;
+      border-radius: 999px;
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+
+    .simple-star {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #94a3b8;
+      background: #f8fafc;
+      font-size: 17px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .simple-star.on {
+      color: #92400e;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
     mark {
       background: #fef08a;
       padding: 0 2px;
@@ -801,6 +971,7 @@
       }
       .fab { bottom: 24px; right: calc((100vw - min(920px, 100%)) / 2 + 18px); }
       .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .list.simple { grid-template-columns: 1fr; }
       .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .modal.open { align-items: center; }
       .modal-sheet { border-radius: 28px; }
@@ -813,7 +984,7 @@
       <div class="top-row">
         <div class="brand">
           <h1 class="brand-title">Quick Links Mobile</h1>
-          <div class="brand-sub">localStorage保存 / スマホ向け / REDS検索なし</div>
+          <div class="brand-sub">localStorage保存 / スマホ向け / ページ送り対応</div>
         </div>
         <div class="top-actions">
           <button class="icon-btn" id="quickAddBtn" title="追加">＋</button>
@@ -851,9 +1022,25 @@
             <option value="title">タイトル順</option>
           </select>
         </div>
+        <div class="view-tools">
+          <div class="segmented" aria-label="表示切り替え">
+            <button class="seg-btn" id="linkRichViewBtn" type="button">リッチ</button>
+            <button class="seg-btn" id="linkSimpleViewBtn" type="button">シンプル</button>
+          </div>
+          <label class="per-page-wrap">表示
+            <select class="select-mini" id="linkPerPageSelect">
+              <option value="10">10件</option>
+              <option value="25">25件</option>
+              <option value="50">50件</option>
+              <option value="all">全部</option>
+            </select>
+          </label>
+        </div>
         <div class="bulk-toolbar" id="linkBulkBar"></div>
         <div class="chips" id="linkChips"></div>
+        <div class="pager" id="linkPagerTop"></div>
         <div class="list" id="linksList"></div>
+        <div class="pager bottom" id="linkPagerBottom"></div>
       </section>
 
       <section id="promptsPanel" class="panel">
@@ -872,9 +1059,25 @@
             <option value="title">タイトル順</option>
           </select>
         </div>
+        <div class="view-tools">
+          <div class="segmented" aria-label="表示切り替え">
+            <button class="seg-btn" id="promptRichViewBtn" type="button">リッチ</button>
+            <button class="seg-btn" id="promptSimpleViewBtn" type="button">シンプル</button>
+          </div>
+          <label class="per-page-wrap">表示
+            <select class="select-mini" id="promptPerPageSelect">
+              <option value="10">10件</option>
+              <option value="25">25件</option>
+              <option value="50">50件</option>
+              <option value="all">全部</option>
+            </select>
+          </label>
+        </div>
         <div class="bulk-toolbar" id="promptBulkBar"></div>
         <div class="chips" id="promptChips"></div>
+        <div class="pager" id="promptPagerTop"></div>
         <div class="list" id="promptsList"></div>
+        <div class="pager bottom" id="promptPagerBottom"></div>
       </section>
 
       <section id="settingsPanel" class="panel">
@@ -905,16 +1108,6 @@
           <button class="btn blue" id="runImportBtn">インポートする</button>
         </div>
 
-        <div class="settings-card">
-          <h2 class="settings-title">表示オプション</h2>
-          <div class="switch-row">
-            <div>
-              <div class="switch-label">アーカイブも表示</div>
-              <div class="switch-sub">古いリンクを消さずに隠しておけます。</div>
-            </div>
-            <input class="toggle" type="checkbox" id="showArchivedToggle" />
-          </div>
-        </div>
 
         <div class="settings-card">
           <h2 class="settings-title">重複整理</h2>
@@ -1032,7 +1225,11 @@
       onlyFavorites: false,
       linkSort: 'recent',
       promptSort: 'popular',
-      showArchived: false,
+      viewMode: 'rich',
+      linkPage: 1,
+      promptPage: 1,
+      linkPerPage: '10',
+      promptPerPage: '10',
       items: [],
       projects: ['未分類'],
       projectColors: {},
@@ -1087,7 +1284,11 @@
         onlyFavorites: state.onlyFavorites,
         linkSort: state.linkSort,
         promptSort: state.promptSort,
-        showArchived: state.showArchived,
+        viewMode: state.viewMode,
+        linkPage: state.linkPage,
+        promptPage: state.promptPage,
+        linkPerPage: state.linkPerPage,
+        promptPerPage: state.promptPerPage,
         items: state.items,
         projects: state.projects,
         projectColors: state.projectColors,
@@ -1121,21 +1322,26 @@
     }
 
     function normalizeProjects(projects, items = state.items) {
-      const names = ['未分類', ...(Array.isArray(projects) ? projects : []), ...(Array.isArray(items) ? items.map(item => item.projectName || '未分類') : [])]
-        .map(name => String(name || '未分類').trim() || '未分類');
-      return [...new Set(names)];
+      const source = Array.isArray(items) ? items : [];
+      const names = source
+        .filter(item => !item.archived)
+        .map(item => String(item.projectName || '未分類').trim() || '未分類');
+      const unique = [...new Set(names)];
+      return unique.length ? unique : ['未分類'];
     }
 
     function normalizePromptCategories(categories, memos = state.promptMemos) {
-      const names = ['未分類', ...(Array.isArray(categories) ? categories : []), ...(Array.isArray(memos) ? memos.map(memo => memo.categoryName || memo.projectName || '未分類') : [])]
-        .map(name => String(name || '未分類').trim() || '未分類');
-      return [...new Set(names)];
+      const source = Array.isArray(memos) ? memos : [];
+      const names = source
+        .map(memo => String(memo.categoryName || memo.projectName || '未分類').trim() || '未分類');
+      const unique = [...new Set(names)];
+      return unique.length ? unique : ['未分類'];
     }
 
     function normalizeLinkItems(list) {
       const now = new Date().toISOString();
       return (Array.isArray(list) ? list : [])
-        .filter(item => item && item.title && item.url)
+        .filter(item => item && item.title && item.url && !item.archived)
         .map(item => {
           const favoriteType = item.favoriteType || (item.isFavorite ? 'normal' : 'none');
           return {
@@ -1149,7 +1355,7 @@
             lastClickedAt: item.lastClickedAt || null,
             clickCount: Number(item.clickCount || 0),
             clickHistory: Array.isArray(item.clickHistory) ? item.clickHistory : [],
-            archived: !!item.archived,
+            archived: false,
             isFavorite: favoriteType !== 'none' || !!item.isFavorite,
             favoriteType,
             favoriteExpiry: item.favoriteExpiry || null
@@ -1278,8 +1484,7 @@
     }
 
     function filteredLinks() {
-      let list = [...state.items];
-      if (!state.showArchived) list = list.filter(item => !item.archived);
+      let list = state.items.filter(item => !item.archived);
       if (state.onlyFavorites) list = list.filter(isFavorite);
       if (state.currentProject !== 'ALL') list = list.filter(item => (item.projectName || '未分類') === state.currentProject);
       if (state.query) list = list.filter(item => matchesSearch([item.title, item.url, item.note, item.projectName]));
@@ -1331,6 +1536,7 @@
       renderLinks();
       renderPrompts();
       updateSettingsControls();
+      syncViewControls();
       $('globalSearch').value = state.query;
       $('clearSearchBtn').classList.toggle('show', !!state.query);
       $('fabBtn').style.display = state.activeTab === 'settings' ? 'none' : 'block';
@@ -1348,8 +1554,8 @@
     function renderStats() {
       const activeLinks = state.items.filter(item => !item.archived);
       $('statLinks').textContent = activeLinks.length.toLocaleString();
-      $('statFavorites').textContent = state.items.filter(item => !item.archived && isFavorite(item)).length.toLocaleString();
-      $('statProjects').textContent = state.projects.filter(p => p !== '未分類' || activeLinks.some(i => (i.projectName || '未分類') === '未分類')).length.toLocaleString();
+      $('statFavorites').textContent = activeLinks.filter(isFavorite).length.toLocaleString();
+      $('statProjects').textContent = normalizeProjects(state.projects, activeLinks).length.toLocaleString();
       $('statPrompts').textContent = state.promptMemos.length.toLocaleString();
       $('statPromptCategories').textContent = state.promptCategories.length.toLocaleString();
       $('statCopies').textContent = state.promptMemos.reduce((sum, memo) => sum + Number(memo.copyCount || 0), 0).toLocaleString();
@@ -1360,16 +1566,83 @@
       $('promptCategoryList').innerHTML = state.promptCategories.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
     }
 
+    function getPageSize(kind, total) {
+      const value = kind === 'links' ? state.linkPerPage : state.promptPerPage;
+      if (value === 'all') return Math.max(total, 1);
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+    }
+
+    function paginate(list, kind) {
+      const pageKey = kind === 'links' ? 'linkPage' : 'promptPage';
+      const pageSize = getPageSize(kind, list.length);
+      const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+      const currentPage = Math.min(Math.max(Number(state[pageKey] || 1), 1), totalPages);
+      state[pageKey] = currentPage;
+      const startIndex = list.length ? (currentPage - 1) * pageSize : 0;
+      const endIndex = list.length ? Math.min(startIndex + pageSize, list.length) : 0;
+      return {
+        items: list.slice(startIndex, endIndex),
+        currentPage,
+        totalPages,
+        startIndex,
+        endIndex,
+        total: list.length,
+        pageSize
+      };
+    }
+
+    function renderPager(targetId, page, kind) {
+      const el = $(targetId);
+      if (!el) return;
+      if (page.total <= page.pageSize || page.total === 0) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+      }
+      el.style.display = 'flex';
+      el.innerHTML = `
+        <div class="pager-info">${page.startIndex + 1}-${page.endIndex} / ${page.total.toLocaleString()}件　${page.currentPage}/${page.totalPages}ページ</div>
+        <div class="pager-actions">
+          <button class="btn ghost compact" data-page-action="prev" ${page.currentPage <= 1 ? 'disabled' : ''}>前へ</button>
+          <button class="btn ghost compact" data-page-action="next" ${page.currentPage >= page.totalPages ? 'disabled' : ''}>次へ</button>
+        </div>`;
+      el.querySelectorAll('[data-page-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pageKey = kind === 'links' ? 'linkPage' : 'promptPage';
+          state[pageKey] += btn.dataset.pageAction === 'next' ? 1 : -1;
+          save(); render();
+        });
+      });
+    }
+
+    function syncViewControls() {
+      ['linkRichViewBtn', 'promptRichViewBtn'].forEach(id => {
+        const el = $(id);
+        if (el) el.classList.toggle('active', state.viewMode === 'rich');
+      });
+      ['linkSimpleViewBtn', 'promptSimpleViewBtn'].forEach(id => {
+        const el = $(id);
+        if (el) el.classList.toggle('active', state.viewMode === 'simple');
+      });
+      if ($('linkPerPageSelect')) $('linkPerPageSelect').value = state.linkPerPage;
+      if ($('promptPerPageSelect')) $('promptPerPageSelect').value = state.promptPerPage;
+    }
+
+    function setViewMode(mode) {
+      state.viewMode = mode === 'simple' ? 'simple' : 'rich';
+      save(); render();
+    }
+
     function renderLinkChips() {
       const counts = new Map();
-      state.items.forEach(item => {
-        if (!state.showArchived && item.archived) return;
+      state.items.filter(item => !item.archived).forEach(item => {
         const p = item.projectName || '未分類';
         counts.set(p, (counts.get(p) || 0) + 1);
       });
       const chips = [
-        `<button class="chip ${state.currentProject === 'ALL' && !state.onlyFavorites ? 'active' : ''}" data-project="ALL">すべて (${state.items.filter(i => state.showArchived || !i.archived).length})</button>`,
-        `<button class="chip favorite ${state.onlyFavorites ? 'active' : ''}" data-favorite="1">★ お気に入り (${state.items.filter(i => (state.showArchived || !i.archived) && isFavorite(i)).length})</button>`
+        `<button class="chip ${state.currentProject === 'ALL' && !state.onlyFavorites ? 'active' : ''}" data-project="ALL">すべて (${state.items.filter(i => !i.archived).length})</button>`,
+        `<button class="chip favorite ${state.onlyFavorites ? 'active' : ''}" data-favorite="1">★ お気に入り (${state.items.filter(i => !i.archived && isFavorite(i)).length})</button>`
       ];
       state.projects.forEach(project => {
         const count = counts.get(project) || 0;
@@ -1381,6 +1654,7 @@
         btn.addEventListener('click', () => {
           state.currentProject = btn.dataset.project || 'ALL';
           state.onlyFavorites = false;
+          state.linkPage = 1;
           save(); render();
         });
       });
@@ -1388,6 +1662,7 @@
         btn.addEventListener('click', () => {
           state.onlyFavorites = !state.onlyFavorites;
           if (state.onlyFavorites) state.currentProject = 'ALL';
+          state.linkPage = 1;
           save(); render();
         });
       });
@@ -1523,20 +1798,26 @@
       renderLinkChips();
       $('linkSortSelect').value = state.linkSort;
       const list = filteredLinks();
-      renderLinkBulkBar(list);
-      $('linkCountLabel').textContent = `${list.length.toLocaleString()}件 / 全${state.items.length.toLocaleString()}件`;
+      const page = paginate(list, 'links');
+      renderLinkBulkBar(page.items);
+      renderPager('linkPagerTop', page, 'links');
+      renderPager('linkPagerBottom', page, 'links');
+      const rangeText = list.length ? `${page.startIndex + 1}-${page.endIndex}` : '0';
+      $('linkCountLabel').textContent = `${rangeText}件表示 / 全${list.length.toLocaleString()}件`;
+      $('linksList').className = `list ${state.viewMode === 'simple' ? 'simple' : ''}`;
       if (!list.length) {
+        $('linkPagerTop').style.display = 'none';
+        $('linkPagerBottom').style.display = 'none';
         $('linksList').innerHTML = `<div class="empty"><div class="empty-title">リンクが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいリンクを追加してください。' : '右下の＋から追加できます。既存バックアップは管理画面からインポートできます。'}</div></div>`;
         return;
       }
-      $('linksList').innerHTML = list.map(item => renderLinkCard(item)).join('');
+      $('linksList').innerHTML = page.items.map(item => state.viewMode === 'simple' ? renderLinkSimpleRow(item) : renderLinkCard(item)).join('');
       bindLinkCardEvents();
     }
 
     function renderLinkCard(item) {
       const fav = isFavorite(item);
       const note = item.note ? `<div class="card-note">${highlight(item.note)}</div>` : '';
-      const archived = item.archived ? ' / アーカイブ' : '';
       const selecting = state.linkSelectMode;
       const selected = state.selectedLinkIds.includes(item.id);
       return `
@@ -1554,13 +1835,36 @@
             <div class="card-url">${highlight(item.url)}</div>
             <div class="meta">
               <span>追加 ${formatDate(item.addedAt) || '-'}</span>
-              <span>開いた回数 ${Number(item.clickCount || 0).toLocaleString()}${archived}</span>
+              <span>開いた回数 ${Number(item.clickCount || 0).toLocaleString()}</span>
             </div>
             <div class="card-actions">
               <button class="btn primary" data-action="open">開く</button>
               <button class="btn ghost" data-action="copy">コピー</button>
               <button class="btn ghost" data-action="edit">編集</button>
             </div>
+          </div>
+        </article>`;
+    }
+
+    function renderLinkSimpleRow(item) {
+      const fav = isFavorite(item);
+      const selecting = state.linkSelectMode;
+      const selected = state.selectedLinkIds.includes(item.id);
+      return `
+        <article class="simple-row ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(item.id)}">
+          ${selecting ? `<input class="select-check" type="checkbox" data-action="select-link" ${selected ? 'checked' : ''} aria-label="選択" />` : `<button class="simple-star ${fav ? 'on' : ''}" data-action="favorite" aria-label="お気に入り切り替え">${fav ? '★' : '☆'}</button>`}
+          <div class="simple-main">
+            <div class="simple-title">${highlight(item.title)}</div>
+            <div class="simple-sub">
+              <span class="badge" style="${badgeStyle(item.projectName)}">${escapeHtml(item.projectName || '未分類')}</span>
+              <span>${Number(item.clickCount || 0).toLocaleString()}回</span>
+              <span class="simple-url">${highlight(item.url)}</span>
+            </div>
+          </div>
+          <div class="simple-actions">
+            <button class="btn primary" data-action="open">開く</button>
+            <button class="btn ghost" data-action="copy">URL</button>
+            <button class="btn ghost" data-action="edit">編集</button>
           </div>
         </article>`;
     }
@@ -1581,6 +1885,7 @@
       $('promptChips').querySelectorAll('[data-prompt-category]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.currentPromptCategory = btn.dataset.promptCategory || 'ALL';
+          state.promptPage = 1;
           save(); render();
         });
       });
@@ -1590,13 +1895,20 @@
       renderPromptChips();
       $('promptSortSelect').value = state.promptSort;
       const list = filteredPrompts();
-      renderPromptBulkBar(list);
-      $('promptCountLabel').textContent = `${list.length.toLocaleString()}件 / 全${state.promptMemos.length.toLocaleString()}件`;
+      const page = paginate(list, 'prompts');
+      renderPromptBulkBar(page.items);
+      renderPager('promptPagerTop', page, 'prompts');
+      renderPager('promptPagerBottom', page, 'prompts');
+      const rangeText = list.length ? `${page.startIndex + 1}-${page.endIndex}` : '0';
+      $('promptCountLabel').textContent = `${rangeText}件表示 / 全${list.length.toLocaleString()}件`;
+      $('promptsList').className = `list ${state.viewMode === 'simple' ? 'simple' : ''}`;
       if (!list.length) {
+        $('promptPagerTop').style.display = 'none';
+        $('promptPagerBottom').style.display = 'none';
         $('promptsList').innerHTML = `<div class="empty"><div class="empty-title">プロンプトが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいプロンプトを追加してください。' : '右下の＋から保存できます。よく使う指示文をここに置いておけます。'}</div></div>`;
         return;
       }
-      $('promptsList').innerHTML = list.map(memo => renderPromptCard(memo)).join('');
+      $('promptsList').innerHTML = page.items.map(memo => state.viewMode === 'simple' ? renderPromptSimpleRow(memo) : renderPromptCard(memo)).join('');
       bindPromptCardEvents();
     }
 
@@ -1630,8 +1942,32 @@
         </article>`;
     }
 
+    function renderPromptSimpleRow(memo) {
+      const body = String(memo.body || '');
+      const selecting = state.promptSelectMode;
+      const selected = state.selectedPromptIds.includes(memo.id);
+      return `
+        <article class="simple-row ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(memo.id)}">
+          ${selecting ? `<input class="select-check" type="checkbox" data-action="select-prompt" ${selected ? 'checked' : ''} aria-label="選択" />` : `<span class="select-mode-badge">✍</span>`}
+          <div class="simple-main">
+            <div class="simple-title">${highlight(memo.title || '無題のプロンプト')}</div>
+            <div class="simple-sub">
+              <span class="badge" style="${promptBadgeStyle(memo.categoryName)}">${escapeHtml(memo.categoryName || '未分類')}</span>
+              <span>${body.length.toLocaleString()}文字</span>
+              <span>${Number(memo.copyCount || 0).toLocaleString()}回コピー</span>
+            </div>
+          </div>
+          <div class="simple-actions">
+            <button class="btn green" data-action="copy-prompt">コピー</button>
+            <button class="btn ghost" data-action="edit-prompt">編集</button>
+            <button class="btn danger" data-action="delete-prompt">削除</button>
+          </div>
+        </article>`;
+    }
+
+
     function bindLinkCardEvents() {
-      $('linksList').querySelectorAll('.card').forEach(card => {
+      $('linksList').querySelectorAll('.card, .simple-row').forEach(card => {
         const id = card.dataset.id;
         card.addEventListener('click', (event) => {
           if (!state.linkSelectMode) return;
@@ -1648,7 +1984,7 @@
     }
 
     function bindPromptCardEvents() {
-      $('promptsList').querySelectorAll('.card').forEach(card => {
+      $('promptsList').querySelectorAll('.card, .simple-row').forEach(card => {
         const id = card.dataset.id;
         card.addEventListener('click', (event) => {
           if (!state.promptSelectMode) return;
@@ -1904,25 +2240,33 @@
     }
 
     function updateSettingsControls() {
-      $('showArchivedToggle').checked = !!state.showArchived;
+      state.items = state.items.filter(item => !item.archived);
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      if (state.currentProject !== 'ALL' && !state.projects.includes(state.currentProject)) state.currentProject = 'ALL';
+      if (state.currentPromptCategory !== 'ALL' && !state.promptCategories.includes(state.currentPromptCategory)) state.currentPromptCategory = 'ALL';
     }
 
     function exportData() {
+      const activeItems = state.items.filter(item => !item.archived).map(item => ({ ...item, archived: false }));
+      const activeProjects = normalizeProjects(state.projects, activeItems);
+      const activeProjectColors = Object.fromEntries(Object.entries(state.projectColors || {}).filter(([name]) => activeProjects.includes(name)));
+      const activePromptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
       const backup = {
         schemaVersion: 'quick-links-backup-v2',
         exportedAt: new Date().toISOString(),
         source: 'quick-links-mobile-localstorage-html',
         quickLinks: {
-          items: state.items,
-          projects: normalizeProjects(state.projects, state.items),
-          projectColors: state.projectColors || {},
+          items: activeItems,
+          projects: activeProjects,
+          projectColors: activeProjectColors,
           currentSortMode: state.linkSort,
-          showArchived: state.showArchived,
+          showArchived: false,
           floatingSearchEnabled: false
         },
         promptMemos: {
           items: state.promptMemos,
-          categories: normalizePromptCategories(state.promptCategories, state.promptMemos)
+          categories: activePromptCategories
         }
       };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -2001,6 +2345,8 @@
         state.currentProject = 'ALL';
         state.currentPromptCategory = 'ALL';
         state.onlyFavorites = false;
+        state.linkPage = 1;
+        state.promptPage = 1;
         save(); render();
         toast(`置き換えました：リンク${importedLinks.length}件 / プロンプト${importedPrompts.length}件`);
         return;
@@ -2040,6 +2386,8 @@
       state.projects = normalizeProjects([...state.projects, ...importedProjects], state.items);
       state.projectColors = { ...(state.projectColors || {}), ...(importedColors || {}) };
       state.promptCategories = normalizePromptCategories([...state.promptCategories, ...importedPromptCategories], state.promptMemos);
+      state.linkPage = 1;
+      state.promptPage = 1;
       save(); render();
       toast(`統合完了：リンク追加${linkAdd}件 / プロンプト追加${promptAdd}件`);
       if (linkMerge || promptMerge) {
@@ -2096,7 +2444,7 @@
       localStorage.removeItem(STORAGE_KEY);
       Object.assign(state, {
         activeTab: 'links', query: '', currentProject: 'ALL', currentPromptCategory: 'ALL', onlyFavorites: false,
-        linkSort: 'recent', promptSort: 'popular', showArchived: false,
+        linkSort: 'recent', promptSort: 'popular', viewMode: 'rich', linkPage: 1, promptPage: 1, linkPerPage: '10', promptPerPage: '10',
         items: [], projects: ['未分類'], projectColors: {}, promptMemos: [], promptCategories: ['未分類'],
         linkSelectMode: false, selectedLinkIds: [], promptSelectMode: false, selectedPromptIds: []
       });
@@ -2123,10 +2471,14 @@
 
       $('globalSearch').addEventListener('input', (event) => {
         state.query = event.target.value;
+        state.linkPage = 1;
+        state.promptPage = 1;
         save(); render();
       });
       $('clearSearchBtn').addEventListener('click', () => {
         state.query = '';
+        state.linkPage = 1;
+        state.promptPage = 1;
         save(); render();
         $('globalSearch').focus();
       });
@@ -2142,10 +2494,27 @@
 
       $('linkSortSelect').addEventListener('change', (event) => {
         state.linkSort = event.target.value;
+        state.linkPage = 1;
         save(); render();
       });
       $('promptSortSelect').addEventListener('change', (event) => {
         state.promptSort = event.target.value;
+        state.promptPage = 1;
+        save(); render();
+      });
+
+      $('linkRichViewBtn').addEventListener('click', () => setViewMode('rich'));
+      $('linkSimpleViewBtn').addEventListener('click', () => setViewMode('simple'));
+      $('promptRichViewBtn').addEventListener('click', () => setViewMode('rich'));
+      $('promptSimpleViewBtn').addEventListener('click', () => setViewMode('simple'));
+      $('linkPerPageSelect').addEventListener('change', (event) => {
+        state.linkPerPage = event.target.value;
+        state.linkPage = 1;
+        save(); render();
+      });
+      $('promptPerPageSelect').addEventListener('change', (event) => {
+        state.promptPerPage = event.target.value;
+        state.promptPage = 1;
         save(); render();
       });
 
@@ -2173,10 +2542,6 @@
         $('importText').value = text;
         importFromText(text, $('importMode').value);
         event.target.value = '';
-      });
-      $('showArchivedToggle').addEventListener('change', (event) => {
-        state.showArchived = event.target.checked;
-        save(); render();
       });
       $('dedupeBtn').addEventListener('click', dedupe);
       $('resetBtn').addEventListener('click', resetAll);
