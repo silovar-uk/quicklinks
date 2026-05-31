@@ -1,0 +1,1892 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#b91c1c" />
+  <title>Quick Links Mobile</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --red: #b91c1c;
+      --red-2: #dc2626;
+      --red-soft: #fee2e2;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --amber: #d97706;
+      --shadow: 0 16px 40px rgba(15, 23, 42, .10);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(185, 28, 28, .14), transparent 30%),
+        radial-gradient(circle at 80% 10%, rgba(37, 99, 235, .10), transparent 34%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      min-height: 100%;
+      padding-bottom: calc(82px + var(--safe-bottom));
+    }
+
+    .top {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: calc(10px + var(--safe-top)) 14px 10px;
+      color: white;
+      background: linear-gradient(135deg, #7f1d1d, #b91c1c 55%, #111827);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, .22);
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 900;
+      letter-spacing: -.02em;
+    }
+
+    .brand-sub {
+      margin-top: 2px;
+      font-size: 11px;
+      color: rgba(255,255,255,.72);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn {
+      min-width: 40px;
+      height: 40px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      color: white;
+      background: rgba(255,255,255,.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 16px;
+      padding: 5px;
+      backdrop-filter: blur(10px);
+    }
+
+    .search-icon {
+      padding-left: 7px;
+      opacity: .78;
+    }
+
+    #globalSearch {
+      min-width: 0;
+      width: 100%;
+      height: 42px;
+      border: 0;
+      outline: 0;
+      color: white;
+      background: transparent;
+      font-size: 16px;
+    }
+
+    #globalSearch::placeholder { color: rgba(255,255,255,.64); }
+
+    .clear-btn {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: rgba(255,255,255,.14);
+      cursor: pointer;
+      display: none;
+    }
+
+    .clear-btn.show { display: inline-flex; align-items: center; justify-content: center; }
+
+    .tabs {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px 12px calc(10px + var(--safe-bottom));
+      background: rgba(255,255,255,.90);
+      border-top: 1px solid rgba(226,232,240,.9);
+      backdrop-filter: blur(18px);
+    }
+
+    .tab-btn {
+      border: 1px solid transparent;
+      border-radius: 18px;
+      padding: 8px 6px 7px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 850;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tab-btn span { font-size: 18px; line-height: 1; }
+    .tab-btn.active {
+      color: #991b1b;
+      background: var(--red-soft);
+      border-color: #fecaca;
+    }
+
+    main {
+      width: min(920px, 100%);
+      margin: 0 auto;
+      padding: 12px 12px 0;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 18px;
+      padding: 10px;
+      box-shadow: 0 8px 20px rgba(15,23,42,.04);
+    }
+
+    .stat-num {
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -.03em;
+    }
+
+    .stat-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .toolbar-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--muted);
+    }
+
+    .select-mini {
+      max-width: 180px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #334155;
+      background: white;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .chips {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 0 2px 10px;
+      scrollbar-width: none;
+    }
+
+    .chips::-webkit-scrollbar { display: none; }
+
+    .chip {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: #475569;
+      background: rgba(255,255,255,.88);
+      font-size: 12px;
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(15,23,42,.04);
+      white-space: nowrap;
+    }
+
+    .chip.active {
+      color: white;
+      background: #111827;
+      border-color: #111827;
+    }
+
+    .chip.favorite.active {
+      color: #92400e;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .card {
+      position: relative;
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 22px;
+      background: rgba(255,255,255,.93);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-inner {
+      padding: 12px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .title-area { min-width: 0; flex: 1 1 auto; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #334155;
+      background: #f8fafc;
+    }
+
+    .card-title {
+      margin: 7px 0 0;
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 950;
+      letter-spacing: -.02em;
+      word-break: break-word;
+    }
+
+    .card-note, .card-url, .prompt-body {
+      margin-top: 7px;
+      color: #475569;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .card-url {
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 9px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .card-actions {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 1fr;
+      gap: 7px;
+      margin-top: 11px;
+    }
+
+    .btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 8px 10px;
+      color: #334155;
+      background: white;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .btn.primary {
+      color: white;
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn.blue {
+      color: white;
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .btn.green {
+      color: white;
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .btn.ghost {
+      color: #475569;
+      background: #f8fafc;
+    }
+
+    .btn.danger {
+      color: #991b1b;
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+
+    .star-btn {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      color: #94a3b8;
+      background: #f8fafc;
+      font-size: 20px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .star-btn.on {
+      color: #92400e;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    .empty {
+      border: 1px dashed #cbd5e1;
+      border-radius: 24px;
+      padding: 26px 18px;
+      background: rgba(255,255,255,.72);
+      text-align: center;
+      color: #64748b;
+    }
+
+    .empty-title {
+      color: #334155;
+      font-weight: 950;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .fab {
+      position: fixed;
+      right: 16px;
+      bottom: calc(92px + var(--safe-bottom));
+      z-index: 35;
+      min-width: 58px;
+      height: 58px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: linear-gradient(135deg, #dc2626, #7f1d1d);
+      box-shadow: 0 18px 38px rgba(127,29,29,.34);
+      font-size: 28px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .settings-card {
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 24px;
+      background: rgba(255,255,255,.9);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .settings-title {
+      margin: 0 0 4px;
+      font-size: 16px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .settings-lead {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .settings-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .form-row {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .form-row label {
+      color: #475569;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .input, .textarea, .select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      background: white;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+      font-size: 16px;
+    }
+
+    .textarea {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      background: rgba(15,23,42,.45);
+      padding: calc(14px + var(--safe-top)) 12px calc(14px + var(--safe-bottom));
+      overflow-y: auto;
+    }
+
+    .modal.open {
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .modal-sheet {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      border-radius: 28px 28px 20px 20px;
+      background: white;
+      box-shadow: 0 30px 80px rgba(15,23,42,.30);
+      padding: 16px;
+      animation: sheetIn .18s ease-out;
+    }
+
+    @keyframes sheetIn {
+      from { transform: translateY(16px); opacity: .6; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .modal-close {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .switch-row:first-child { border-top: 0; }
+
+    .switch-label {
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .switch-sub {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    .toggle {
+      appearance: none;
+      width: 50px;
+      height: 30px;
+      border-radius: 999px;
+      background: #cbd5e1;
+      position: relative;
+      transition: .15s;
+      flex: 0 0 auto;
+    }
+
+    .toggle::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: white;
+      transition: .15s;
+      box-shadow: 0 2px 8px rgba(15,23,42,.18);
+    }
+
+    .toggle:checked { background: var(--red); }
+    .toggle:checked::after { transform: translateX(20px); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(88px + var(--safe-bottom));
+      transform: translateX(-50%) translateY(14px);
+      z-index: 90;
+      max-width: calc(100% - 28px);
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: white;
+      background: rgba(15,23,42,.92);
+      box-shadow: 0 14px 40px rgba(15,23,42,.24);
+      font-size: 13px;
+      font-weight: 850;
+      opacity: 0;
+      pointer-events: none;
+      transition: .18s;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .hint {
+      color: #64748b;
+      font-size: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 10px 12px;
+    }
+
+    .danger-zone {
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+
+    .prompt-card .card-actions {
+      grid-template-columns: 1.25fr 1fr 1fr;
+    }
+
+    .prompt-body {
+      white-space: pre-wrap;
+      max-height: 150px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .prompt-body.long::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 42px;
+      background: linear-gradient(transparent, white);
+    }
+
+    mark {
+      background: #fef08a;
+      padding: 0 2px;
+      border-radius: 4px;
+    }
+
+    @media (min-width: 720px) {
+      .app { padding-bottom: 24px; }
+      .tabs {
+        position: sticky;
+        top: auto;
+        bottom: auto;
+        width: min(920px, calc(100% - 24px));
+        margin: 12px auto 0;
+        border: 1px solid rgba(226,232,240,.9);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+      .fab { bottom: 24px; right: calc((100vw - min(920px, 100%)) / 2 + 18px); }
+      .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .modal.open { align-items: center; }
+      .modal-sheet { border-radius: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="top-row">
+        <div class="brand">
+          <h1 class="brand-title">Quick Links Mobile</h1>
+          <div class="brand-sub">localStorage保存 / スマホ向け / REDS検索なし</div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" id="quickAddBtn" title="追加">＋</button>
+          <button class="icon-btn" id="exportTopBtn" title="エクスポート">↓</button>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="globalSearch" type="search" placeholder="タイトル・URL・メモ・プロンプトを検索" autocomplete="off" />
+        <button class="clear-btn" id="clearSearchBtn" title="検索をクリア">×</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="画面切り替え">
+      <button class="tab-btn active" data-tab="links"><span>🔗</span>リンク</button>
+      <button class="tab-btn" data-tab="prompts"><span>✍️</span>プロンプト</button>
+      <button class="tab-btn" data-tab="settings"><span>⚙️</span>管理</button>
+    </nav>
+
+    <main>
+      <section id="linksPanel" class="panel active">
+        <div class="summary">
+          <div class="stat"><div class="stat-num" id="statLinks">0</div><div class="stat-label">リンク</div></div>
+          <div class="stat"><div class="stat-num" id="statFavorites">0</div><div class="stat-label">お気に入り</div></div>
+          <div class="stat"><div class="stat-num" id="statProjects">0</div><div class="stat-label">分類</div></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-title" id="linkCountLabel">0件</div>
+          <select class="select-mini" id="linkSortSelect">
+            <option value="recent">追加が新しい順</option>
+            <option value="clicked">最近開いた順</option>
+            <option value="clicks">よく使う順</option>
+            <option value="project">分類順</option>
+            <option value="title">タイトル順</option>
+          </select>
+        </div>
+        <div class="chips" id="linkChips"></div>
+        <div class="list" id="linksList"></div>
+      </section>
+
+      <section id="promptsPanel" class="panel">
+        <div class="summary">
+          <div class="stat"><div class="stat-num" id="statPrompts">0</div><div class="stat-label">プロンプト</div></div>
+          <div class="stat"><div class="stat-num" id="statPromptCategories">0</div><div class="stat-label">カテゴリ</div></div>
+          <div class="stat"><div class="stat-num" id="statCopies">0</div><div class="stat-label">コピー</div></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-title" id="promptCountLabel">0件</div>
+          <select class="select-mini" id="promptSortSelect">
+            <option value="popular">よく使う順</option>
+            <option value="recent">更新が新しい順</option>
+            <option value="created">追加が新しい順</option>
+            <option value="title">タイトル順</option>
+          </select>
+        </div>
+        <div class="chips" id="promptChips"></div>
+        <div class="list" id="promptsList"></div>
+      </section>
+
+      <section id="settingsPanel" class="panel">
+        <div class="settings-card">
+          <h2 class="settings-title">データ管理</h2>
+          <p class="settings-lead">既存の <strong>quick-links-backup-v2</strong> 形式をインポート/エクスポートできます。スマホではファイル選択か、JSON貼り付けのどちらでもOK。</p>
+          <div class="settings-grid">
+            <button class="btn primary" id="exportBtn">JSONを書き出す</button>
+            <label class="btn ghost" for="importFile">JSONファイルを選ぶ</label>
+            <input id="importFile" type="file" accept="application/json,.json" hidden />
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">JSON貼り付けインポート</h2>
+          <p class="settings-lead">拡張機能版のバックアップJSONをそのまま貼り付けても取り込めます。</p>
+          <div class="form-row">
+            <label for="importMode">取り込み方法</label>
+            <select id="importMode" class="select">
+              <option value="merge">既存データに統合する</option>
+              <option value="replace">現在のデータを置き換える</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="importText">JSON</label>
+            <textarea id="importText" class="textarea" placeholder="ここにJSONを貼り付け"></textarea>
+          </div>
+          <button class="btn blue" id="runImportBtn">インポートする</button>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">表示オプション</h2>
+          <div class="switch-row">
+            <div>
+              <div class="switch-label">アーカイブも表示</div>
+              <div class="switch-sub">古いリンクを消さずに隠しておけます。</div>
+            </div>
+            <input class="toggle" type="checkbox" id="showArchivedToggle" />
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">重複整理</h2>
+          <p class="settings-lead">URL・タイトル・分類・メモが完全一致するリンク、タイトル・本文・カテゴリが完全一致するプロンプトを整理します。</p>
+          <button class="btn ghost" id="dedupeBtn">完全重複を整理</button>
+        </div>
+
+        <div class="settings-card danger-zone">
+          <h2 class="settings-title">リセット</h2>
+          <p class="settings-lead">このHTML内のlocalStorageだけを削除します。元のJSONファイルや拡張機能データは触りません。</p>
+          <button class="btn danger" id="resetBtn">localStorageを全削除</button>
+        </div>
+
+        <div class="hint">
+          <strong>メモ：</strong>このHTMLは1ファイルで動きます。iPhoneならSafariで開いて「ホーム画面に追加」すると、ちょっとしたアプリっぽく使えます。
+        </div>
+      </section>
+    </main>
+
+    <button class="fab" id="fabBtn" title="追加">＋</button>
+  </div>
+
+  <div class="modal" id="linkModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title" id="linkModalTitle">リンクを追加</h2>
+        <button class="modal-close" data-close-modal="linkModal">×</button>
+      </div>
+      <input type="hidden" id="linkId" />
+      <div class="form-row">
+        <label for="linkTitle">タイトル</label>
+        <input id="linkTitle" class="input" placeholder="例：PR発信" />
+      </div>
+      <div class="form-row">
+        <label for="linkUrl">URL</label>
+        <input id="linkUrl" class="input" inputmode="url" placeholder="https://..." />
+      </div>
+      <div class="form-row">
+        <label for="linkProject">分類</label>
+        <input id="linkProject" class="input" list="projectList" placeholder="未分類" />
+        <datalist id="projectList"></datalist>
+      </div>
+      <div class="form-row">
+        <label for="linkNote">メモ</label>
+        <textarea id="linkNote" class="textarea" placeholder="用途・補足など"></textarea>
+      </div>
+      <div class="switch-row">
+        <div>
+          <div class="switch-label">お気に入り</div>
+          <div class="switch-sub">よく使うリンクを上に出しやすくします。</div>
+        </div>
+        <input class="toggle" type="checkbox" id="linkFavorite" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close-modal="linkModal">キャンセル</button>
+        <button class="btn primary" id="saveLinkBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="promptModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title" id="promptModalTitle">プロンプトを追加</h2>
+        <button class="modal-close" data-close-modal="promptModal">×</button>
+      </div>
+      <input type="hidden" id="promptId" />
+      <div class="form-row">
+        <label for="promptTitle">タイトル</label>
+        <input id="promptTitle" class="input" placeholder="例：概要・背景説明" />
+      </div>
+      <div class="form-row">
+        <label for="promptCategory">カテゴリ</label>
+        <input id="promptCategory" class="input" list="promptCategoryList" placeholder="未分類" />
+        <datalist id="promptCategoryList"></datalist>
+      </div>
+      <div class="form-row">
+        <label for="promptBody">本文</label>
+        <textarea id="promptBody" class="textarea" placeholder="ここにプロンプト本文"></textarea>
+      </div>
+      <div class="hint" id="promptCharCount">0文字</div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close-modal="promptModal">キャンセル</button>
+        <button class="btn primary" id="savePromptBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'quick-links-mobile-localstorage-v1';
+    const DEFAULT_COLORS = {
+      'クラブ発信': { bg: '#fef2f2', text: '#991b1b', border: '#E03E3E' },
+      '自分': { bg: '#eef6fd', text: '#1d4ed8', border: '#4A90E2' },
+      'キュレーション': { bg: '#fff7ed', text: '#9a3412', border: '#F5A623' },
+      '広報・PR': { bg: '#fef2f2', text: '#991b1b', border: '#E03E3E' },
+      'メルマガ': { bg: '#f3e8ff', text: '#6b21a8', border: '#9013FE' },
+      '社員': { bg: '#f0fdf4', text: '#166534', border: '#417505' },
+      'プロモ': { bg: '#ccfbf1', text: '#115e59', border: '#009688' },
+      'PRJ': { bg: '#fdf4ff', text: '#86198f', border: '#BD10E0' },
+      'クリエイティブ': { bg: '#fce7f3', text: '#9d174d', border: '#FF4081' },
+      '未分類': { bg: '#f8fafc', text: '#475569', border: '#e2e8f0' }
+    };
+
+    const state = {
+      activeTab: 'links',
+      query: '',
+      currentProject: 'ALL',
+      currentPromptCategory: 'ALL',
+      onlyFavorites: false,
+      linkSort: 'recent',
+      promptSort: 'popular',
+      showArchived: false,
+      items: [],
+      projects: ['未分類'],
+      projectColors: {},
+      promptMemos: [],
+      promptCategories: ['未分類']
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function uid(prefix = 'id') {
+      return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function normalizeString(value) {
+      return String(value || '').normalize('NFKC').toLowerCase().trim();
+    }
+
+    function normalizeSpaces(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function normalizeBody(value) {
+      return String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return '';
+      return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function save() {
+      const payload = {
+        activeTab: state.activeTab,
+        query: state.query,
+        currentProject: state.currentProject,
+        currentPromptCategory: state.currentPromptCategory,
+        onlyFavorites: state.onlyFavorites,
+        linkSort: state.linkSort,
+        promptSort: state.promptSort,
+        showArchived: state.showArchived,
+        items: state.items,
+        projects: state.projects,
+        projectColors: state.projectColors,
+        promptMemos: state.promptMemos,
+        promptCategories: state.promptCategories
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        Object.assign(state, {
+          ...data,
+          items: normalizeLinkItems(data.items || []),
+          projects: normalizeProjects(data.projects || [], data.items || []),
+          projectColors: data.projectColors || {},
+          promptMemos: normalizePromptItems(data.promptMemos || []),
+          promptCategories: normalizePromptCategories(data.promptCategories || [], data.promptMemos || [])
+        });
+      } catch (error) {
+        console.warn(error);
+        toast('保存データの読み込みに失敗しました');
+      }
+    }
+
+    function normalizeProjects(projects, items = state.items) {
+      const names = ['未分類', ...(Array.isArray(projects) ? projects : []), ...(Array.isArray(items) ? items.map(item => item.projectName || '未分類') : [])]
+        .map(name => String(name || '未分類').trim() || '未分類');
+      return [...new Set(names)];
+    }
+
+    function normalizePromptCategories(categories, memos = state.promptMemos) {
+      const names = ['未分類', ...(Array.isArray(categories) ? categories : []), ...(Array.isArray(memos) ? memos.map(memo => memo.categoryName || memo.projectName || '未分類') : [])]
+        .map(name => String(name || '未分類').trim() || '未分類');
+      return [...new Set(names)];
+    }
+
+    function normalizeLinkItems(list) {
+      const now = new Date().toISOString();
+      return (Array.isArray(list) ? list : [])
+        .filter(item => item && item.title && item.url)
+        .map(item => {
+          const favoriteType = item.favoriteType || (item.isFavorite ? 'normal' : 'none');
+          return {
+            id: String(item.id || uid('link')),
+            title: String(item.title || '無題'),
+            url: String(item.url || ''),
+            projectName: String(item.projectName || '未分類').trim() || '未分類',
+            note: String(item.note || ''),
+            addedAt: item.addedAt || now,
+            updatedAt: item.updatedAt || item.addedAt || now,
+            lastClickedAt: item.lastClickedAt || null,
+            clickCount: Number(item.clickCount || 0),
+            clickHistory: Array.isArray(item.clickHistory) ? item.clickHistory : [],
+            archived: !!item.archived,
+            isFavorite: favoriteType !== 'none' || !!item.isFavorite,
+            favoriteType,
+            favoriteExpiry: item.favoriteExpiry || null
+          };
+        });
+    }
+
+    function normalizePromptItems(list) {
+      const now = new Date().toISOString();
+      return (Array.isArray(list) ? list : [])
+        .filter(memo => memo && (String(memo.title || '').trim() || String(memo.body || '').trim()))
+        .map(memo => ({
+          id: String(memo.id || uid('prompt')),
+          title: String(memo.title || '無題のプロンプト'),
+          categoryName: String(memo.categoryName || memo.projectName || '未分類').trim() || '未分類',
+          body: String(memo.body || ''),
+          createdAt: memo.createdAt || memo.addedAt || now,
+          updatedAt: memo.updatedAt || memo.createdAt || now,
+          copyCount: Number(memo.copyCount || 0),
+          lastCopiedAt: memo.lastCopiedAt || null
+        }));
+    }
+
+    function getLinkKey(item) {
+      return [
+        String(item.url || '').trim(),
+        normalizeSpaces(item.title),
+        normalizeSpaces(item.projectName || '未分類'),
+        normalizeSpaces(item.note),
+        item.archived ? 'archived' : 'active'
+      ].join('\u001f');
+    }
+
+    function getPromptKey(memo) {
+      return [
+        normalizeSpaces(memo.title || '無題のプロンプト'),
+        normalizeBody(memo.body),
+        normalizeSpaces(memo.categoryName || memo.projectName || '未分類')
+      ].join('\u001f');
+    }
+
+    function timeValue(value) {
+      const time = value ? new Date(value).getTime() : 0;
+      return Number.isFinite(time) ? time : 0;
+    }
+
+    function pickEarlier(a, b) {
+      const at = timeValue(a), bt = timeValue(b);
+      if (!at) return b || a || null;
+      if (!bt) return a || b || null;
+      return at <= bt ? a : b;
+    }
+
+    function pickLater(a, b) {
+      const at = timeValue(a), bt = timeValue(b);
+      if (!at) return b || a || null;
+      if (!bt) return a || b || null;
+      return at >= bt ? a : b;
+    }
+
+    function mergeLink(base, incoming) {
+      if (!base) return incoming;
+      const favoriteType = pickFavoriteType(base.favoriteType, incoming.favoriteType);
+      return {
+        ...base,
+        addedAt: pickEarlier(base.addedAt, incoming.addedAt),
+        updatedAt: pickLater(base.updatedAt, incoming.updatedAt),
+        lastClickedAt: pickLater(base.lastClickedAt, incoming.lastClickedAt),
+        clickCount: Math.max(Number(base.clickCount || 0), Number(incoming.clickCount || 0)),
+        clickHistory: [...new Set([...(base.clickHistory || []), ...(incoming.clickHistory || [])])].sort((a, b) => timeValue(a) - timeValue(b)),
+        isFavorite: favoriteType !== 'none' || !!base.isFavorite || !!incoming.isFavorite,
+        favoriteType,
+        favoriteExpiry: pickLater(base.favoriteExpiry, incoming.favoriteExpiry)
+      };
+    }
+
+    function pickFavoriteType(a, b) {
+      const priority = { none: 0, normal: 1, temporary: 2, permanent: 3 };
+      const av = String(a || 'none');
+      const bv = String(b || 'none');
+      return (priority[bv] || 0) > (priority[av] || 0) ? bv : av;
+    }
+
+    function mergePrompt(base, incoming) {
+      if (!base) return incoming;
+      return {
+        ...base,
+        createdAt: pickEarlier(base.createdAt, incoming.createdAt),
+        updatedAt: pickLater(base.updatedAt, incoming.updatedAt),
+        lastCopiedAt: pickLater(base.lastCopiedAt, incoming.lastCopiedAt),
+        copyCount: Math.max(Number(base.copyCount || 0), Number(incoming.copyCount || 0))
+      };
+    }
+
+    function isFavorite(item) {
+      const type = item.favoriteType || (item.isFavorite ? 'normal' : 'none');
+      if (type === 'none') return false;
+      if (type === 'temporary' && item.favoriteExpiry && timeValue(item.favoriteExpiry) < Date.now()) return false;
+      return true;
+    }
+
+    function getProjectColor(name) {
+      const key = name || '未分類';
+      if (state.projectColors[key]) return state.projectColors[key];
+      if (DEFAULT_COLORS[key]) return DEFAULT_COLORS[key];
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+      const h = Math.abs(hash) % 360;
+      return { bg: `hsl(${h}, 85%, 94%)`, text: `hsl(${h}, 70%, 30%)`, border: `hsl(${h}, 60%, 84%)` };
+    }
+
+    function badgeStyle(name) {
+      const color = getProjectColor(name);
+      return `background:${color.bg};color:${color.text};border-color:${color.border};`;
+    }
+
+    function promptBadgeStyle(name) {
+      const color = getProjectColor(name);
+      return `background:${color.bg};color:${color.text};border-color:${color.border};`;
+    }
+
+    function matchesSearch(values) {
+      const q = normalizeString(state.query);
+      if (!q) return true;
+      return values.some(value => normalizeString(value).includes(q));
+    }
+
+    function filteredLinks() {
+      let list = [...state.items];
+      if (!state.showArchived) list = list.filter(item => !item.archived);
+      if (state.onlyFavorites) list = list.filter(isFavorite);
+      if (state.currentProject !== 'ALL') list = list.filter(item => (item.projectName || '未分類') === state.currentProject);
+      if (state.query) list = list.filter(item => matchesSearch([item.title, item.url, item.note, item.projectName]));
+      return list.sort(sortLinks);
+    }
+
+    function sortLinks(a, b) {
+      if (isFavorite(a) !== isFavorite(b)) return isFavorite(b) - isFavorite(a);
+      if (state.linkSort === 'clicked') return timeValue(b.lastClickedAt) - timeValue(a.lastClickedAt) || timeValue(b.addedAt) - timeValue(a.addedAt);
+      if (state.linkSort === 'clicks') return Number(b.clickCount || 0) - Number(a.clickCount || 0) || timeValue(b.lastClickedAt) - timeValue(a.lastClickedAt);
+      if (state.linkSort === 'project') return String(a.projectName || '').localeCompare(String(b.projectName || ''), 'ja') || String(a.title || '').localeCompare(String(b.title || ''), 'ja');
+      if (state.linkSort === 'title') return String(a.title || '').localeCompare(String(b.title || ''), 'ja');
+      return timeValue(b.addedAt) - timeValue(a.addedAt);
+    }
+
+    function filteredPrompts() {
+      let list = [...state.promptMemos];
+      if (state.currentPromptCategory !== 'ALL') list = list.filter(memo => (memo.categoryName || '未分類') === state.currentPromptCategory);
+      if (state.query) list = list.filter(memo => matchesSearch([memo.title, memo.body, memo.categoryName]));
+      return list.sort(sortPrompts);
+    }
+
+    function sortPrompts(a, b) {
+      if (state.promptSort === 'recent') return timeValue(b.updatedAt) - timeValue(a.updatedAt);
+      if (state.promptSort === 'created') return timeValue(b.createdAt) - timeValue(a.createdAt);
+      if (state.promptSort === 'title') return String(a.title || '').localeCompare(String(b.title || ''), 'ja');
+      return Number(b.copyCount || 0) - Number(a.copyCount || 0) || timeValue(b.updatedAt) - timeValue(a.updatedAt);
+    }
+
+    function highlight(value) {
+      const text = escapeHtml(value || '');
+      const q = state.query.trim();
+      if (!q) return text;
+      const normalized = normalizeString(q);
+      const raw = String(value || '');
+      const idx = normalizeString(raw).indexOf(normalized);
+      if (idx < 0) return text;
+      const before = escapeHtml(raw.slice(0, idx));
+      const middle = escapeHtml(raw.slice(idx, idx + q.length));
+      const after = escapeHtml(raw.slice(idx + q.length));
+      return `${before}<mark>${middle}</mark>${after}`;
+    }
+
+    function render() {
+      renderTabs();
+      renderStats();
+      renderDatalists();
+      renderLinks();
+      renderPrompts();
+      updateSettingsControls();
+      $('globalSearch').value = state.query;
+      $('clearSearchBtn').classList.toggle('show', !!state.query);
+      $('fabBtn').style.display = state.activeTab === 'settings' ? 'none' : 'block';
+    }
+
+    function renderTabs() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === state.activeTab);
+      });
+      $('linksPanel').classList.toggle('active', state.activeTab === 'links');
+      $('promptsPanel').classList.toggle('active', state.activeTab === 'prompts');
+      $('settingsPanel').classList.toggle('active', state.activeTab === 'settings');
+    }
+
+    function renderStats() {
+      const activeLinks = state.items.filter(item => !item.archived);
+      $('statLinks').textContent = activeLinks.length.toLocaleString();
+      $('statFavorites').textContent = state.items.filter(item => !item.archived && isFavorite(item)).length.toLocaleString();
+      $('statProjects').textContent = state.projects.filter(p => p !== '未分類' || activeLinks.some(i => (i.projectName || '未分類') === '未分類')).length.toLocaleString();
+      $('statPrompts').textContent = state.promptMemos.length.toLocaleString();
+      $('statPromptCategories').textContent = state.promptCategories.length.toLocaleString();
+      $('statCopies').textContent = state.promptMemos.reduce((sum, memo) => sum + Number(memo.copyCount || 0), 0).toLocaleString();
+    }
+
+    function renderDatalists() {
+      $('projectList').innerHTML = state.projects.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+      $('promptCategoryList').innerHTML = state.promptCategories.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+    }
+
+    function renderLinkChips() {
+      const counts = new Map();
+      state.items.forEach(item => {
+        if (!state.showArchived && item.archived) return;
+        const p = item.projectName || '未分類';
+        counts.set(p, (counts.get(p) || 0) + 1);
+      });
+      const chips = [
+        `<button class="chip ${state.currentProject === 'ALL' && !state.onlyFavorites ? 'active' : ''}" data-project="ALL">すべて (${state.items.filter(i => state.showArchived || !i.archived).length})</button>`,
+        `<button class="chip favorite ${state.onlyFavorites ? 'active' : ''}" data-favorite="1">★ お気に入り (${state.items.filter(i => (state.showArchived || !i.archived) && isFavorite(i)).length})</button>`
+      ];
+      state.projects.forEach(project => {
+        const count = counts.get(project) || 0;
+        if (count === 0 && project !== '未分類') return;
+        chips.push(`<button class="chip ${state.currentProject === project && !state.onlyFavorites ? 'active' : ''}" data-project="${escapeHtml(project)}" style="${state.currentProject === project && !state.onlyFavorites ? '' : badgeStyle(project)}">${escapeHtml(project)} (${count})</button>`);
+      });
+      $('linkChips').innerHTML = chips.join('');
+      $('linkChips').querySelectorAll('[data-project]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentProject = btn.dataset.project || 'ALL';
+          state.onlyFavorites = false;
+          save(); render();
+        });
+      });
+      $('linkChips').querySelectorAll('[data-favorite]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.onlyFavorites = !state.onlyFavorites;
+          if (state.onlyFavorites) state.currentProject = 'ALL';
+          save(); render();
+        });
+      });
+    }
+
+    function renderLinks() {
+      renderLinkChips();
+      $('linkSortSelect').value = state.linkSort;
+      const list = filteredLinks();
+      $('linkCountLabel').textContent = `${list.length.toLocaleString()}件 / 全${state.items.length.toLocaleString()}件`;
+      if (!list.length) {
+        $('linksList').innerHTML = `<div class="empty"><div class="empty-title">リンクが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいリンクを追加してください。' : '右下の＋から追加できます。既存バックアップは管理画面からインポートできます。'}</div></div>`;
+        return;
+      }
+      $('linksList').innerHTML = list.map(item => renderLinkCard(item)).join('');
+      bindLinkCardEvents();
+    }
+
+    function renderLinkCard(item) {
+      const fav = isFavorite(item);
+      const note = item.note ? `<div class="card-note">${highlight(item.note)}</div>` : '';
+      const archived = item.archived ? ' / アーカイブ' : '';
+      return `
+        <article class="card" data-id="${escapeHtml(item.id)}">
+          <div class="card-inner">
+            <div class="card-top">
+              <div class="title-area">
+                <span class="badge" style="${badgeStyle(item.projectName)}">${escapeHtml(item.projectName || '未分類')}</span>
+                <h3 class="card-title">${highlight(item.title)}</h3>
+              </div>
+              <button class="star-btn ${fav ? 'on' : ''}" data-action="favorite" aria-label="お気に入り切り替え">${fav ? '★' : '☆'}</button>
+            </div>
+            ${note}
+            <div class="card-url">${highlight(item.url)}</div>
+            <div class="meta">
+              <span>追加 ${formatDate(item.addedAt) || '-'}</span>
+              <span>開いた回数 ${Number(item.clickCount || 0).toLocaleString()}${archived}</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn primary" data-action="open">開く</button>
+              <button class="btn ghost" data-action="copy">コピー</button>
+              <button class="btn ghost" data-action="edit">編集</button>
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function renderPromptChips() {
+      const counts = new Map();
+      state.promptMemos.forEach(memo => {
+        const c = memo.categoryName || '未分類';
+        counts.set(c, (counts.get(c) || 0) + 1);
+      });
+      const chips = [`<button class="chip ${state.currentPromptCategory === 'ALL' ? 'active' : ''}" data-prompt-category="ALL">すべて (${state.promptMemos.length})</button>`];
+      state.promptCategories.forEach(category => {
+        const count = counts.get(category) || 0;
+        if (count === 0 && category !== '未分類') return;
+        chips.push(`<button class="chip ${state.currentPromptCategory === category ? 'active' : ''}" data-prompt-category="${escapeHtml(category)}" style="${state.currentPromptCategory === category ? '' : promptBadgeStyle(category)}">${escapeHtml(category)} (${count})</button>`);
+      });
+      $('promptChips').innerHTML = chips.join('');
+      $('promptChips').querySelectorAll('[data-prompt-category]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentPromptCategory = btn.dataset.promptCategory || 'ALL';
+          save(); render();
+        });
+      });
+    }
+
+    function renderPrompts() {
+      renderPromptChips();
+      $('promptSortSelect').value = state.promptSort;
+      const list = filteredPrompts();
+      $('promptCountLabel').textContent = `${list.length.toLocaleString()}件 / 全${state.promptMemos.length.toLocaleString()}件`;
+      if (!list.length) {
+        $('promptsList').innerHTML = `<div class="empty"><div class="empty-title">プロンプトが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいプロンプトを追加してください。' : '右下の＋から保存できます。よく使う指示文をここに置いておけます。'}</div></div>`;
+        return;
+      }
+      $('promptsList').innerHTML = list.map(memo => renderPromptCard(memo)).join('');
+      bindPromptCardEvents();
+    }
+
+    function renderPromptCard(memo) {
+      const body = String(memo.body || '');
+      const preview = body.length > 360 ? body.slice(0, 360) + '…' : body;
+      return `
+        <article class="card prompt-card" data-id="${escapeHtml(memo.id)}">
+          <div class="card-inner">
+            <div class="title-area">
+              <span class="badge" style="${promptBadgeStyle(memo.categoryName)}">${escapeHtml(memo.categoryName || '未分類')}</span>
+              <h3 class="card-title">${highlight(memo.title || '無題のプロンプト')}</h3>
+            </div>
+            <div class="prompt-body ${body.length > 360 ? 'long' : ''}">${highlight(preview || '本文なし')}</div>
+            <div class="meta">
+              <span>${body.length.toLocaleString()}文字</span>
+              <span>コピー ${Number(memo.copyCount || 0).toLocaleString()}回</span>
+              <span>更新 ${formatDate(memo.updatedAt) || '-'}</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn green" data-action="copy-prompt">コピー</button>
+              <button class="btn ghost" data-action="edit-prompt">編集</button>
+              <button class="btn danger" data-action="delete-prompt">削除</button>
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function bindLinkCardEvents() {
+      $('linksList').querySelectorAll('.card').forEach(card => {
+        const id = card.dataset.id;
+        card.querySelectorAll('[data-action]').forEach(btn => {
+          btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleLinkAction(id, btn.dataset.action);
+          });
+        });
+      });
+    }
+
+    function bindPromptCardEvents() {
+      $('promptsList').querySelectorAll('.card').forEach(card => {
+        const id = card.dataset.id;
+        card.querySelectorAll('[data-action]').forEach(btn => {
+          btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handlePromptAction(id, btn.dataset.action);
+          });
+        });
+      });
+    }
+
+    function handleLinkAction(id, action) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      if (action === 'favorite') return toggleFavorite(id);
+      if (action === 'copy') return copyText(item.url, 'URLをコピーしました');
+      if (action === 'edit') return openLinkModal(item);
+      if (action === 'open') {
+        const now = new Date().toISOString();
+        item.clickCount = Number(item.clickCount || 0) + 1;
+        item.lastClickedAt = now;
+        item.clickHistory = [...(item.clickHistory || []), now].slice(-100);
+        save(); render();
+        window.open(item.url, '_blank', 'noopener');
+      }
+    }
+
+    function handlePromptAction(id, action) {
+      const memo = state.promptMemos.find(m => m.id === id);
+      if (!memo) return;
+      if (action === 'copy-prompt') return copyPrompt(id);
+      if (action === 'edit-prompt') return openPromptModal(memo);
+      if (action === 'delete-prompt') return deletePrompt(id);
+    }
+
+    function toggleFavorite(id) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      const next = !isFavorite(item);
+      item.isFavorite = next;
+      item.favoriteType = next ? 'normal' : 'none';
+      item.favoriteExpiry = null;
+      item.updatedAt = new Date().toISOString();
+      save(); render();
+      toast(next ? 'お気に入りに追加しました' : 'お気に入りを外しました');
+    }
+
+    async function copyText(text, message = 'コピーしました') {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      toast(message);
+    }
+
+    function copyPrompt(id) {
+      const memo = state.promptMemos.find(m => m.id === id);
+      if (!memo) return;
+      const now = new Date().toISOString();
+      memo.copyCount = Number(memo.copyCount || 0) + 1;
+      memo.lastCopiedAt = now;
+      memo.updatedAt = memo.updatedAt || now;
+      save(); render();
+      copyText(memo.body || '', 'プロンプトをコピーしました');
+    }
+
+    function deletePrompt(id) {
+      const memo = state.promptMemos.find(m => m.id === id);
+      if (!memo) return;
+      if (!confirm(`プロンプト「${memo.title || '無題'}」を削除しますか？`)) return;
+      state.promptMemos = state.promptMemos.filter(m => m.id !== id);
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      save(); render();
+      toast('削除しました');
+    }
+
+    function openLinkModal(item = null) {
+      $('linkModalTitle').textContent = item ? 'リンクを編集' : 'リンクを追加';
+      $('linkId').value = item?.id || '';
+      $('linkTitle').value = item?.title || '';
+      $('linkUrl').value = item?.url || '';
+      $('linkProject').value = item?.projectName || (state.currentProject !== 'ALL' ? state.currentProject : '未分類');
+      $('linkNote').value = item?.note || '';
+      $('linkFavorite').checked = item ? isFavorite(item) : false;
+      openModal('linkModal');
+      setTimeout(() => $('linkTitle').focus(), 0);
+    }
+
+    function saveLinkFromModal() {
+      const id = $('linkId').value;
+      const title = $('linkTitle').value.trim();
+      const url = $('linkUrl').value.trim();
+      const projectName = $('linkProject').value.trim() || '未分類';
+      const note = $('linkNote').value;
+      const favorite = $('linkFavorite').checked;
+      if (!title || !url) {
+        toast('タイトルとURLを入力してください');
+        return;
+      }
+      const now = new Date().toISOString();
+      if (id) {
+        const item = state.items.find(i => i.id === id);
+        if (!item) return;
+        Object.assign(item, {
+          title,
+          url,
+          projectName,
+          note,
+          isFavorite: favorite,
+          favoriteType: favorite ? (item.favoriteType && item.favoriteType !== 'none' ? item.favoriteType : 'normal') : 'none',
+          favoriteExpiry: favorite ? item.favoriteExpiry || null : null,
+          updatedAt: now
+        });
+      } else {
+        state.items.unshift({
+          id: uid('link'),
+          title,
+          url,
+          projectName,
+          note,
+          addedAt: now,
+          updatedAt: now,
+          lastClickedAt: null,
+          clickCount: 0,
+          clickHistory: [],
+          archived: false,
+          isFavorite: favorite,
+          favoriteType: favorite ? 'normal' : 'none',
+          favoriteExpiry: null
+        });
+      }
+      state.projects = normalizeProjects([...state.projects, projectName], state.items);
+      save(); closeModal('linkModal'); render(); toast('保存しました');
+    }
+
+    function openPromptModal(memo = null) {
+      $('promptModalTitle').textContent = memo ? 'プロンプトを編集' : 'プロンプトを追加';
+      $('promptId').value = memo?.id || '';
+      $('promptTitle').value = memo?.title || '';
+      $('promptCategory').value = memo?.categoryName || (state.currentPromptCategory !== 'ALL' ? state.currentPromptCategory : '未分類');
+      $('promptBody').value = memo?.body || '';
+      updatePromptCount();
+      openModal('promptModal');
+      setTimeout(() => $('promptTitle').focus(), 0);
+    }
+
+    function savePromptFromModal() {
+      const id = $('promptId').value;
+      const title = $('promptTitle').value.trim() || '無題のプロンプト';
+      const categoryName = $('promptCategory').value.trim() || '未分類';
+      const body = $('promptBody').value;
+      if (!title && !body.trim()) {
+        toast('タイトルか本文を入力してください');
+        return;
+      }
+      const now = new Date().toISOString();
+      if (id) {
+        const memo = state.promptMemos.find(m => m.id === id);
+        if (!memo) return;
+        Object.assign(memo, { title, categoryName, body, updatedAt: now });
+      } else {
+        state.promptMemos.unshift({
+          id: uid('prompt'),
+          title,
+          categoryName,
+          body,
+          createdAt: now,
+          updatedAt: now,
+          copyCount: 0,
+          lastCopiedAt: null
+        });
+      }
+      state.promptCategories = normalizePromptCategories([...state.promptCategories, categoryName], state.promptMemos);
+      save(); closeModal('promptModal'); render(); toast('保存しました');
+    }
+
+    function openModal(id) {
+      $(id).classList.add('open');
+      $(id).setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(id) {
+      $(id).classList.remove('open');
+      $(id).setAttribute('aria-hidden', 'true');
+    }
+
+    function updatePromptCount() {
+      $('promptCharCount').textContent = `${($('promptBody').value || '').length.toLocaleString()}文字`;
+    }
+
+    function updateSettingsControls() {
+      $('showArchivedToggle').checked = !!state.showArchived;
+    }
+
+    function exportData() {
+      const backup = {
+        schemaVersion: 'quick-links-backup-v2',
+        exportedAt: new Date().toISOString(),
+        source: 'quick-links-mobile-localstorage-html',
+        quickLinks: {
+          items: state.items,
+          projects: normalizeProjects(state.projects, state.items),
+          projectColors: state.projectColors || {},
+          currentSortMode: state.linkSort,
+          showArchived: state.showArchived,
+          floatingSearchEnabled: false
+        },
+        promptMemos: {
+          items: state.promptMemos,
+          categories: normalizePromptCategories(state.promptCategories, state.promptMemos)
+        }
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `quick_links_mobile_backup_${date}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast('JSONを書き出しました');
+    }
+
+    function normalizeImportedQuickLinks(raw) {
+      if (Array.isArray(raw)) return raw;
+      if (Array.isArray(raw?.quickLinks?.items)) return raw.quickLinks.items;
+      if (Array.isArray(raw?.items)) return raw.items;
+      return [];
+    }
+
+    function normalizeImportedPrompts(raw) {
+      if (Array.isArray(raw?.promptMemos?.items)) return raw.promptMemos.items;
+      if (Array.isArray(raw?.promptMemos)) return raw.promptMemos;
+      return [];
+    }
+
+    function normalizeImportedProjects(raw, importedLinks) {
+      if (Array.isArray(raw?.quickLinks?.projects)) return raw.quickLinks.projects;
+      if (Array.isArray(raw?.projects)) return raw.projects;
+      return (importedLinks || []).map(item => item.projectName || '未分類');
+    }
+
+    function normalizeImportedProjectColors(raw) {
+      return raw?.quickLinks?.projectColors || raw?.projectColors || {};
+    }
+
+    function normalizeImportedPromptCategories(raw, importedPrompts) {
+      if (Array.isArray(raw?.promptMemos?.categories)) return raw.promptMemos.categories;
+      if (Array.isArray(raw?.promptCategories)) return raw.promptCategories;
+      return (importedPrompts || []).map(memo => memo.categoryName || memo.projectName || '未分類');
+    }
+
+    function importFromText(text, mode = $('importMode').value) {
+      if (!String(text || '').trim()) {
+        toast('JSONを入力してください');
+        return;
+      }
+      let raw;
+      try {
+        raw = JSON.parse(text);
+      } catch (error) {
+        toast('JSONの形式を確認してください');
+        alert('JSONパースエラー：' + error.message);
+        return;
+      }
+
+      const importedLinks = normalizeLinkItems(normalizeImportedQuickLinks(raw));
+      const importedPrompts = normalizePromptItems(normalizeImportedPrompts(raw));
+      const importedProjects = normalizeImportedProjects(raw, importedLinks);
+      const importedColors = normalizeImportedProjectColors(raw);
+      const importedPromptCategories = normalizeImportedPromptCategories(raw, importedPrompts);
+
+      if (!importedLinks.length && !importedPrompts.length && !importedProjects.length && !importedPromptCategories.length) {
+        toast('取り込めるデータが見つかりません');
+        return;
+      }
+
+      if (mode === 'replace') {
+        state.items = importedLinks;
+        state.projects = normalizeProjects(importedProjects, importedLinks);
+        state.projectColors = importedColors || {};
+        state.promptMemos = importedPrompts;
+        state.promptCategories = normalizePromptCategories(importedPromptCategories, importedPrompts);
+        state.currentProject = 'ALL';
+        state.currentPromptCategory = 'ALL';
+        state.onlyFavorites = false;
+        save(); render();
+        toast(`置き換えました：リンク${importedLinks.length}件 / プロンプト${importedPrompts.length}件`);
+        return;
+      }
+
+      let linkAdd = 0, linkMerge = 0, promptAdd = 0, promptMerge = 0;
+      const linkIndex = new Map();
+      state.items.forEach((item, index) => linkIndex.set(getLinkKey(item), index));
+      importedLinks.forEach(item => {
+        const key = getLinkKey(item);
+        if (linkIndex.has(key)) {
+          const idx = linkIndex.get(key);
+          state.items[idx] = mergeLink(state.items[idx], item);
+          linkMerge++;
+        } else {
+          state.items.push(item);
+          linkIndex.set(key, state.items.length - 1);
+          linkAdd++;
+        }
+      });
+
+      const promptIndex = new Map();
+      state.promptMemos.forEach((memo, index) => promptIndex.set(getPromptKey(memo), index));
+      importedPrompts.forEach(memo => {
+        const key = getPromptKey(memo);
+        if (promptIndex.has(key)) {
+          const idx = promptIndex.get(key);
+          state.promptMemos[idx] = mergePrompt(state.promptMemos[idx], memo);
+          promptMerge++;
+        } else {
+          state.promptMemos.push(memo);
+          promptIndex.set(key, state.promptMemos.length - 1);
+          promptAdd++;
+        }
+      });
+
+      state.projects = normalizeProjects([...state.projects, ...importedProjects], state.items);
+      state.projectColors = { ...(state.projectColors || {}), ...(importedColors || {}) };
+      state.promptCategories = normalizePromptCategories([...state.promptCategories, ...importedPromptCategories], state.promptMemos);
+      save(); render();
+      toast(`統合完了：リンク追加${linkAdd}件 / プロンプト追加${promptAdd}件`);
+      if (linkMerge || promptMerge) {
+        console.info(`重複統合：リンク${linkMerge}件 / プロンプト${promptMerge}件`);
+      }
+    }
+
+    function dedupe() {
+      const linkMap = new Map();
+      const newLinks = [];
+      let removedLinks = 0;
+      state.items.forEach(item => {
+        const key = getLinkKey(item);
+        if (linkMap.has(key)) {
+          const idx = linkMap.get(key);
+          newLinks[idx] = mergeLink(newLinks[idx], item);
+          removedLinks++;
+        } else {
+          linkMap.set(key, newLinks.length);
+          newLinks.push(item);
+        }
+      });
+
+      const promptMap = new Map();
+      const newPrompts = [];
+      let removedPrompts = 0;
+      state.promptMemos.forEach(memo => {
+        const key = getPromptKey(memo);
+        if (promptMap.has(key)) {
+          const idx = promptMap.get(key);
+          newPrompts[idx] = mergePrompt(newPrompts[idx], memo);
+          removedPrompts++;
+        } else {
+          promptMap.set(key, newPrompts.length);
+          newPrompts.push(memo);
+        }
+      });
+
+      if (!removedLinks && !removedPrompts) {
+        toast('完全重複はありませんでした');
+        return;
+      }
+      if (!confirm(`完全重複を整理します。\nリンク：${removedLinks}件\nプロンプト：${removedPrompts}件`)) return;
+      state.items = newLinks;
+      state.promptMemos = newPrompts;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      save(); render();
+      toast('重複を整理しました');
+    }
+
+    function resetAll() {
+      if (!confirm('このHTML内のlocalStorageデータをすべて削除しますか？')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      Object.assign(state, {
+        activeTab: 'links', query: '', currentProject: 'ALL', currentPromptCategory: 'ALL', onlyFavorites: false,
+        linkSort: 'recent', promptSort: 'popular', showArchived: false,
+        items: [], projects: ['未分類'], projectColors: {}, promptMemos: [], promptCategories: ['未分類']
+      });
+      render();
+      toast('削除しました');
+    }
+
+    let toastTimer = null;
+    function toast(message) {
+      const el = $('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeTab = btn.dataset.tab;
+          save(); render();
+        });
+      });
+
+      $('globalSearch').addEventListener('input', (event) => {
+        state.query = event.target.value;
+        save(); render();
+      });
+      $('clearSearchBtn').addEventListener('click', () => {
+        state.query = '';
+        save(); render();
+        $('globalSearch').focus();
+      });
+
+      $('fabBtn').addEventListener('click', () => {
+        if (state.activeTab === 'prompts') openPromptModal();
+        else openLinkModal();
+      });
+      $('quickAddBtn').addEventListener('click', () => {
+        if (state.activeTab === 'prompts') openPromptModal();
+        else openLinkModal();
+      });
+
+      $('linkSortSelect').addEventListener('change', (event) => {
+        state.linkSort = event.target.value;
+        save(); render();
+      });
+      $('promptSortSelect').addEventListener('change', (event) => {
+        state.promptSort = event.target.value;
+        save(); render();
+      });
+
+      $('saveLinkBtn').addEventListener('click', saveLinkFromModal);
+      $('savePromptBtn').addEventListener('click', savePromptFromModal);
+      $('promptBody').addEventListener('input', updatePromptCount);
+
+      document.querySelectorAll('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+      });
+      document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', event => {
+          if (event.target === modal) closeModal(modal.id);
+        });
+      });
+
+      $('exportBtn').addEventListener('click', exportData);
+      $('exportTopBtn').addEventListener('click', exportData);
+      $('runImportBtn').addEventListener('click', () => importFromText($('importText').value));
+      $('importFile').addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        $('importText').value = text;
+        importFromText(text, $('importMode').value);
+        event.target.value = '';
+      });
+      $('showArchivedToggle').addEventListener('change', (event) => {
+        state.showArchived = event.target.checked;
+        save(); render();
+      });
+      $('dedupeBtn').addEventListener('click', dedupe);
+      $('resetBtn').addEventListener('click', resetAll);
+    }
+
+    load();
+    bindEvents();
+    render();
+  </script>
+</body>
+</html>
