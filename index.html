@@ -374,6 +374,84 @@
       margin-top: 11px;
     }
 
+
+
+    .bulk-toolbar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 10px;
+      padding: 8px;
+      border: 1px solid #fecaca;
+      border-radius: 18px;
+      background: #fff7f7;
+      box-shadow: 0 8px 20px rgba(127,29,29,.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .bulk-toolbar.show { display: flex; }
+
+    .bulk-label {
+      flex: 1 0 auto;
+      color: #7f1d1d;
+      font-size: 12px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .btn.compact {
+      min-height: 34px;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .input-action-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .field-hint {
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-top: -2px;
+    }
+
+    .select-check {
+      width: 24px;
+      height: 24px;
+      accent-color: var(--red);
+      flex: 0 0 auto;
+    }
+
+    .card.selecting {
+      border-color: #fecaca;
+      background: #fffafa;
+    }
+
+    .card.selected {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, .12), var(--shadow);
+    }
+
+    .select-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      color: #991b1b;
+      background: #fee2e2;
+      font-size: 11px;
+      font-weight: 950;
+    }
+
     .btn {
       min-height: 38px;
       border: 1px solid var(--line);
@@ -418,6 +496,11 @@
       color: #991b1b;
       background: #fef2f2;
       border-color: #fecaca;
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
 
     .star-btn {
@@ -768,6 +851,7 @@
             <option value="title">タイトル順</option>
           </select>
         </div>
+        <div class="bulk-toolbar" id="linkBulkBar"></div>
         <div class="chips" id="linkChips"></div>
         <div class="list" id="linksList"></div>
       </section>
@@ -788,6 +872,7 @@
             <option value="title">タイトル順</option>
           </select>
         </div>
+        <div class="bulk-toolbar" id="promptBulkBar"></div>
         <div class="chips" id="promptChips"></div>
         <div class="list" id="promptsList"></div>
       </section>
@@ -865,7 +950,11 @@
       </div>
       <div class="form-row">
         <label for="linkUrl">URL</label>
-        <input id="linkUrl" class="input" inputmode="url" placeholder="https://..." />
+        <div class="input-action-row">
+          <input id="linkUrl" class="input" inputmode="url" placeholder="https://..." />
+          <button class="btn ghost compact" id="pasteClipboardUrlBtn" type="button">貼る</button>
+        </div>
+        <div class="field-hint" id="clipboardHint">＋で追加を開いたとき、クリップボード内のURLを自動入力します。失敗したら「貼る」を押してください。</div>
       </div>
       <div class="form-row">
         <label for="linkProject">分類</label>
@@ -948,7 +1037,11 @@
       projects: ['未分類'],
       projectColors: {},
       promptMemos: [],
-      promptCategories: ['未分類']
+      promptCategories: ['未分類'],
+      linkSelectMode: false,
+      selectedLinkIds: [],
+      promptSelectMode: false,
+      selectedPromptIds: []
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1015,7 +1108,11 @@
           projects: normalizeProjects(data.projects || [], data.items || []),
           projectColors: data.projectColors || {},
           promptMemos: normalizePromptItems(data.promptMemos || []),
-          promptCategories: normalizePromptCategories(data.promptCategories || [], data.promptMemos || [])
+          promptCategories: normalizePromptCategories(data.promptCategories || [], data.promptMemos || []),
+          linkSelectMode: false,
+          selectedLinkIds: [],
+          promptSelectMode: false,
+          selectedPromptIds: []
         });
       } catch (error) {
         console.warn(error);
@@ -1227,6 +1324,7 @@
     }
 
     function render() {
+      cleanupSelections();
       renderTabs();
       renderStats();
       renderDatalists();
@@ -1295,10 +1393,137 @@
       });
     }
 
+
+    function cleanupSelections() {
+      const linkIds = new Set(state.items.map(item => item.id));
+      state.selectedLinkIds = (state.selectedLinkIds || []).filter(id => linkIds.has(id));
+      const promptIds = new Set(state.promptMemos.map(memo => memo.id));
+      state.selectedPromptIds = (state.selectedPromptIds || []).filter(id => promptIds.has(id));
+      if (!state.selectedLinkIds.length && state.linkSelectMode && !state.items.length) state.linkSelectMode = false;
+      if (!state.selectedPromptIds.length && state.promptSelectMode && !state.promptMemos.length) state.promptSelectMode = false;
+    }
+
+    function renderLinkBulkBar(list) {
+      const el = $('linkBulkBar');
+      const selectedCount = state.selectedLinkIds.length;
+      if (!state.linkSelectMode) {
+        el.classList.add('show');
+        el.innerHTML = `
+          <div class="bulk-label">まとめて操作</div>
+          <button class="btn ghost compact" id="startLinkSelectBtn">選択して削除</button>`;
+        $('startLinkSelectBtn').addEventListener('click', () => {
+          state.linkSelectMode = true;
+          state.selectedLinkIds = [];
+          render();
+        });
+        return;
+      }
+      el.classList.add('show');
+      el.innerHTML = `
+        <div class="bulk-label"><span class="select-mode-badge">${selectedCount}</span> 件選択中</div>
+        <button class="btn ghost compact" id="selectVisibleLinksBtn">表示中を選択</button>
+        <button class="btn ghost compact" id="clearLinkSelectionBtn">解除</button>
+        <button class="btn danger compact" id="deleteSelectedLinksBtn" ${selectedCount ? '' : 'disabled'}>削除</button>
+        <button class="btn primary compact" id="finishLinkSelectBtn">完了</button>`;
+      $('selectVisibleLinksBtn').addEventListener('click', () => {
+        state.selectedLinkIds = [...new Set([...(state.selectedLinkIds || []), ...list.map(item => item.id)])];
+        render();
+      });
+      $('clearLinkSelectionBtn').addEventListener('click', () => {
+        state.selectedLinkIds = [];
+        render();
+      });
+      $('deleteSelectedLinksBtn').addEventListener('click', deleteSelectedLinks);
+      $('finishLinkSelectBtn').addEventListener('click', () => {
+        state.linkSelectMode = false;
+        state.selectedLinkIds = [];
+        render();
+      });
+    }
+
+    function renderPromptBulkBar(list) {
+      const el = $('promptBulkBar');
+      const selectedCount = state.selectedPromptIds.length;
+      if (!state.promptSelectMode) {
+        el.classList.add('show');
+        el.innerHTML = `
+          <div class="bulk-label">まとめて操作</div>
+          <button class="btn ghost compact" id="startPromptSelectBtn">選択して削除</button>`;
+        $('startPromptSelectBtn').addEventListener('click', () => {
+          state.promptSelectMode = true;
+          state.selectedPromptIds = [];
+          render();
+        });
+        return;
+      }
+      el.classList.add('show');
+      el.innerHTML = `
+        <div class="bulk-label"><span class="select-mode-badge">${selectedCount}</span> 件選択中</div>
+        <button class="btn ghost compact" id="selectVisiblePromptsBtn">表示中を選択</button>
+        <button class="btn ghost compact" id="clearPromptSelectionBtn">解除</button>
+        <button class="btn danger compact" id="deleteSelectedPromptsBtn" ${selectedCount ? '' : 'disabled'}>削除</button>
+        <button class="btn primary compact" id="finishPromptSelectBtn">完了</button>`;
+      $('selectVisiblePromptsBtn').addEventListener('click', () => {
+        state.selectedPromptIds = [...new Set([...(state.selectedPromptIds || []), ...list.map(memo => memo.id)])];
+        render();
+      });
+      $('clearPromptSelectionBtn').addEventListener('click', () => {
+        state.selectedPromptIds = [];
+        render();
+      });
+      $('deleteSelectedPromptsBtn').addEventListener('click', deleteSelectedPrompts);
+      $('finishPromptSelectBtn').addEventListener('click', () => {
+        state.promptSelectMode = false;
+        state.selectedPromptIds = [];
+        render();
+      });
+    }
+
+    function toggleSelectedLink(id) {
+      const set = new Set(state.selectedLinkIds || []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      state.selectedLinkIds = [...set];
+      render();
+    }
+
+    function toggleSelectedPrompt(id) {
+      const set = new Set(state.selectedPromptIds || []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      state.selectedPromptIds = [...set];
+      render();
+    }
+
+    function deleteSelectedLinks() {
+      const ids = new Set(state.selectedLinkIds || []);
+      const count = ids.size;
+      if (!count) return;
+      if (!confirm(`選択したリンク${count}件を削除しますか？\nこの操作はlocalStorage上から削除します。必要なら先にJSONを書き出してください。`)) return;
+      state.items = state.items.filter(item => !ids.has(item.id));
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.selectedLinkIds = [];
+      state.linkSelectMode = false;
+      save(); render(); toast(`リンク${count}件を削除しました`);
+    }
+
+    function deleteSelectedPrompts() {
+      const ids = new Set(state.selectedPromptIds || []);
+      const count = ids.size;
+      if (!count) return;
+      if (!confirm(`選択したプロンプト${count}件を削除しますか？\nこの操作はlocalStorage上から削除します。必要なら先にJSONを書き出してください。`)) return;
+      state.promptMemos = state.promptMemos.filter(memo => !ids.has(memo.id));
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.selectedPromptIds = [];
+      state.promptSelectMode = false;
+      save(); render(); toast(`プロンプト${count}件を削除しました`);
+    }
+
     function renderLinks() {
       renderLinkChips();
       $('linkSortSelect').value = state.linkSort;
       const list = filteredLinks();
+      renderLinkBulkBar(list);
       $('linkCountLabel').textContent = `${list.length.toLocaleString()}件 / 全${state.items.length.toLocaleString()}件`;
       if (!list.length) {
         $('linksList').innerHTML = `<div class="empty"><div class="empty-title">リンクが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいリンクを追加してください。' : '右下の＋から追加できます。既存バックアップは管理画面からインポートできます。'}</div></div>`;
@@ -1312,10 +1537,13 @@
       const fav = isFavorite(item);
       const note = item.note ? `<div class="card-note">${highlight(item.note)}</div>` : '';
       const archived = item.archived ? ' / アーカイブ' : '';
+      const selecting = state.linkSelectMode;
+      const selected = state.selectedLinkIds.includes(item.id);
       return `
-        <article class="card" data-id="${escapeHtml(item.id)}">
+        <article class="card ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(item.id)}">
           <div class="card-inner">
             <div class="card-top">
+              ${selecting ? `<input class="select-check" type="checkbox" data-action="select-link" ${selected ? 'checked' : ''} aria-label="選択" />` : ''}
               <div class="title-area">
                 <span class="badge" style="${badgeStyle(item.projectName)}">${escapeHtml(item.projectName || '未分類')}</span>
                 <h3 class="card-title">${highlight(item.title)}</h3>
@@ -1362,6 +1590,7 @@
       renderPromptChips();
       $('promptSortSelect').value = state.promptSort;
       const list = filteredPrompts();
+      renderPromptBulkBar(list);
       $('promptCountLabel').textContent = `${list.length.toLocaleString()}件 / 全${state.promptMemos.length.toLocaleString()}件`;
       if (!list.length) {
         $('promptsList').innerHTML = `<div class="empty"><div class="empty-title">プロンプトが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいプロンプトを追加してください。' : '右下の＋から保存できます。よく使う指示文をここに置いておけます。'}</div></div>`;
@@ -1374,12 +1603,17 @@
     function renderPromptCard(memo) {
       const body = String(memo.body || '');
       const preview = body.length > 360 ? body.slice(0, 360) + '…' : body;
+      const selecting = state.promptSelectMode;
+      const selected = state.selectedPromptIds.includes(memo.id);
       return `
-        <article class="card prompt-card" data-id="${escapeHtml(memo.id)}">
+        <article class="card prompt-card ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(memo.id)}">
           <div class="card-inner">
-            <div class="title-area">
+            <div class="card-top">
+              ${selecting ? `<input class="select-check" type="checkbox" data-action="select-prompt" ${selected ? 'checked' : ''} aria-label="選択" />` : ''}
+              <div class="title-area">
               <span class="badge" style="${promptBadgeStyle(memo.categoryName)}">${escapeHtml(memo.categoryName || '未分類')}</span>
               <h3 class="card-title">${highlight(memo.title || '無題のプロンプト')}</h3>
+              </div>
             </div>
             <div class="prompt-body ${body.length > 360 ? 'long' : ''}">${highlight(preview || '本文なし')}</div>
             <div class="meta">
@@ -1399,6 +1633,11 @@
     function bindLinkCardEvents() {
       $('linksList').querySelectorAll('.card').forEach(card => {
         const id = card.dataset.id;
+        card.addEventListener('click', (event) => {
+          if (!state.linkSelectMode) return;
+          if (event.target.closest('button, input, a, textarea, select')) return;
+          toggleSelectedLink(id);
+        });
         card.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', (event) => {
             event.preventDefault();
@@ -1411,6 +1650,11 @@
     function bindPromptCardEvents() {
       $('promptsList').querySelectorAll('.card').forEach(card => {
         const id = card.dataset.id;
+        card.addEventListener('click', (event) => {
+          if (!state.promptSelectMode) return;
+          if (event.target.closest('button, input, a, textarea, select')) return;
+          toggleSelectedPrompt(id);
+        });
         card.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', (event) => {
             event.preventDefault();
@@ -1423,6 +1667,8 @@
     function handleLinkAction(id, action) {
       const item = state.items.find(i => i.id === id);
       if (!item) return;
+      if (action === 'select-link') return toggleSelectedLink(id);
+      if (state.linkSelectMode && action !== 'favorite') return toggleSelectedLink(id);
       if (action === 'favorite') return toggleFavorite(id);
       if (action === 'copy') return copyText(item.url, 'URLをコピーしました');
       if (action === 'edit') return openLinkModal(item);
@@ -1439,6 +1685,8 @@
     function handlePromptAction(id, action) {
       const memo = state.promptMemos.find(m => m.id === id);
       if (!memo) return;
+      if (action === 'select-prompt') return toggleSelectedPrompt(id);
+      if (state.promptSelectMode) return toggleSelectedPrompt(id);
       if (action === 'copy-prompt') return copyPrompt(id);
       if (action === 'edit-prompt') return openPromptModal(memo);
       if (action === 'delete-prompt') return deletePrompt(id);
@@ -1493,6 +1741,50 @@
       toast('削除しました');
     }
 
+
+    function extractFirstUrl(text) {
+      const value = String(text || '').trim();
+      if (!value) return '';
+      const httpMatch = value.match(/https?:\/\/[^\s<>'"（）()\[\]{}]+/i);
+      if (httpMatch) return httpMatch[0].replace(/[.,;:!?、。]+$/, '');
+      const wwwMatch = value.match(/www\.[^\s<>'"（）()\[\]{}]+/i);
+      if (wwwMatch) return `https://${wwwMatch[0].replace(/[.,;:!?、。]+$/, '')}`;
+      return '';
+    }
+
+    function setClipboardHint(message) {
+      const el = $('clipboardHint');
+      if (el) el.textContent = message;
+    }
+
+    async function tryAutofillClipboardUrl(options = {}) {
+      const { forceToast = false } = options;
+      if (!$('linkUrl') || $('linkUrl').value.trim()) return false;
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setClipboardHint('このブラウザでは自動読み取りが使えません。URL欄に手動で貼り付けてください。');
+        if (forceToast) toast('クリップボード読み取りに非対応です');
+        return false;
+      }
+      try {
+        const text = await navigator.clipboard.readText();
+        const url = extractFirstUrl(text);
+        if (!url) {
+          setClipboardHint('クリップボード内にURLが見つかりませんでした。');
+          if (forceToast) toast('URLが見つかりませんでした');
+          return false;
+        }
+        $('linkUrl').value = url;
+        setClipboardHint('クリップボードのURLを入力しました。');
+        if (forceToast) toast('URLを貼り付けました');
+        return true;
+      } catch (error) {
+        console.warn('Clipboard read failed', error);
+        setClipboardHint('ブラウザに拒否されました。URL欄を長押しして貼り付けるか、「貼る」を再度試してください。');
+        if (forceToast) toast('クリップボードを読めませんでした');
+        return false;
+      }
+    }
+
     function openLinkModal(item = null) {
       $('linkModalTitle').textContent = item ? 'リンクを編集' : 'リンクを追加';
       $('linkId').value = item?.id || '';
@@ -1501,8 +1793,12 @@
       $('linkProject').value = item?.projectName || (state.currentProject !== 'ALL' ? state.currentProject : '未分類');
       $('linkNote').value = item?.note || '';
       $('linkFavorite').checked = item ? isFavorite(item) : false;
+      setClipboardHint('クリップボードにURLがあれば自動入力します。失敗したら「貼る」を押してください。');
       openModal('linkModal');
-      setTimeout(() => $('linkTitle').focus(), 0);
+      if (!item) {
+        setTimeout(() => tryAutofillClipboardUrl(), 80);
+      }
+      setTimeout(() => $('linkTitle').focus(), 120);
     }
 
     function saveLinkFromModal() {
@@ -1801,7 +2097,8 @@
       Object.assign(state, {
         activeTab: 'links', query: '', currentProject: 'ALL', currentPromptCategory: 'ALL', onlyFavorites: false,
         linkSort: 'recent', promptSort: 'popular', showArchived: false,
-        items: [], projects: ['未分類'], projectColors: {}, promptMemos: [], promptCategories: ['未分類']
+        items: [], projects: ['未分類'], projectColors: {}, promptMemos: [], promptCategories: ['未分類'],
+        linkSelectMode: false, selectedLinkIds: [], promptSelectMode: false, selectedPromptIds: []
       });
       render();
       toast('削除しました');
@@ -1853,6 +2150,7 @@
       });
 
       $('saveLinkBtn').addEventListener('click', saveLinkFromModal);
+      $('pasteClipboardUrlBtn').addEventListener('click', () => tryAutofillClipboardUrl({ forceToast: true }));
       $('savePromptBtn').addEventListener('click', savePromptFromModal);
       $('promptBody').addEventListener('input', updatePromptCount);
 
