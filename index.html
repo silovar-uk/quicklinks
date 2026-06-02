@@ -637,6 +637,25 @@
       gap: 8px;
     }
 
+    .bookmarklet-link {
+      width: 100%;
+      text-align: center;
+      user-select: none;
+    }
+
+    .bookmarklet-code {
+      min-height: 92px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+    }
+
+    .bookmarklet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
     .form-row {
       display: grid;
       gap: 6px;
@@ -1050,7 +1069,7 @@
       </div>
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
-        <input id="globalSearch" type="search" placeholder="タイトル・URL・メモ・プロンプトを検索" autocomplete="off" />
+        <input id="globalSearch" type="search" placeholder="タイトル・URL・備考・プロンプトを検索" autocomplete="off" />
         <button class="clear-btn" id="clearSearchBtn" title="検索をクリア">×</button>
       </div>
     </header>
@@ -1165,6 +1184,29 @@
           <button class="btn blue" id="runImportBtn">インポートする</button>
         </div>
 
+        <div class="settings-card">
+          <h2 class="settings-title">ブックマークレット連携</h2>
+          <p class="settings-lead">どのサイトでも、ページタイトル・URL・説明文をYAMLでコピーできます。説明はリンク追加時に「備考」へ入ります。</p>
+          <div class="settings-grid">
+            <a class="btn primary bookmarklet-link" id="bookmarkletLink" href="#">Quick LinksにYAMLコピー</a>
+            <button class="btn ghost" id="copyBookmarkletBtn" type="button">ブックマークレットをコピー</button>
+          </div>
+          <div class="form-row" style="margin-top:10px;">
+            <label for="bookmarkletCode">ブックマークレットコード</label>
+            <textarea id="bookmarkletCode" class="textarea bookmarklet-code" readonly></textarea>
+          </div>
+          <div class="form-row">
+            <label for="bookmarkletYamlText">コピーしたYAML</label>
+            <textarea id="bookmarkletYamlText" class="textarea" placeholder='title: "ページタイトル"&#10;url: "https://example.com"&#10;description: "説明文"'></textarea>
+          </div>
+          <div class="bookmarklet-actions">
+            <button class="btn ghost" id="pasteBookmarkletYamlBtn" type="button">YAMLを貼る</button>
+            <button class="btn blue" id="addBookmarkletYamlBtn" type="button">YAMLから内容確認</button>
+          </div>
+          <div class="hint" style="margin-top:10px;">
+            スマホでは、このリンクをブックマークに登録して使います。クリップボードが使えないサイトでは、画面に出たYAMLをコピーしてください。
+          </div>
+        </div>
 
         <div class="settings-card">
           <h2 class="settings-title">分類整理</h2>
@@ -1180,7 +1222,7 @@
 
         <div class="settings-card">
           <h2 class="settings-title">重複整理</h2>
-          <p class="settings-lead">URL・タイトル・分類・メモが完全一致するリンク、タイトル・本文・カテゴリが完全一致するプロンプトを整理します。</p>
+          <p class="settings-lead">URL・タイトル・分類・備考が完全一致するリンク、タイトル・本文・カテゴリが完全一致するプロンプトを整理します。</p>
           <button class="btn ghost" id="dedupeBtn">完全重複を整理</button>
         </div>
 
@@ -1197,6 +1239,30 @@
     </main>
 
     <button class="fab" id="fabBtn" title="追加">＋</button>
+  </div>
+
+  <div class="modal" id="yamlAddModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title">YAMLからリンク追加</h2>
+        <button class="modal-close" data-close-modal="yamlAddModal">×</button>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">
+        ブックマークレットでコピーしたYAMLを貼り付けてください。取り込み後はすぐ保存せず、リンク追加画面で内容を確認できます。手入力で追加したい場合は「通常入力で追加」を押してください。
+      </div>
+      <div class="form-row">
+        <label for="quickYamlText">YAML</label>
+        <textarea id="quickYamlText" class="textarea" placeholder='title: "ページタイトル"&#10;url: "https://example.com"&#10;description: "説明文"'></textarea>
+      </div>
+      <div class="bookmarklet-actions">
+        <button class="btn ghost" id="pasteQuickYamlBtn" type="button">クリップボードから貼る</button>
+        <button class="btn blue" id="confirmQuickYamlBtn" type="button">内容確認へ</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="manualLinkAddBtn" type="button">通常入力で追加</button>
+        <button class="btn ghost" data-close-modal="yamlAddModal">閉じる</button>
+      </div>
+    </div>
   </div>
 
   <div class="modal" id="linkModal" aria-hidden="true">
@@ -1229,13 +1295,13 @@
         <datalist id="projectList"></datalist>
       </div>
       <div class="form-row">
-        <label for="linkNote">メモ</label>
-        <textarea id="linkNote" class="textarea" placeholder="用途・補足など"></textarea>
+        <label for="linkNote">備考</label>
+        <textarea id="linkNote" class="textarea" placeholder="説明・用途・補足など"></textarea>
       </div>
       <div class="switch-row">
         <div>
           <div class="switch-label">お気に入り</div>
-          <div class="switch-sub">よく使うリンクを上に出しやすくします。</div>
+          <div class="switch-sub">お気に入りフィルターで絞り込みやすくします。</div>
         </div>
         <input class="toggle" type="checkbox" id="linkFavorite" />
       </div>
@@ -1609,6 +1675,7 @@
     function render() {
       cleanupSelections();
       updateSettingsControls();
+      refreshBookmarkletUi();
       renderTabs();
       renderStats();
       renderDatalists();
@@ -2412,7 +2479,135 @@
       }
     }
 
-    function openLinkModal(item = null) {
+    function createBookmarkletCode() {
+      return "javascript:(async()=>{function c(v){return String(v||'').replace(/\\r\\n/g,'\\n').replace(/\\r/g,'\\n').trim()}function q(v){return JSON.stringify(c(v))}const m=s=>document.querySelector(s)?.content||'';const d=c(m('meta[name=\"description\"]')||m('meta[property=\"og:description\"]')||m('meta[name=\"twitter:description\"]')||window.getSelection()?.toString()||'');const y='title: '+q(document.title)+'\\nurl: '+q(location.href)+'\\ndescription: '+q(d);try{await navigator.clipboard.writeText(y);alert('Quick Links用YAMLをコピーしました')}catch(e){prompt('Quick Links用YAMLをコピーしてください',y)}})()";
+    }
+
+    function refreshBookmarkletUi() {
+      const link = $('bookmarkletLink');
+      const code = $('bookmarkletCode');
+      if (!link || !code) return;
+      const bookmarklet = createBookmarkletCode();
+      link.setAttribute('href', bookmarklet);
+      code.value = bookmarklet;
+    }
+
+    function parseYamlScalar(rawValue) {
+      let value = String(rawValue || '').trim();
+      if (!value) return '';
+      if (value.startsWith('"') && value.endsWith('"')) {
+        try { return JSON.parse(value); } catch (_) {}
+      }
+      if (value.startsWith("'") && value.endsWith("'")) {
+        return value.slice(1, -1).replace(/''/g, "'");
+      }
+      return value.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+
+    function parseBookmarkletYaml(text) {
+      const result = {};
+      String(text || '').split(/\r?\n/).forEach(line => {
+        const match = line.match(/^\s*(title|url|description|note|備考)\s*:\s*(.*)\s*$/i);
+        if (!match) return;
+        const key = match[1].toLowerCase();
+        const value = parseYamlScalar(match[2]);
+        if (key === 'note' || key === '備考') result.description = value;
+        else result[key] = value;
+      });
+      return {
+        title: String(result.title || '').trim(),
+        url: String(result.url || '').trim(),
+        description: String(result.description || '').trim()
+      };
+    }
+
+    function getDefaultProjectName() {
+      return state.currentProject !== 'ALL' ? state.currentProject : '未分類';
+    }
+
+    function fillLinkModalFromYaml(parsed) {
+      const projectName = getDefaultProjectName();
+      openLinkModal(null, { skipClipboardAutofill: true });
+      $('linkTitle').value = parsed.title;
+      $('linkUrl').value = parsed.url;
+      $('linkProject').value = projectName;
+      $('linkProjectSelect').value = state.projects.includes(projectName) ? projectName : '';
+      $('linkNote').value = parsed.description || '';
+      setClipboardHint('YAMLから入力しました。内容を確認して、必要なら分類や備考を調整してください。');
+      toast('YAMLから入力しました。確認して保存してください');
+    }
+
+    async function readClipboardText() {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        toast('クリップボード読み取りに非対応です');
+        return '';
+      }
+      try {
+        return await navigator.clipboard.readText();
+      } catch (error) {
+        console.warn('Clipboard read failed', error);
+        toast('クリップボードを読めませんでした');
+        return '';
+      }
+    }
+
+    async function pasteBookmarkletYaml() {
+      const text = await readClipboardText();
+      if (!text) return;
+      $('bookmarkletYamlText').value = text;
+      toast('YAMLを貼り付けました');
+    }
+
+    async function pasteQuickYaml() {
+      const text = await readClipboardText();
+      if (!text) return;
+      $('quickYamlText').value = text;
+      toast('YAMLを貼り付けました');
+    }
+
+    async function tryAutofillQuickYaml() {
+      const el = $('quickYamlText');
+      if (!el || el.value.trim()) return;
+      if (!navigator.clipboard || !navigator.clipboard.readText) return;
+      try {
+        const text = await navigator.clipboard.readText();
+        const parsed = parseBookmarkletYaml(text);
+        if (parsed.title && parsed.url) {
+          el.value = text;
+          toast('クリップボードのYAMLを入力しました');
+        }
+      } catch (error) {
+        console.warn('Quick YAML autofill failed', error);
+      }
+    }
+
+    function openYamlAddModal() {
+      $('quickYamlText').value = '';
+      openModal('yamlAddModal');
+      setTimeout(() => tryAutofillQuickYaml(), 80);
+      setTimeout(() => $('quickYamlText').focus(), 140);
+    }
+
+    function confirmQuickYamlLink() {
+      const parsed = parseBookmarkletYaml($('quickYamlText').value);
+      if (!parsed.title || !parsed.url) {
+        toast('YAMLにtitleとurlが必要です');
+        return;
+      }
+      closeModal('yamlAddModal');
+      fillLinkModalFromYaml(parsed);
+    }
+
+    function addLinkFromBookmarkletYaml() {
+      const parsed = parseBookmarkletYaml($('bookmarkletYamlText').value);
+      if (!parsed.title || !parsed.url) {
+        toast('YAMLにtitleとurlが必要です');
+        return;
+      }
+      fillLinkModalFromYaml(parsed);
+    }
+
+    function openLinkModal(item = null, options = {}) {
       $('linkModalTitle').textContent = item ? 'リンクを編集' : 'リンクを追加';
       $('linkId').value = item?.id || '';
       $('linkTitle').value = item?.title || '';
@@ -2424,7 +2619,7 @@
       $('linkFavorite').checked = item ? isFavorite(item) : false;
       setClipboardHint('クリップボードにURLがあれば自動入力します。失敗したら「貼る」を押してください。');
       openModal('linkModal');
-      if (!item) {
+      if (!item && !options.skipClipboardAutofill) {
         setTimeout(() => tryAutofillClipboardUrl(), 80);
       }
       setTimeout(() => $('linkTitle').focus(), 120);
@@ -2780,11 +2975,11 @@
 
       $('fabBtn').addEventListener('click', () => {
         if (state.activeTab === 'prompts') openPromptModal();
-        else openLinkModal();
+        else openYamlAddModal();
       });
       $('quickAddBtn').addEventListener('click', () => {
         if (state.activeTab === 'prompts') openPromptModal();
-        else openLinkModal();
+        else openYamlAddModal();
       });
 
       $('linkSortSelect').addEventListener('change', (event) => {
@@ -2850,6 +3045,12 @@
         importFromText(text, $('importMode').value);
         event.target.value = '';
       });
+      $('pasteQuickYamlBtn').addEventListener('click', pasteQuickYaml);
+      $('confirmQuickYamlBtn').addEventListener('click', confirmQuickYamlLink);
+      $('manualLinkAddBtn').addEventListener('click', () => { closeModal('yamlAddModal'); openLinkModal(null, { skipClipboardAutofill: true }); });
+      $('copyBookmarkletBtn').addEventListener('click', () => copyText(createBookmarkletCode(), 'ブックマークレットをコピーしました'));
+      $('pasteBookmarkletYamlBtn').addEventListener('click', pasteBookmarkletYaml);
+      $('addBookmarkletYamlBtn').addEventListener('click', addLinkFromBookmarkletYaml);
       $('cleanEmptyProjectsBtn').addEventListener('click', cleanEmptyProjects);
       $('cleanEmptyPromptCategoriesBtn').addEventListener('click', cleanEmptyPromptCategories);
       $('dedupeBtn').addEventListener('click', dedupe);
