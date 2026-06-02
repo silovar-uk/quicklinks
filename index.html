@@ -2483,6 +2483,55 @@
       return "javascript:(async()=>{function c(v){return String(v||'').replace(/\\r\\n/g,'\\n').replace(/\\r/g,'\\n').trim()}function q(v){return JSON.stringify(c(v))}const m=s=>document.querySelector(s)?.content||'';const d=c(m('meta[name=\"description\"]')||m('meta[property=\"og:description\"]')||m('meta[name=\"twitter:description\"]')||window.getSelection()?.toString()||'');const y='title: '+q(document.title)+'\\nurl: '+q(location.href)+'\\ndescription: '+q(d);try{await navigator.clipboard.writeText(y);alert('Quick Links用YAMLをコピーしました')}catch(e){prompt('Quick Links用YAMLをコピーしてください',y)}})()";
     }
 
+
+    function decodePossiblyEncodedYaml(text) {
+      let value = String(text || '').trim();
+      if (!value) return '';
+
+      // 一部ブラウザやブックマーク編集画面経由では、YAML全体がURLエンコードされたまま
+      // 貼り付くことがある。例：title:%20%22...%22%0Aurl%3A%20%22...%22
+      // その場合だけ decodeURIComponent してからYAMLとして読む。
+      const looksEncodedYaml = /%0A|%0D|%3A|%22|%E[0-9A-F]/i.test(value)
+        && /(title|url|description|note|%74%69%74%6C%65|%75%72%6C|%64%65%73%63%72%69%70%74%69%6F%6E)\s*:|%3A/i.test(value);
+
+      if (!looksEncodedYaml) return value;
+
+      let decoded = value;
+      for (let i = 0; i < 2; i += 1) {
+        try {
+          const next = decodeURIComponent(decoded);
+          if (!next || next === decoded) break;
+          decoded = next;
+        } catch (error) {
+          console.warn('YAML decode skipped', error);
+          break;
+        }
+      }
+      return decoded.trim();
+    }
+
+    function normalizeYamlTextareaValue(id, showMessage = false) {
+      const el = $(id);
+      if (!el) return false;
+      const before = el.value;
+      const after = decodePossiblyEncodedYaml(before);
+      if (after && after !== before) {
+        el.value = after;
+        if (showMessage) toast('URLエンコードされたYAMLを復元しました');
+        return true;
+      }
+      return false;
+    }
+
+    function bindYamlPasteNormalization(id) {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('paste', () => {
+        setTimeout(() => normalizeYamlTextareaValue(id, true), 0);
+      });
+      el.addEventListener('blur', () => normalizeYamlTextareaValue(id, false));
+    }
+
     function refreshBookmarkletUi() {
       const link = $('bookmarkletLink');
       const code = $('bookmarkletCode');
@@ -2506,7 +2555,8 @@
 
     function parseBookmarkletYaml(text) {
       const result = {};
-      String(text || '').split(/\r?\n/).forEach(line => {
+      const normalizedText = decodePossiblyEncodedYaml(text);
+      String(normalizedText || '').split(/\r?\n/).forEach(line => {
         const match = line.match(/^\s*(title|url|description|note|備考)\s*:\s*(.*)\s*$/i);
         if (!match) return;
         const key = match[1].toLowerCase();
@@ -2554,15 +2604,15 @@
     async function pasteBookmarkletYaml() {
       const text = await readClipboardText();
       if (!text) return;
-      $('bookmarkletYamlText').value = text;
-      toast('YAMLを貼り付けました');
+      $('bookmarkletYamlText').value = decodePossiblyEncodedYaml(text);
+      toast($('bookmarkletYamlText').value !== text ? 'URLエンコードされたYAMLを復元しました' : 'YAMLを貼り付けました');
     }
 
     async function pasteQuickYaml() {
       const text = await readClipboardText();
       if (!text) return;
-      $('quickYamlText').value = text;
-      toast('YAMLを貼り付けました');
+      $('quickYamlText').value = decodePossiblyEncodedYaml(text);
+      toast($('quickYamlText').value !== text ? 'URLエンコードされたYAMLを復元しました' : 'YAMLを貼り付けました');
     }
 
     async function tryAutofillQuickYaml() {
@@ -2571,10 +2621,11 @@
       if (!navigator.clipboard || !navigator.clipboard.readText) return;
       try {
         const text = await navigator.clipboard.readText();
-        const parsed = parseBookmarkletYaml(text);
+        const normalizedText = decodePossiblyEncodedYaml(text);
+        const parsed = parseBookmarkletYaml(normalizedText);
         if (parsed.title && parsed.url) {
-          el.value = text;
-          toast('クリップボードのYAMLを入力しました');
+          el.value = normalizedText;
+          toast(normalizedText !== text ? 'URLエンコードされたYAMLを復元しました' : 'クリップボードのYAMLを入力しました');
         }
       } catch (error) {
         console.warn('Quick YAML autofill failed', error);
@@ -2589,6 +2640,7 @@
     }
 
     function confirmQuickYamlLink() {
+      normalizeYamlTextareaValue('quickYamlText', true);
       const parsed = parseBookmarkletYaml($('quickYamlText').value);
       if (!parsed.title || !parsed.url) {
         toast('YAMLにtitleとurlが必要です');
@@ -2599,6 +2651,7 @@
     }
 
     function addLinkFromBookmarkletYaml() {
+      normalizeYamlTextareaValue('bookmarkletYamlText', true);
       const parsed = parseBookmarkletYaml($('bookmarkletYamlText').value);
       if (!parsed.title || !parsed.url) {
         toast('YAMLにtitleとurlが必要です');
@@ -3045,6 +3098,8 @@
         importFromText(text, $('importMode').value);
         event.target.value = '';
       });
+      bindYamlPasteNormalization('quickYamlText');
+      bindYamlPasteNormalization('bookmarkletYamlText');
       $('pasteQuickYamlBtn').addEventListener('click', pasteQuickYaml);
       $('confirmQuickYamlBtn').addEventListener('click', confirmQuickYamlLink);
       $('manualLinkAddBtn').addEventListener('click', () => { closeModal('yamlAddModal'); openLinkModal(null, { skipClipboardAutofill: true }); });
