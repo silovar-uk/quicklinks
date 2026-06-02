@@ -422,6 +422,62 @@
       margin-top: -2px;
     }
 
+
+    .category-input-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .category-manage-list {
+      display: grid;
+      gap: 10px;
+      margin: 10px 0 12px;
+    }
+
+    .category-manage-row {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fafc;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .category-manage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .category-count {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .category-action-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .settings-subtitle {
+      margin: 14px 0 8px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .settings-divider {
+      height: 1px;
+      background: var(--line);
+      margin: 14px 0;
+    }
+
     .select-check {
       width: 24px;
       height: 24px;
@@ -973,6 +1029,7 @@
       .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .list.simple { grid-template-columns: 1fr; }
       .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .category-input-grid { grid-template-columns: 1fr minmax(180px, .6fr); }
       .modal.open { align-items: center; }
       .modal-sheet { border-radius: 28px; }
     }
@@ -984,7 +1041,7 @@
       <div class="top-row">
         <div class="brand">
           <h1 class="brand-title">Quick Links Mobile</h1>
-          <div class="brand-sub">localStorage保存 / スマホ向け / ページ送り対応</div>
+          <div class="brand-sub">localStorage保存 / 分類整理 / ページ送り対応</div>
         </div>
         <div class="top-actions">
           <button class="icon-btn" id="quickAddBtn" title="追加">＋</button>
@@ -1110,6 +1167,18 @@
 
 
         <div class="settings-card">
+          <h2 class="settings-title">分類整理</h2>
+          <p class="settings-lead">分類名の変更、別分類への統合、0件分類の削除ができます。リンクとプロンプトカテゴリを別々に整理できます。</p>
+          <div class="settings-subtitle">リンク分類</div>
+          <div id="projectManager" class="category-manage-list"></div>
+          <button class="btn ghost" id="cleanEmptyProjectsBtn" type="button">0件のリンク分類を削除</button>
+          <div class="settings-divider"></div>
+          <div class="settings-subtitle">プロンプトカテゴリ</div>
+          <div id="promptCategoryManager" class="category-manage-list"></div>
+          <button class="btn ghost" id="cleanEmptyPromptCategoriesBtn" type="button">0件のプロンプトカテゴリを削除</button>
+        </div>
+
+        <div class="settings-card">
           <h2 class="settings-title">重複整理</h2>
           <p class="settings-lead">URL・タイトル・分類・メモが完全一致するリンク、タイトル・本文・カテゴリが完全一致するプロンプトを整理します。</p>
           <button class="btn ghost" id="dedupeBtn">完全重複を整理</button>
@@ -1151,7 +1220,12 @@
       </div>
       <div class="form-row">
         <label for="linkProject">分類</label>
-        <input id="linkProject" class="input" list="projectList" placeholder="未分類" />
+        <div class="category-input-grid">
+          <input id="linkProject" class="input" list="projectList" placeholder="自由入力：未分類" />
+          <select id="linkProjectSelect" class="select" aria-label="既存分類から選ぶ">
+            <option value="">既存分類から選ぶ</option>
+          </select>
+        </div>
         <datalist id="projectList"></datalist>
       </div>
       <div class="form-row">
@@ -1185,7 +1259,12 @@
       </div>
       <div class="form-row">
         <label for="promptCategory">カテゴリ</label>
-        <input id="promptCategory" class="input" list="promptCategoryList" placeholder="未分類" />
+        <div class="category-input-grid">
+          <input id="promptCategory" class="input" list="promptCategoryList" placeholder="自由入力：未分類" />
+          <select id="promptCategorySelect" class="select" aria-label="既存カテゴリから選ぶ">
+            <option value="">既存カテゴリから選ぶ</option>
+          </select>
+        </div>
         <datalist id="promptCategoryList"></datalist>
       </div>
       <div class="form-row">
@@ -1492,7 +1571,6 @@
     }
 
     function sortLinks(a, b) {
-      if (isFavorite(a) !== isFavorite(b)) return isFavorite(b) - isFavorite(a);
       if (state.linkSort === 'clicked') return timeValue(b.lastClickedAt) - timeValue(a.lastClickedAt) || timeValue(b.addedAt) - timeValue(a.addedAt);
       if (state.linkSort === 'clicks') return Number(b.clickCount || 0) - Number(a.clickCount || 0) || timeValue(b.lastClickedAt) - timeValue(a.lastClickedAt);
       if (state.linkSort === 'project') return String(a.projectName || '').localeCompare(String(b.projectName || ''), 'ja') || String(a.title || '').localeCompare(String(b.title || ''), 'ja');
@@ -1530,12 +1608,13 @@
 
     function render() {
       cleanupSelections();
+      updateSettingsControls();
       renderTabs();
       renderStats();
       renderDatalists();
       renderLinks();
       renderPrompts();
-      updateSettingsControls();
+      renderCategoryManagers();
       syncViewControls();
       $('globalSearch').value = state.query;
       $('clearSearchBtn').classList.toggle('show', !!state.query);
@@ -1562,8 +1641,220 @@
     }
 
     function renderDatalists() {
-      $('projectList').innerHTML = state.projects.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
-      $('promptCategoryList').innerHTML = state.promptCategories.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+      const projectOptions = state.projects.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+      $('projectList').innerHTML = projectOptions;
+      $('linkProjectSelect').innerHTML = `<option value="">既存分類から選ぶ</option>` + state.projects.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+
+      const promptOptions = state.promptCategories.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+      $('promptCategoryList').innerHTML = promptOptions;
+      $('promptCategorySelect').innerHTML = `<option value="">既存カテゴリから選ぶ</option>` + state.promptCategories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+
+    function countNames(list, getter) {
+      const counts = new Map();
+      list.forEach(item => {
+        const name = String(getter(item) || '未分類').trim() || '未分類';
+        counts.set(name, (counts.get(name) || 0) + 1);
+      });
+      return counts;
+    }
+
+    function optionHtml(names, current, emptyLabel) {
+      const options = [`<option value="">${escapeHtml(emptyLabel)}</option>`];
+      names.filter(name => name !== current).forEach(name => {
+        options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+      });
+      return options.join('');
+    }
+
+    function renderCategoryManagers() {
+      renderProjectManager();
+      renderPromptCategoryManager();
+    }
+
+    function renderProjectManager() {
+      const el = $('projectManager');
+      if (!el) return;
+      const counts = countNames(state.items, item => item.projectName || '未分類');
+      const names = normalizeProjects(state.projects, state.items);
+      if (!state.items.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-title">リンク分類はまだありません</div><div>リンクを追加すると分類を整理できます。</div></div>`;
+        return;
+      }
+      el.innerHTML = names.map(name => {
+        const encoded = encodeURIComponent(name);
+        const count = counts.get(name) || 0;
+        const disabledMerge = names.length <= 1 ? 'disabled' : '';
+        return `
+          <div class="category-manage-row" data-project-name="${encoded}">
+            <div class="category-manage-head">
+              <span class="badge" style="${badgeStyle(name)}">${escapeHtml(name)}</span>
+              <span class="category-count">${count.toLocaleString()}件</span>
+            </div>
+            <div class="category-action-grid">
+              <input class="input" data-role="project-rename" value="${escapeHtml(name)}" />
+              <button class="btn ghost compact" data-project-action="rename" type="button">名前変更</button>
+            </div>
+            <div class="category-action-grid">
+              <select class="select" data-role="project-merge-target" ${disabledMerge}>${optionHtml(names, name, '統合先を選ぶ')}</select>
+              <button class="btn danger compact" data-project-action="merge" type="button" ${disabledMerge}>統合</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      el.querySelectorAll('[data-project-action="rename"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-project-name]');
+          const oldName = decodeURIComponent(row.dataset.projectName || '');
+          const newName = row.querySelector('[data-role="project-rename"]').value;
+          renameProject(oldName, newName);
+        });
+      });
+      el.querySelectorAll('[data-project-action="merge"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-project-name]');
+          const fromName = decodeURIComponent(row.dataset.projectName || '');
+          const toName = row.querySelector('[data-role="project-merge-target"]').value;
+          mergeProject(fromName, toName);
+        });
+      });
+    }
+
+    function renderPromptCategoryManager() {
+      const el = $('promptCategoryManager');
+      if (!el) return;
+      const counts = countNames(state.promptMemos, memo => memo.categoryName || memo.projectName || '未分類');
+      const names = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      if (!state.promptMemos.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-title">プロンプトカテゴリはまだありません</div><div>プロンプトを追加するとカテゴリを整理できます。</div></div>`;
+        return;
+      }
+      el.innerHTML = names.map(name => {
+        const encoded = encodeURIComponent(name);
+        const count = counts.get(name) || 0;
+        const disabledMerge = names.length <= 1 ? 'disabled' : '';
+        return `
+          <div class="category-manage-row" data-prompt-category="${encoded}">
+            <div class="category-manage-head">
+              <span class="badge" style="${promptBadgeStyle(name)}">${escapeHtml(name)}</span>
+              <span class="category-count">${count.toLocaleString()}件</span>
+            </div>
+            <div class="category-action-grid">
+              <input class="input" data-role="prompt-category-rename" value="${escapeHtml(name)}" />
+              <button class="btn ghost compact" data-prompt-category-action="rename" type="button">名前変更</button>
+            </div>
+            <div class="category-action-grid">
+              <select class="select" data-role="prompt-category-merge-target" ${disabledMerge}>${optionHtml(names, name, '統合先を選ぶ')}</select>
+              <button class="btn danger compact" data-prompt-category-action="merge" type="button" ${disabledMerge}>統合</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      el.querySelectorAll('[data-prompt-category-action="rename"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-prompt-category]');
+          const oldName = decodeURIComponent(row.dataset.promptCategory || '');
+          const newName = row.querySelector('[data-role="prompt-category-rename"]').value;
+          renamePromptCategory(oldName, newName);
+        });
+      });
+      el.querySelectorAll('[data-prompt-category-action="merge"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-prompt-category]');
+          const fromName = decodeURIComponent(row.dataset.promptCategory || '');
+          const toName = row.querySelector('[data-role="prompt-category-merge-target"]').value;
+          mergePromptCategory(fromName, toName);
+        });
+      });
+    }
+
+    function renameProject(oldName, newNameRaw) {
+      const newName = String(newNameRaw || '').trim() || '未分類';
+      if (!oldName) return;
+      if (newName === oldName) {
+        toast('分類名は変更されていません');
+        return;
+      }
+      if (!confirm(`リンク分類「${oldName}」を「${newName}」に変更しますか？`)) return;
+      state.items.forEach(item => {
+        if ((item.projectName || '未分類') === oldName) item.projectName = newName;
+      });
+      if (state.projectColors[oldName] && !state.projectColors[newName]) state.projectColors[newName] = state.projectColors[oldName];
+      delete state.projectColors[oldName];
+      if (state.currentProject === oldName) state.currentProject = newName;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.linkPage = 1;
+      save(); render(); toast('分類名を変更しました');
+    }
+
+    function mergeProject(fromName, toNameRaw) {
+      const toName = String(toNameRaw || '').trim();
+      if (!fromName || !toName) {
+        toast('統合先を選んでください');
+        return;
+      }
+      if (fromName === toName) return;
+      const count = state.items.filter(item => (item.projectName || '未分類') === fromName).length;
+      if (!confirm(`リンク分類「${fromName}」${count}件を「${toName}」へ統合しますか？`)) return;
+      state.items.forEach(item => {
+        if ((item.projectName || '未分類') === fromName) item.projectName = toName;
+      });
+      delete state.projectColors[fromName];
+      if (state.currentProject === fromName) state.currentProject = toName;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.linkPage = 1;
+      save(); render(); toast('分類を統合しました');
+    }
+
+    function cleanEmptyProjects() {
+      const before = Array.isArray(state.projects) ? state.projects.length : 0;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.projectColors = Object.fromEntries(Object.entries(state.projectColors || {}).filter(([name]) => state.projects.includes(name)));
+      const removed = Math.max(before - state.projects.length, 0);
+      save(); render(); toast(removed ? `0件分類を${removed}件削除しました` : '0件分類はありません');
+    }
+
+    function renamePromptCategory(oldName, newNameRaw) {
+      const newName = String(newNameRaw || '').trim() || '未分類';
+      if (!oldName) return;
+      if (newName === oldName) {
+        toast('カテゴリ名は変更されていません');
+        return;
+      }
+      if (!confirm(`プロンプトカテゴリ「${oldName}」を「${newName}」に変更しますか？`)) return;
+      state.promptMemos.forEach(memo => {
+        if ((memo.categoryName || '未分類') === oldName) memo.categoryName = newName;
+      });
+      if (state.currentPromptCategory === oldName) state.currentPromptCategory = newName;
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptPage = 1;
+      save(); render(); toast('カテゴリ名を変更しました');
+    }
+
+    function mergePromptCategory(fromName, toNameRaw) {
+      const toName = String(toNameRaw || '').trim();
+      if (!fromName || !toName) {
+        toast('統合先を選んでください');
+        return;
+      }
+      if (fromName === toName) return;
+      const count = state.promptMemos.filter(memo => (memo.categoryName || '未分類') === fromName).length;
+      if (!confirm(`プロンプトカテゴリ「${fromName}」${count}件を「${toName}」へ統合しますか？`)) return;
+      state.promptMemos.forEach(memo => {
+        if ((memo.categoryName || '未分類') === fromName) memo.categoryName = toName;
+      });
+      if (state.currentPromptCategory === fromName) state.currentPromptCategory = toName;
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptPage = 1;
+      save(); render(); toast('カテゴリを統合しました');
+    }
+
+    function cleanEmptyPromptCategories() {
+      const before = Array.isArray(state.promptCategories) ? state.promptCategories.length : 0;
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      const removed = Math.max(before - state.promptCategories.length, 0);
+      save(); render(); toast(removed ? `0件カテゴリを${removed}件削除しました` : '0件カテゴリはありません');
     }
 
     function getPageSize(kind, total) {
@@ -2126,7 +2417,9 @@
       $('linkId').value = item?.id || '';
       $('linkTitle').value = item?.title || '';
       $('linkUrl').value = item?.url || '';
-      $('linkProject').value = item?.projectName || (state.currentProject !== 'ALL' ? state.currentProject : '未分類');
+      const projectValue = item?.projectName || (state.currentProject !== 'ALL' ? state.currentProject : '未分類');
+      $('linkProject').value = projectValue;
+      $('linkProjectSelect').value = state.projects.includes(projectValue) ? projectValue : '';
       $('linkNote').value = item?.note || '';
       $('linkFavorite').checked = item ? isFavorite(item) : false;
       setClipboardHint('クリップボードにURLがあれば自動入力します。失敗したら「貼る」を押してください。');
@@ -2188,7 +2481,9 @@
       $('promptModalTitle').textContent = memo ? 'プロンプトを編集' : 'プロンプトを追加';
       $('promptId').value = memo?.id || '';
       $('promptTitle').value = memo?.title || '';
-      $('promptCategory').value = memo?.categoryName || (state.currentPromptCategory !== 'ALL' ? state.currentPromptCategory : '未分類');
+      const categoryValue = memo?.categoryName || (state.currentPromptCategory !== 'ALL' ? state.currentPromptCategory : '未分類');
+      $('promptCategory').value = categoryValue;
+      $('promptCategorySelect').value = state.promptCategories.includes(categoryValue) ? categoryValue : '';
       $('promptBody').value = memo?.body || '';
       updatePromptCount();
       openModal('promptModal');
@@ -2520,7 +2815,19 @@
 
       $('saveLinkBtn').addEventListener('click', saveLinkFromModal);
       $('pasteClipboardUrlBtn').addEventListener('click', () => tryAutofillClipboardUrl({ forceToast: true }));
+      $('linkProjectSelect').addEventListener('change', (event) => {
+        if (event.target.value) $('linkProject').value = event.target.value;
+      });
+      $('linkProject').addEventListener('input', () => {
+        $('linkProjectSelect').value = state.projects.includes($('linkProject').value.trim()) ? $('linkProject').value.trim() : '';
+      });
       $('savePromptBtn').addEventListener('click', savePromptFromModal);
+      $('promptCategorySelect').addEventListener('change', (event) => {
+        if (event.target.value) $('promptCategory').value = event.target.value;
+      });
+      $('promptCategory').addEventListener('input', () => {
+        $('promptCategorySelect').value = state.promptCategories.includes($('promptCategory').value.trim()) ? $('promptCategory').value.trim() : '';
+      });
       $('promptBody').addEventListener('input', updatePromptCount);
 
       document.querySelectorAll('[data-close-modal]').forEach(btn => {
@@ -2543,6 +2850,8 @@
         importFromText(text, $('importMode').value);
         event.target.value = '';
       });
+      $('cleanEmptyProjectsBtn').addEventListener('click', cleanEmptyProjects);
+      $('cleanEmptyPromptCategoriesBtn').addEventListener('click', cleanEmptyPromptCategories);
       $('dedupeBtn').addEventListener('click', dedupe);
       $('resetBtn').addEventListener('click', resetAll);
     }
