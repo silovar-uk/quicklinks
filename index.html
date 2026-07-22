@@ -2689,6 +2689,10 @@
         toast('タイトルとURLを入力してください');
         return;
       }
+      if (projectName === '未分類' && !window.confirm('分類が「未分類」のままです。このまま保存しますか？')) {
+        $('linkProject').focus();
+        return;
+      }
       const now = new Date().toISOString();
       if (id) {
         const item = state.items.find(i => i.id === id);
@@ -2745,6 +2749,10 @@
       const body = $('promptBody').value;
       if (!title && !body.trim()) {
         toast('タイトルか本文を入力してください');
+        return;
+      }
+      if (categoryName === '未分類' && !window.confirm('カテゴリが「未分類」のままです。このまま保存しますか？')) {
+        $('promptCategory').focus();
         return;
       }
       const now = new Date().toISOString();
