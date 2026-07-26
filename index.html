@@ -65,6 +65,7 @@
 
         if (!html.includes('</style>')) throw new Error('style closing tag not found');
         html = html.replace('</style>', `${categoryCss}  </style>`);
+        html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
 
         document.open();
         document.write(html);
