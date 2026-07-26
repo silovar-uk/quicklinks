@@ -1,5 +1,6 @@
 name: Apply category emphasis
 
+# One-time trigger merged through a pull request.
 on:
   push:
     paths:
