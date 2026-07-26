@@ -1,0 +1,3128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#b91c1c" />
+  <title>Quick Links Mobile</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --red: #b91c1c;
+      --red-2: #dc2626;
+      --red-soft: #fee2e2;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --amber: #d97706;
+      --shadow: 0 16px 40px rgba(15, 23, 42, .10);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(185, 28, 28, .14), transparent 30%),
+        radial-gradient(circle at 80% 10%, rgba(37, 99, 235, .10), transparent 34%),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app {
+      min-height: 100%;
+      padding-bottom: calc(82px + var(--safe-bottom));
+    }
+
+    .top {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: calc(10px + var(--safe-top)) 14px 10px;
+      color: white;
+      background: linear-gradient(135deg, #7f1d1d, #b91c1c 55%, #111827);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, .22);
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 900;
+      letter-spacing: -.02em;
+    }
+
+    .brand-sub {
+      margin-top: 2px;
+      font-size: 11px;
+      color: rgba(255,255,255,.72);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn {
+      min-width: 40px;
+      height: 40px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      color: white;
+      background: rgba(255,255,255,.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 16px;
+      padding: 5px;
+      backdrop-filter: blur(10px);
+    }
+
+    .search-icon {
+      padding-left: 7px;
+      opacity: .78;
+    }
+
+    #globalSearch {
+      min-width: 0;
+      width: 100%;
+      height: 42px;
+      border: 0;
+      outline: 0;
+      color: white;
+      background: transparent;
+      font-size: 16px;
+    }
+
+    #globalSearch::placeholder { color: rgba(255,255,255,.64); }
+
+    .clear-btn {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: rgba(255,255,255,.14);
+      cursor: pointer;
+      display: none;
+    }
+
+    .clear-btn.show { display: inline-flex; align-items: center; justify-content: center; }
+
+    .tabs {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px 12px calc(10px + var(--safe-bottom));
+      background: rgba(255,255,255,.90);
+      border-top: 1px solid rgba(226,232,240,.9);
+      backdrop-filter: blur(18px);
+    }
+
+    .tab-btn {
+      border: 1px solid transparent;
+      border-radius: 18px;
+      padding: 8px 6px 7px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 850;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tab-btn span { font-size: 18px; line-height: 1; }
+    .tab-btn.active {
+      color: #991b1b;
+      background: var(--red-soft);
+      border-color: #fecaca;
+    }
+
+    main {
+      width: min(920px, 100%);
+      margin: 0 auto;
+      padding: 12px 12px 0;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 18px;
+      padding: 10px;
+      box-shadow: 0 8px 20px rgba(15,23,42,.04);
+    }
+
+    .stat-num {
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -.03em;
+    }
+
+    .stat-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .toolbar-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--muted);
+    }
+
+    .select-mini {
+      max-width: 180px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #334155;
+      background: white;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .chips {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 0 2px 10px;
+      scrollbar-width: none;
+    }
+
+    .chips::-webkit-scrollbar { display: none; }
+
+    .chip {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: #475569;
+      background: rgba(255,255,255,.88);
+      font-size: 12px;
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(15,23,42,.04);
+      white-space: nowrap;
+    }
+
+    .chip.active {
+      color: white;
+      background: #111827;
+      border-color: #111827;
+    }
+
+    .chip.favorite.active {
+      color: #92400e;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .card {
+      position: relative;
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 22px;
+      background: rgba(255,255,255,.93);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-inner {
+      padding: 12px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .title-area { min-width: 0; flex: 1 1 auto; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #334155;
+      background: #f8fafc;
+    }
+
+    .card-title {
+      margin: 7px 0 0;
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 950;
+      letter-spacing: -.02em;
+      word-break: break-word;
+    }
+
+    .card-note, .card-url, .prompt-body {
+      margin-top: 7px;
+      color: #475569;
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .card-url {
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 9px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .card-actions {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 1fr;
+      gap: 7px;
+      margin-top: 11px;
+    }
+
+
+
+    .bulk-toolbar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 10px;
+      padding: 8px;
+      border: 1px solid #fecaca;
+      border-radius: 18px;
+      background: #fff7f7;
+      box-shadow: 0 8px 20px rgba(127,29,29,.06);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .bulk-toolbar.show { display: flex; }
+
+    .bulk-label {
+      flex: 1 0 auto;
+      color: #7f1d1d;
+      font-size: 12px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .btn.compact {
+      min-height: 34px;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .input-action-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .field-hint {
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-top: -2px;
+    }
+
+
+    .category-input-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .category-manage-list {
+      display: grid;
+      gap: 10px;
+      margin: 10px 0 12px;
+    }
+
+    .category-manage-row {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fafc;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .category-manage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .category-count {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .category-action-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .settings-subtitle {
+      margin: 14px 0 8px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .settings-divider {
+      height: 1px;
+      background: var(--line);
+      margin: 14px 0;
+    }
+
+    .select-check {
+      width: 24px;
+      height: 24px;
+      accent-color: var(--red);
+      flex: 0 0 auto;
+    }
+
+    .card.selecting {
+      border-color: #fecaca;
+      background: #fffafa;
+    }
+
+    .card.selected {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, .12), var(--shadow);
+    }
+
+    .select-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      color: #991b1b;
+      background: #fee2e2;
+      font-size: 11px;
+      font-weight: 950;
+    }
+
+    .btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 8px 10px;
+      color: #334155;
+      background: white;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .btn.primary {
+      color: white;
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .btn.blue {
+      color: white;
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .btn.green {
+      color: white;
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .btn.ghost {
+      color: #475569;
+      background: #f8fafc;
+    }
+
+    .btn.danger {
+      color: #991b1b;
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .star-btn {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      color: #94a3b8;
+      background: #f8fafc;
+      font-size: 20px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .star-btn.on {
+      color: #92400e;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    .empty {
+      border: 1px dashed #cbd5e1;
+      border-radius: 24px;
+      padding: 26px 18px;
+      background: rgba(255,255,255,.72);
+      text-align: center;
+      color: #64748b;
+    }
+
+    .empty-title {
+      color: #334155;
+      font-weight: 950;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .fab {
+      position: fixed;
+      right: 16px;
+      bottom: calc(92px + var(--safe-bottom));
+      z-index: 35;
+      min-width: 58px;
+      height: 58px;
+      border: 0;
+      border-radius: 999px;
+      color: white;
+      background: linear-gradient(135deg, #dc2626, #7f1d1d);
+      box-shadow: 0 18px 38px rgba(127,29,29,.34);
+      font-size: 28px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .settings-card {
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 24px;
+      background: rgba(255,255,255,.9);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .settings-title {
+      margin: 0 0 4px;
+      font-size: 16px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .settings-lead {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .settings-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bookmarklet-link {
+      width: 100%;
+      text-align: center;
+      user-select: none;
+    }
+
+    .bookmarklet-code {
+      min-height: 92px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+    }
+
+    .bookmarklet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .form-row {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .form-row label {
+      color: #475569;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .input, .textarea, .select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      background: white;
+      color: var(--ink);
+      padding: 11px 12px;
+      outline: none;
+      font-size: 16px;
+    }
+
+    .textarea {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      background: rgba(15,23,42,.45);
+      padding: calc(14px + var(--safe-top)) 12px calc(14px + var(--safe-bottom));
+      overflow-y: auto;
+    }
+
+    .modal.open {
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .modal-sheet {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      border-radius: 28px 28px 20px 20px;
+      background: white;
+      box-shadow: 0 30px 80px rgba(15,23,42,.30);
+      padding: 16px;
+      animation: sheetIn .18s ease-out;
+    }
+
+    @keyframes sheetIn {
+      from { transform: translateY(16px); opacity: .6; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .modal-close {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .switch-row:first-child { border-top: 0; }
+
+    .switch-label {
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .switch-sub {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    .toggle {
+      appearance: none;
+      width: 50px;
+      height: 30px;
+      border-radius: 999px;
+      background: #cbd5e1;
+      position: relative;
+      transition: .15s;
+      flex: 0 0 auto;
+    }
+
+    .toggle::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: white;
+      transition: .15s;
+      box-shadow: 0 2px 8px rgba(15,23,42,.18);
+    }
+
+    .toggle:checked { background: var(--red); }
+    .toggle:checked::after { transform: translateX(20px); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(88px + var(--safe-bottom));
+      transform: translateX(-50%) translateY(14px);
+      z-index: 90;
+      max-width: calc(100% - 28px);
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: white;
+      background: rgba(15,23,42,.92);
+      box-shadow: 0 14px 40px rgba(15,23,42,.24);
+      font-size: 13px;
+      font-weight: 850;
+      opacity: 0;
+      pointer-events: none;
+      transition: .18s;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .hint {
+      color: #64748b;
+      font-size: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 10px 12px;
+    }
+
+    .danger-zone {
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+
+    .prompt-card .card-actions {
+      grid-template-columns: 1.25fr 1fr 1fr;
+    }
+
+    .prompt-body {
+      white-space: pre-wrap;
+      max-height: 150px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .prompt-body.long::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 42px;
+      background: linear-gradient(transparent, white);
+    }
+
+
+    .view-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 6px 0 10px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.86);
+      box-shadow: 0 6px 16px rgba(15,23,42,.04);
+      flex: 0 0 auto;
+    }
+
+    .seg-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #64748b;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .seg-btn.active {
+      color: white;
+      background: #111827;
+    }
+
+    .per-page-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 6px 0 10px;
+      padding: 8px;
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 18px;
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 8px 20px rgba(15,23,42,.04);
+    }
+
+    .pager.bottom { margin: 10px 0 0; }
+
+    .pager-info {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .pager-actions {
+      display: inline-flex;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+
+    .list.simple {
+      gap: 6px;
+    }
+
+    .simple-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid rgba(226,232,240,.9);
+      border-radius: 16px;
+      background: rgba(255,255,255,.94);
+      padding: 8px;
+      box-shadow: 0 6px 16px rgba(15,23,42,.05);
+    }
+
+    .simple-row.selecting {
+      border-color: #fecaca;
+      background: #fffafa;
+    }
+
+    .simple-row.selected {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, .12), 0 6px 16px rgba(15,23,42,.05);
+    }
+
+    .simple-main {
+      min-width: 0;
+    }
+
+    .simple-title {
+      color: #172033;
+      font-size: 14px;
+      line-height: 1.3;
+      font-weight: 950;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
+
+    .simple-sub {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 800;
+      min-width: 0;
+    }
+
+    .simple-url {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .simple-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    .simple-actions .btn {
+      min-height: 32px;
+      border-radius: 999px;
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+
+    .simple-star {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #94a3b8;
+      background: #f8fafc;
+      font-size: 17px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .simple-star.on {
+      color: #92400e;
+      background: #fef3c7;
+      border-color: #fde68a;
+    }
+
+    mark {
+      background: #fef08a;
+      padding: 0 2px;
+      border-radius: 4px;
+    }
+
+    @media (min-width: 720px) {
+      .app { padding-bottom: 24px; }
+      .tabs {
+        position: sticky;
+        top: auto;
+        bottom: auto;
+        width: min(920px, calc(100% - 24px));
+        margin: 12px auto 0;
+        border: 1px solid rgba(226,232,240,.9);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+      .fab { bottom: 24px; right: calc((100vw - min(920px, 100%)) / 2 + 18px); }
+      .list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .list.simple { grid-template-columns: 1fr; }
+      .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .category-input-grid { grid-template-columns: 1fr minmax(180px, .6fr); }
+      .modal.open { align-items: center; }
+      .modal-sheet { border-radius: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="top-row">
+        <div class="brand">
+          <h1 class="brand-title">Quick Links Mobile</h1>
+          <div class="brand-sub">localStorage保存 / 分類整理 / ページ送り対応</div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" id="quickAddBtn" title="追加">＋</button>
+          <button class="icon-btn" id="exportTopBtn" title="エクスポート">↓</button>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="globalSearch" type="search" placeholder="タイトル・URL・備考・プロンプトを検索" autocomplete="off" />
+        <button class="clear-btn" id="clearSearchBtn" title="検索をクリア">×</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="画面切り替え">
+      <button class="tab-btn active" data-tab="links"><span>🔗</span>リンク</button>
+      <button class="tab-btn" data-tab="prompts"><span>✍️</span>プロンプト</button>
+      <button class="tab-btn" data-tab="settings"><span>⚙️</span>管理</button>
+    </nav>
+
+    <main>
+      <section id="linksPanel" class="panel active">
+        <div class="summary">
+          <div class="stat"><div class="stat-num" id="statLinks">0</div><div class="stat-label">リンク</div></div>
+          <div class="stat"><div class="stat-num" id="statFavorites">0</div><div class="stat-label">お気に入り</div></div>
+          <div class="stat"><div class="stat-num" id="statProjects">0</div><div class="stat-label">分類</div></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-title" id="linkCountLabel">0件</div>
+          <select class="select-mini" id="linkSortSelect">
+            <option value="recent">追加が新しい順</option>
+            <option value="clicked">最近開いた順</option>
+            <option value="clicks">よく使う順</option>
+            <option value="project">分類順</option>
+            <option value="title">タイトル順</option>
+          </select>
+        </div>
+        <div class="view-tools">
+          <div class="segmented" aria-label="表示切り替え">
+            <button class="seg-btn" id="linkRichViewBtn" type="button">リッチ</button>
+            <button class="seg-btn" id="linkSimpleViewBtn" type="button">シンプル</button>
+          </div>
+          <label class="per-page-wrap">表示
+            <select class="select-mini" id="linkPerPageSelect">
+              <option value="10">10件</option>
+              <option value="25">25件</option>
+              <option value="50">50件</option>
+              <option value="all">全部</option>
+            </select>
+          </label>
+        </div>
+        <div class="bulk-toolbar" id="linkBulkBar"></div>
+        <div class="chips" id="linkChips"></div>
+        <div class="pager" id="linkPagerTop"></div>
+        <div class="list" id="linksList"></div>
+        <div class="pager bottom" id="linkPagerBottom"></div>
+      </section>
+
+      <section id="promptsPanel" class="panel">
+        <div class="summary">
+          <div class="stat"><div class="stat-num" id="statPrompts">0</div><div class="stat-label">プロンプト</div></div>
+          <div class="stat"><div class="stat-num" id="statPromptCategories">0</div><div class="stat-label">カテゴリ</div></div>
+          <div class="stat"><div class="stat-num" id="statCopies">0</div><div class="stat-label">コピー</div></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-title" id="promptCountLabel">0件</div>
+          <select class="select-mini" id="promptSortSelect">
+            <option value="popular">よく使う順</option>
+            <option value="recent">更新が新しい順</option>
+            <option value="created">追加が新しい順</option>
+            <option value="title">タイトル順</option>
+          </select>
+        </div>
+        <div class="view-tools">
+          <div class="segmented" aria-label="表示切り替え">
+            <button class="seg-btn" id="promptRichViewBtn" type="button">リッチ</button>
+            <button class="seg-btn" id="promptSimpleViewBtn" type="button">シンプル</button>
+          </div>
+          <label class="per-page-wrap">表示
+            <select class="select-mini" id="promptPerPageSelect">
+              <option value="10">10件</option>
+              <option value="25">25件</option>
+              <option value="50">50件</option>
+              <option value="all">全部</option>
+            </select>
+          </label>
+        </div>
+        <div class="bulk-toolbar" id="promptBulkBar"></div>
+        <div class="chips" id="promptChips"></div>
+        <div class="pager" id="promptPagerTop"></div>
+        <div class="list" id="promptsList"></div>
+        <div class="pager bottom" id="promptPagerBottom"></div>
+      </section>
+
+      <section id="settingsPanel" class="panel">
+        <div class="settings-card">
+          <h2 class="settings-title">データ管理</h2>
+          <p class="settings-lead">既存の <strong>quick-links-backup-v2</strong> 形式をインポート/エクスポートできます。スマホではファイル選択か、JSON貼り付けのどちらでもOK。</p>
+          <div class="settings-grid">
+            <button class="btn primary" id="exportBtn">JSONを書き出す</button>
+            <label class="btn ghost" for="importFile">JSONファイルを選ぶ</label>
+            <input id="importFile" type="file" accept="application/json,.json" hidden />
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">JSON貼り付けインポート</h2>
+          <p class="settings-lead">拡張機能版のバックアップJSONをそのまま貼り付けても取り込めます。</p>
+          <div class="form-row">
+            <label for="importMode">取り込み方法</label>
+            <select id="importMode" class="select">
+              <option value="merge">既存データに統合する</option>
+              <option value="replace">現在のデータを置き換える</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="importText">JSON</label>
+            <textarea id="importText" class="textarea" placeholder="ここにJSONを貼り付け"></textarea>
+          </div>
+          <button class="btn blue" id="runImportBtn">インポートする</button>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">ブックマークレット連携</h2>
+          <p class="settings-lead">どのサイトでも、ページタイトル・URL・説明文をYAMLでコピーできます。説明はリンク追加時に「備考」へ入ります。</p>
+          <div class="settings-grid">
+            <a class="btn primary bookmarklet-link" id="bookmarkletLink" href="#">Quick LinksにYAMLコピー</a>
+            <button class="btn ghost" id="copyBookmarkletBtn" type="button">ブックマークレットをコピー</button>
+          </div>
+          <div class="form-row" style="margin-top:10px;">
+            <label for="bookmarkletCode">ブックマークレットコード</label>
+            <textarea id="bookmarkletCode" class="textarea bookmarklet-code" readonly></textarea>
+          </div>
+          <div class="form-row">
+            <label for="bookmarkletYamlText">コピーしたYAML</label>
+            <textarea id="bookmarkletYamlText" class="textarea" placeholder='title: "ページタイトル"&#10;url: "https://example.com"&#10;description: "説明文"'></textarea>
+          </div>
+          <div class="bookmarklet-actions">
+            <button class="btn ghost" id="pasteBookmarkletYamlBtn" type="button">YAMLを貼る</button>
+            <button class="btn blue" id="addBookmarkletYamlBtn" type="button">YAMLから内容確認</button>
+          </div>
+          <div class="hint" style="margin-top:10px;">
+            スマホでは、このリンクをブックマークに登録して使います。クリップボードが使えないサイトでは、画面に出たYAMLをコピーしてください。
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">分類整理</h2>
+          <p class="settings-lead">分類名の変更、別分類への統合、0件分類の削除ができます。リンクとプロンプトカテゴリを別々に整理できます。</p>
+          <div class="settings-subtitle">リンク分類</div>
+          <div id="projectManager" class="category-manage-list"></div>
+          <button class="btn ghost" id="cleanEmptyProjectsBtn" type="button">0件のリンク分類を削除</button>
+          <div class="settings-divider"></div>
+          <div class="settings-subtitle">プロンプトカテゴリ</div>
+          <div id="promptCategoryManager" class="category-manage-list"></div>
+          <button class="btn ghost" id="cleanEmptyPromptCategoriesBtn" type="button">0件のプロンプトカテゴリを削除</button>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-title">重複整理</h2>
+          <p class="settings-lead">URL・タイトル・分類・備考が完全一致するリンク、タイトル・本文・カテゴリが完全一致するプロンプトを整理します。</p>
+          <button class="btn ghost" id="dedupeBtn">完全重複を整理</button>
+        </div>
+
+        <div class="settings-card danger-zone">
+          <h2 class="settings-title">リセット</h2>
+          <p class="settings-lead">このHTML内のlocalStorageだけを削除します。元のJSONファイルや拡張機能データは触りません。</p>
+          <button class="btn danger" id="resetBtn">localStorageを全削除</button>
+        </div>
+
+        <div class="hint">
+          <strong>メモ：</strong>このHTMLは1ファイルで動きます。iPhoneならSafariで開いて「ホーム画面に追加」すると、ちょっとしたアプリっぽく使えます。
+        </div>
+      </section>
+    </main>
+
+    <button class="fab" id="fabBtn" title="追加">＋</button>
+  </div>
+
+  <div class="modal" id="yamlAddModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title">YAMLからリンク追加</h2>
+        <button class="modal-close" data-close-modal="yamlAddModal">×</button>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">
+        ブックマークレットでコピーしたYAMLを貼り付けてください。取り込み後はすぐ保存せず、リンク追加画面で内容を確認できます。手入力で追加したい場合は「通常入力で追加」を押してください。
+      </div>
+      <div class="form-row">
+        <label for="quickYamlText">YAML</label>
+        <textarea id="quickYamlText" class="textarea" placeholder='title: "ページタイトル"&#10;url: "https://example.com"&#10;description: "説明文"'></textarea>
+      </div>
+      <div class="bookmarklet-actions">
+        <button class="btn ghost" id="pasteQuickYamlBtn" type="button">クリップボードから貼る</button>
+        <button class="btn blue" id="confirmQuickYamlBtn" type="button">内容確認へ</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="manualLinkAddBtn" type="button">通常入力で追加</button>
+        <button class="btn ghost" data-close-modal="yamlAddModal">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="linkModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title" id="linkModalTitle">リンクを追加</h2>
+        <button class="modal-close" data-close-modal="linkModal">×</button>
+      </div>
+      <input type="hidden" id="linkId" />
+      <div class="form-row">
+        <label for="linkTitle">タイトル</label>
+        <input id="linkTitle" class="input" placeholder="例：PR発信" />
+      </div>
+      <div class="form-row">
+        <label for="linkUrl">URL</label>
+        <div class="input-action-row">
+          <input id="linkUrl" class="input" inputmode="url" placeholder="https://..." />
+          <button class="btn ghost compact" id="pasteClipboardUrlBtn" type="button">貼る</button>
+        </div>
+        <div class="field-hint" id="clipboardHint">＋で追加を開いたとき、クリップボード内のURLを自動入力します。失敗したら「貼る」を押してください。</div>
+      </div>
+      <div class="form-row">
+        <label for="linkProject">分類</label>
+        <div class="category-input-grid">
+          <input id="linkProject" class="input" list="projectList" placeholder="自由入力：未分類" />
+          <select id="linkProjectSelect" class="select" aria-label="既存分類から選ぶ">
+            <option value="">既存分類から選ぶ</option>
+          </select>
+        </div>
+        <datalist id="projectList"></datalist>
+      </div>
+      <div class="form-row">
+        <label for="linkNote">備考</label>
+        <textarea id="linkNote" class="textarea" placeholder="説明・用途・補足など"></textarea>
+      </div>
+      <div class="switch-row">
+        <div>
+          <div class="switch-label">お気に入り</div>
+          <div class="switch-sub">お気に入りフィルターで絞り込みやすくします。</div>
+        </div>
+        <input class="toggle" type="checkbox" id="linkFavorite" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close-modal="linkModal">キャンセル</button>
+        <button class="btn primary" id="saveLinkBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="promptModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title" id="promptModalTitle">プロンプトを追加</h2>
+        <button class="modal-close" data-close-modal="promptModal">×</button>
+      </div>
+      <input type="hidden" id="promptId" />
+      <div class="form-row">
+        <label for="promptTitle">タイトル</label>
+        <input id="promptTitle" class="input" placeholder="例：概要・背景説明" />
+      </div>
+      <div class="form-row">
+        <label for="promptCategory">カテゴリ</label>
+        <div class="category-input-grid">
+          <input id="promptCategory" class="input" list="promptCategoryList" placeholder="自由入力：未分類" />
+          <select id="promptCategorySelect" class="select" aria-label="既存カテゴリから選ぶ">
+            <option value="">既存カテゴリから選ぶ</option>
+          </select>
+        </div>
+        <datalist id="promptCategoryList"></datalist>
+      </div>
+      <div class="form-row">
+        <label for="promptBody">本文</label>
+        <textarea id="promptBody" class="textarea" placeholder="ここにプロンプト本文"></textarea>
+      </div>
+      <div class="hint" id="promptCharCount">0文字</div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close-modal="promptModal">キャンセル</button>
+        <button class="btn primary" id="savePromptBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'quick-links-mobile-localstorage-v1';
+    const DEFAULT_COLORS = {
+      'クラブ発信': { bg: '#fef2f2', text: '#991b1b', border: '#E03E3E' },
+      '自分': { bg: '#eef6fd', text: '#1d4ed8', border: '#4A90E2' },
+      'キュレーション': { bg: '#fff7ed', text: '#9a3412', border: '#F5A623' },
+      '広報・PR': { bg: '#fef2f2', text: '#991b1b', border: '#E03E3E' },
+      'メルマガ': { bg: '#f3e8ff', text: '#6b21a8', border: '#9013FE' },
+      '社員': { bg: '#f0fdf4', text: '#166534', border: '#417505' },
+      'プロモ': { bg: '#ccfbf1', text: '#115e59', border: '#009688' },
+      'PRJ': { bg: '#fdf4ff', text: '#86198f', border: '#BD10E0' },
+      'クリエイティブ': { bg: '#fce7f3', text: '#9d174d', border: '#FF4081' },
+      '未分類': { bg: '#f8fafc', text: '#475569', border: '#e2e8f0' }
+    };
+
+    const state = {
+      activeTab: 'links',
+      query: '',
+      currentProject: 'ALL',
+      currentPromptCategory: 'ALL',
+      onlyFavorites: false,
+      linkSort: 'recent',
+      promptSort: 'popular',
+      viewMode: 'rich',
+      linkPage: 1,
+      promptPage: 1,
+      linkPerPage: '10',
+      promptPerPage: '10',
+      items: [],
+      projects: ['未分類'],
+      projectColors: {},
+      promptMemos: [],
+      promptCategories: ['未分類'],
+      linkSelectMode: false,
+      selectedLinkIds: [],
+      promptSelectMode: false,
+      selectedPromptIds: []
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function uid(prefix = 'id') {
+      return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function normalizeString(value) {
+      return String(value || '').normalize('NFKC').toLowerCase().trim();
+    }
+
+    function normalizeSpaces(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function normalizeBody(value) {
+      return String(value || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return '';
+      return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function save() {
+      const payload = {
+        activeTab: state.activeTab,
+        query: state.query,
+        currentProject: state.currentProject,
+        currentPromptCategory: state.currentPromptCategory,
+        onlyFavorites: state.onlyFavorites,
+        linkSort: state.linkSort,
+        promptSort: state.promptSort,
+        viewMode: state.viewMode,
+        linkPage: state.linkPage,
+        promptPage: state.promptPage,
+        linkPerPage: state.linkPerPage,
+        promptPerPage: state.promptPerPage,
+        items: state.items,
+        projects: state.projects,
+        projectColors: state.projectColors,
+        promptMemos: state.promptMemos,
+        promptCategories: state.promptCategories
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        Object.assign(state, {
+          ...data,
+          items: normalizeLinkItems(data.items || []),
+          projects: normalizeProjects(data.projects || [], data.items || []),
+          projectColors: data.projectColors || {},
+          promptMemos: normalizePromptItems(data.promptMemos || []),
+          promptCategories: normalizePromptCategories(data.promptCategories || [], data.promptMemos || []),
+          linkSelectMode: false,
+          selectedLinkIds: [],
+          promptSelectMode: false,
+          selectedPromptIds: []
+        });
+      } catch (error) {
+        console.warn(error);
+        toast('保存データの読み込みに失敗しました');
+      }
+    }
+
+    function normalizeProjects(projects, items = state.items) {
+      const source = Array.isArray(items) ? items : [];
+      const names = source
+        .filter(item => !item.archived)
+        .map(item => String(item.projectName || '未分類').trim() || '未分類');
+      const unique = [...new Set(names)];
+      return unique.length ? unique : ['未分類'];
+    }
+
+    function normalizePromptCategories(categories, memos = state.promptMemos) {
+      const source = Array.isArray(memos) ? memos : [];
+      const names = source
+        .map(memo => String(memo.categoryName || memo.projectName || '未分類').trim() || '未分類');
+      const unique = [...new Set(names)];
+      return unique.length ? unique : ['未分類'];
+    }
+
+    function normalizeLinkItems(list) {
+      const now = new Date().toISOString();
+      return (Array.isArray(list) ? list : [])
+        .filter(item => item && item.title && item.url && !item.archived)
+        .map(item => {
+          const favoriteType = item.favoriteType || (item.isFavorite ? 'normal' : 'none');
+          return {
+            id: String(item.id || uid('link')),
+            title: String(item.title || '無題'),
+            url: String(item.url || ''),
+            projectName: String(item.projectName || '未分類').trim() || '未分類',
+            note: String(item.note || ''),
+            addedAt: item.addedAt || now,
+            updatedAt: item.updatedAt || item.addedAt || now,
+            lastClickedAt: item.lastClickedAt || null,
+            clickCount: Number(item.clickCount || 0),
+            clickHistory: Array.isArray(item.clickHistory) ? item.clickHistory : [],
+            archived: false,
+            isFavorite: favoriteType !== 'none' || !!item.isFavorite,
+            favoriteType,
+            favoriteExpiry: item.favoriteExpiry || null
+          };
+        });
+    }
+
+    function normalizePromptItems(list) {
+      const now = new Date().toISOString();
+      return (Array.isArray(list) ? list : [])
+        .filter(memo => memo && (String(memo.title || '').trim() || String(memo.body || '').trim()))
+        .map(memo => ({
+          id: String(memo.id || uid('prompt')),
+          title: String(memo.title || '無題のプロンプト'),
+          categoryName: String(memo.categoryName || memo.projectName || '未分類').trim() || '未分類',
+          body: String(memo.body || ''),
+          createdAt: memo.createdAt || memo.addedAt || now,
+          updatedAt: memo.updatedAt || memo.createdAt || now,
+          copyCount: Number(memo.copyCount || 0),
+          lastCopiedAt: memo.lastCopiedAt || null
+        }));
+    }
+
+    function getLinkKey(item) {
+      return [
+        String(item.url || '').trim(),
+        normalizeSpaces(item.title),
+        normalizeSpaces(item.projectName || '未分類'),
+        normalizeSpaces(item.note),
+        item.archived ? 'archived' : 'active'
+      ].join('\u001f');
+    }
+
+    function getPromptKey(memo) {
+      return [
+        normalizeSpaces(memo.title || '無題のプロンプト'),
+        normalizeBody(memo.body),
+        normalizeSpaces(memo.categoryName || memo.projectName || '未分類')
+      ].join('\u001f');
+    }
+
+    function timeValue(value) {
+      const time = value ? new Date(value).getTime() : 0;
+      return Number.isFinite(time) ? time : 0;
+    }
+
+    function pickEarlier(a, b) {
+      const at = timeValue(a), bt = timeValue(b);
+      if (!at) return b || a || null;
+      if (!bt) return a || b || null;
+      return at <= bt ? a : b;
+    }
+
+    function pickLater(a, b) {
+      const at = timeValue(a), bt = timeValue(b);
+      if (!at) return b || a || null;
+      if (!bt) return a || b || null;
+      return at >= bt ? a : b;
+    }
+
+    function mergeLink(base, incoming) {
+      if (!base) return incoming;
+      const favoriteType = pickFavoriteType(base.favoriteType, incoming.favoriteType);
+      return {
+        ...base,
+        addedAt: pickEarlier(base.addedAt, incoming.addedAt),
+        updatedAt: pickLater(base.updatedAt, incoming.updatedAt),
+        lastClickedAt: pickLater(base.lastClickedAt, incoming.lastClickedAt),
+        clickCount: Math.max(Number(base.clickCount || 0), Number(incoming.clickCount || 0)),
+        clickHistory: [...new Set([...(base.clickHistory || []), ...(incoming.clickHistory || [])])].sort((a, b) => timeValue(a) - timeValue(b)),
+        isFavorite: favoriteType !== 'none' || !!base.isFavorite || !!incoming.isFavorite,
+        favoriteType,
+        favoriteExpiry: pickLater(base.favoriteExpiry, incoming.favoriteExpiry)
+      };
+    }
+
+    function pickFavoriteType(a, b) {
+      const priority = { none: 0, normal: 1, temporary: 2, permanent: 3 };
+      const av = String(a || 'none');
+      const bv = String(b || 'none');
+      return (priority[bv] || 0) > (priority[av] || 0) ? bv : av;
+    }
+
+    function mergePrompt(base, incoming) {
+      if (!base) return incoming;
+      return {
+        ...base,
+        createdAt: pickEarlier(base.createdAt, incoming.createdAt),
+        updatedAt: pickLater(base.updatedAt, incoming.updatedAt),
+        lastCopiedAt: pickLater(base.lastCopiedAt, incoming.lastCopiedAt),
+        copyCount: Math.max(Number(base.copyCount || 0), Number(incoming.copyCount || 0))
+      };
+    }
+
+    function isFavorite(item) {
+      const type = item.favoriteType || (item.isFavorite ? 'normal' : 'none');
+      if (type === 'none') return false;
+      if (type === 'temporary' && item.favoriteExpiry && timeValue(item.favoriteExpiry) < Date.now()) return false;
+      return true;
+    }
+
+    function getProjectColor(name) {
+      const key = name || '未分類';
+      if (state.projectColors[key]) return state.projectColors[key];
+      if (DEFAULT_COLORS[key]) return DEFAULT_COLORS[key];
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+      const h = Math.abs(hash) % 360;
+      return { bg: `hsl(${h}, 85%, 94%)`, text: `hsl(${h}, 70%, 30%)`, border: `hsl(${h}, 60%, 84%)` };
+    }
+
+    function badgeStyle(name) {
+      const color = getProjectColor(name);
+      return `background:${color.bg};color:${color.text};border-color:${color.border};`;
+    }
+
+    function promptBadgeStyle(name) {
+      const color = getProjectColor(name);
+      return `background:${color.bg};color:${color.text};border-color:${color.border};`;
+    }
+
+    function matchesSearch(values) {
+      const q = normalizeString(state.query);
+      if (!q) return true;
+      return values.some(value => normalizeString(value).includes(q));
+    }
+
+    function filteredLinks() {
+      let list = state.items.filter(item => !item.archived);
+      if (state.onlyFavorites) list = list.filter(isFavorite);
+      if (state.currentProject !== 'ALL') list = list.filter(item => (item.projectName || '未分類') === state.currentProject);
+      if (state.query) list = list.filter(item => matchesSearch([item.title, item.url, item.note, item.projectName]));
+      return list.sort(sortLinks);
+    }
+
+    function sortLinks(a, b) {
+      if (state.linkSort === 'clicked') return timeValue(b.lastClickedAt) - timeValue(a.lastClickedAt) || timeValue(b.addedAt) - timeValue(a.addedAt);
+      if (state.linkSort === 'clicks') return Number(b.clickCount || 0) - Number(a.clickCount || 0) || timeValue(b.lastClickedAt) - timeValue(a.lastClickedAt);
+      if (state.linkSort === 'project') return String(a.projectName || '').localeCompare(String(b.projectName || ''), 'ja') || String(a.title || '').localeCompare(String(b.title || ''), 'ja');
+      if (state.linkSort === 'title') return String(a.title || '').localeCompare(String(b.title || ''), 'ja');
+      return timeValue(b.addedAt) - timeValue(a.addedAt);
+    }
+
+    function filteredPrompts() {
+      let list = [...state.promptMemos];
+      if (state.currentPromptCategory !== 'ALL') list = list.filter(memo => (memo.categoryName || '未分類') === state.currentPromptCategory);
+      if (state.query) list = list.filter(memo => matchesSearch([memo.title, memo.body, memo.categoryName]));
+      return list.sort(sortPrompts);
+    }
+
+    function sortPrompts(a, b) {
+      if (state.promptSort === 'recent') return timeValue(b.updatedAt) - timeValue(a.updatedAt);
+      if (state.promptSort === 'created') return timeValue(b.createdAt) - timeValue(a.createdAt);
+      if (state.promptSort === 'title') return String(a.title || '').localeCompare(String(b.title || ''), 'ja');
+      return Number(b.copyCount || 0) - Number(a.copyCount || 0) || timeValue(b.updatedAt) - timeValue(a.updatedAt);
+    }
+
+    function highlight(value) {
+      const text = escapeHtml(value || '');
+      const q = state.query.trim();
+      if (!q) return text;
+      const normalized = normalizeString(q);
+      const raw = String(value || '');
+      const idx = normalizeString(raw).indexOf(normalized);
+      if (idx < 0) return text;
+      const before = escapeHtml(raw.slice(0, idx));
+      const middle = escapeHtml(raw.slice(idx, idx + q.length));
+      const after = escapeHtml(raw.slice(idx + q.length));
+      return `${before}<mark>${middle}</mark>${after}`;
+    }
+
+    function render() {
+      cleanupSelections();
+      updateSettingsControls();
+      refreshBookmarkletUi();
+      renderTabs();
+      renderStats();
+      renderDatalists();
+      renderLinks();
+      renderPrompts();
+      renderCategoryManagers();
+      syncViewControls();
+      $('globalSearch').value = state.query;
+      $('clearSearchBtn').classList.toggle('show', !!state.query);
+      $('fabBtn').style.display = state.activeTab === 'settings' ? 'none' : 'block';
+    }
+
+    function renderTabs() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === state.activeTab);
+      });
+      $('linksPanel').classList.toggle('active', state.activeTab === 'links');
+      $('promptsPanel').classList.toggle('active', state.activeTab === 'prompts');
+      $('settingsPanel').classList.toggle('active', state.activeTab === 'settings');
+    }
+
+    function renderStats() {
+      const activeLinks = state.items.filter(item => !item.archived);
+      $('statLinks').textContent = activeLinks.length.toLocaleString();
+      $('statFavorites').textContent = activeLinks.filter(isFavorite).length.toLocaleString();
+      $('statProjects').textContent = normalizeProjects(state.projects, activeLinks).length.toLocaleString();
+      $('statPrompts').textContent = state.promptMemos.length.toLocaleString();
+      $('statPromptCategories').textContent = state.promptCategories.length.toLocaleString();
+      $('statCopies').textContent = state.promptMemos.reduce((sum, memo) => sum + Number(memo.copyCount || 0), 0).toLocaleString();
+    }
+
+    function renderDatalists() {
+      const projectOptions = state.projects.map(p => `<option value="${escapeHtml(p)}"></option>`).join('');
+      $('projectList').innerHTML = projectOptions;
+      $('linkProjectSelect').innerHTML = `<option value="">既存分類から選ぶ</option>` + state.projects.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+
+      const promptOptions = state.promptCategories.map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+      $('promptCategoryList').innerHTML = promptOptions;
+      $('promptCategorySelect').innerHTML = `<option value="">既存カテゴリから選ぶ</option>` + state.promptCategories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    }
+
+
+    function countNames(list, getter) {
+      const counts = new Map();
+      list.forEach(item => {
+        const name = String(getter(item) || '未分類').trim() || '未分類';
+        counts.set(name, (counts.get(name) || 0) + 1);
+      });
+      return counts;
+    }
+
+    function optionHtml(names, current, emptyLabel) {
+      const options = [`<option value="">${escapeHtml(emptyLabel)}</option>`];
+      names.filter(name => name !== current).forEach(name => {
+        options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+      });
+      return options.join('');
+    }
+
+    function renderCategoryManagers() {
+      renderProjectManager();
+      renderPromptCategoryManager();
+    }
+
+    function renderProjectManager() {
+      const el = $('projectManager');
+      if (!el) return;
+      const counts = countNames(state.items, item => item.projectName || '未分類');
+      const names = normalizeProjects(state.projects, state.items);
+      if (!state.items.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-title">リンク分類はまだありません</div><div>リンクを追加すると分類を整理できます。</div></div>`;
+        return;
+      }
+      el.innerHTML = names.map(name => {
+        const encoded = encodeURIComponent(name);
+        const count = counts.get(name) || 0;
+        const disabledMerge = names.length <= 1 ? 'disabled' : '';
+        return `
+          <div class="category-manage-row" data-project-name="${encoded}">
+            <div class="category-manage-head">
+              <span class="badge" style="${badgeStyle(name)}">${escapeHtml(name)}</span>
+              <span class="category-count">${count.toLocaleString()}件</span>
+            </div>
+            <div class="category-action-grid">
+              <input class="input" data-role="project-rename" value="${escapeHtml(name)}" />
+              <button class="btn ghost compact" data-project-action="rename" type="button">名前変更</button>
+            </div>
+            <div class="category-action-grid">
+              <select class="select" data-role="project-merge-target" ${disabledMerge}>${optionHtml(names, name, '統合先を選ぶ')}</select>
+              <button class="btn danger compact" data-project-action="merge" type="button" ${disabledMerge}>統合</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      el.querySelectorAll('[data-project-action="rename"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-project-name]');
+          const oldName = decodeURIComponent(row.dataset.projectName || '');
+          const newName = row.querySelector('[data-role="project-rename"]').value;
+          renameProject(oldName, newName);
+        });
+      });
+      el.querySelectorAll('[data-project-action="merge"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-project-name]');
+          const fromName = decodeURIComponent(row.dataset.projectName || '');
+          const toName = row.querySelector('[data-role="project-merge-target"]').value;
+          mergeProject(fromName, toName);
+        });
+      });
+    }
+
+    function renderPromptCategoryManager() {
+      const el = $('promptCategoryManager');
+      if (!el) return;
+      const counts = countNames(state.promptMemos, memo => memo.categoryName || memo.projectName || '未分類');
+      const names = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      if (!state.promptMemos.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-title">プロンプトカテゴリはまだありません</div><div>プロンプトを追加するとカテゴリを整理できます。</div></div>`;
+        return;
+      }
+      el.innerHTML = names.map(name => {
+        const encoded = encodeURIComponent(name);
+        const count = counts.get(name) || 0;
+        const disabledMerge = names.length <= 1 ? 'disabled' : '';
+        return `
+          <div class="category-manage-row" data-prompt-category="${encoded}">
+            <div class="category-manage-head">
+              <span class="badge" style="${promptBadgeStyle(name)}">${escapeHtml(name)}</span>
+              <span class="category-count">${count.toLocaleString()}件</span>
+            </div>
+            <div class="category-action-grid">
+              <input class="input" data-role="prompt-category-rename" value="${escapeHtml(name)}" />
+              <button class="btn ghost compact" data-prompt-category-action="rename" type="button">名前変更</button>
+            </div>
+            <div class="category-action-grid">
+              <select class="select" data-role="prompt-category-merge-target" ${disabledMerge}>${optionHtml(names, name, '統合先を選ぶ')}</select>
+              <button class="btn danger compact" data-prompt-category-action="merge" type="button" ${disabledMerge}>統合</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      el.querySelectorAll('[data-prompt-category-action="rename"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-prompt-category]');
+          const oldName = decodeURIComponent(row.dataset.promptCategory || '');
+          const newName = row.querySelector('[data-role="prompt-category-rename"]').value;
+          renamePromptCategory(oldName, newName);
+        });
+      });
+      el.querySelectorAll('[data-prompt-category-action="merge"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('[data-prompt-category]');
+          const fromName = decodeURIComponent(row.dataset.promptCategory || '');
+          const toName = row.querySelector('[data-role="prompt-category-merge-target"]').value;
+          mergePromptCategory(fromName, toName);
+        });
+      });
+    }
+
+    function renameProject(oldName, newNameRaw) {
+      const newName = String(newNameRaw || '').trim() || '未分類';
+      if (!oldName) return;
+      if (newName === oldName) {
+        toast('分類名は変更されていません');
+        return;
+      }
+      if (!confirm(`リンク分類「${oldName}」を「${newName}」に変更しますか？`)) return;
+      state.items.forEach(item => {
+        if ((item.projectName || '未分類') === oldName) item.projectName = newName;
+      });
+      if (state.projectColors[oldName] && !state.projectColors[newName]) state.projectColors[newName] = state.projectColors[oldName];
+      delete state.projectColors[oldName];
+      if (state.currentProject === oldName) state.currentProject = newName;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.linkPage = 1;
+      save(); render(); toast('分類名を変更しました');
+    }
+
+    function mergeProject(fromName, toNameRaw) {
+      const toName = String(toNameRaw || '').trim();
+      if (!fromName || !toName) {
+        toast('統合先を選んでください');
+        return;
+      }
+      if (fromName === toName) return;
+      const count = state.items.filter(item => (item.projectName || '未分類') === fromName).length;
+      if (!confirm(`リンク分類「${fromName}」${count}件を「${toName}」へ統合しますか？`)) return;
+      state.items.forEach(item => {
+        if ((item.projectName || '未分類') === fromName) item.projectName = toName;
+      });
+      delete state.projectColors[fromName];
+      if (state.currentProject === fromName) state.currentProject = toName;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.linkPage = 1;
+      save(); render(); toast('分類を統合しました');
+    }
+
+    function cleanEmptyProjects() {
+      const before = Array.isArray(state.projects) ? state.projects.length : 0;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.projectColors = Object.fromEntries(Object.entries(state.projectColors || {}).filter(([name]) => state.projects.includes(name)));
+      const removed = Math.max(before - state.projects.length, 0);
+      save(); render(); toast(removed ? `0件分類を${removed}件削除しました` : '0件分類はありません');
+    }
+
+    function renamePromptCategory(oldName, newNameRaw) {
+      const newName = String(newNameRaw || '').trim() || '未分類';
+      if (!oldName) return;
+      if (newName === oldName) {
+        toast('カテゴリ名は変更されていません');
+        return;
+      }
+      if (!confirm(`プロンプトカテゴリ「${oldName}」を「${newName}」に変更しますか？`)) return;
+      state.promptMemos.forEach(memo => {
+        if ((memo.categoryName || '未分類') === oldName) memo.categoryName = newName;
+      });
+      if (state.currentPromptCategory === oldName) state.currentPromptCategory = newName;
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptPage = 1;
+      save(); render(); toast('カテゴリ名を変更しました');
+    }
+
+    function mergePromptCategory(fromName, toNameRaw) {
+      const toName = String(toNameRaw || '').trim();
+      if (!fromName || !toName) {
+        toast('統合先を選んでください');
+        return;
+      }
+      if (fromName === toName) return;
+      const count = state.promptMemos.filter(memo => (memo.categoryName || '未分類') === fromName).length;
+      if (!confirm(`プロンプトカテゴリ「${fromName}」${count}件を「${toName}」へ統合しますか？`)) return;
+      state.promptMemos.forEach(memo => {
+        if ((memo.categoryName || '未分類') === fromName) memo.categoryName = toName;
+      });
+      if (state.currentPromptCategory === fromName) state.currentPromptCategory = toName;
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptPage = 1;
+      save(); render(); toast('カテゴリを統合しました');
+    }
+
+    function cleanEmptyPromptCategories() {
+      const before = Array.isArray(state.promptCategories) ? state.promptCategories.length : 0;
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      const removed = Math.max(before - state.promptCategories.length, 0);
+      save(); render(); toast(removed ? `0件カテゴリを${removed}件削除しました` : '0件カテゴリはありません');
+    }
+
+    function getPageSize(kind, total) {
+      const value = kind === 'links' ? state.linkPerPage : state.promptPerPage;
+      if (value === 'all') return Math.max(total, 1);
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+    }
+
+    function paginate(list, kind) {
+      const pageKey = kind === 'links' ? 'linkPage' : 'promptPage';
+      const pageSize = getPageSize(kind, list.length);
+      const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+      const currentPage = Math.min(Math.max(Number(state[pageKey] || 1), 1), totalPages);
+      state[pageKey] = currentPage;
+      const startIndex = list.length ? (currentPage - 1) * pageSize : 0;
+      const endIndex = list.length ? Math.min(startIndex + pageSize, list.length) : 0;
+      return {
+        items: list.slice(startIndex, endIndex),
+        currentPage,
+        totalPages,
+        startIndex,
+        endIndex,
+        total: list.length,
+        pageSize
+      };
+    }
+
+    function renderPager(targetId, page, kind) {
+      const el = $(targetId);
+      if (!el) return;
+      if (page.total <= page.pageSize || page.total === 0) {
+        el.style.display = 'none';
+        el.innerHTML = '';
+        return;
+      }
+      el.style.display = 'flex';
+      el.innerHTML = `
+        <div class="pager-info">${page.startIndex + 1}-${page.endIndex} / ${page.total.toLocaleString()}件　${page.currentPage}/${page.totalPages}ページ</div>
+        <div class="pager-actions">
+          <button class="btn ghost compact" data-page-action="prev" ${page.currentPage <= 1 ? 'disabled' : ''}>前へ</button>
+          <button class="btn ghost compact" data-page-action="next" ${page.currentPage >= page.totalPages ? 'disabled' : ''}>次へ</button>
+        </div>`;
+      el.querySelectorAll('[data-page-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pageKey = kind === 'links' ? 'linkPage' : 'promptPage';
+          state[pageKey] += btn.dataset.pageAction === 'next' ? 1 : -1;
+          save(); render();
+        });
+      });
+    }
+
+    function syncViewControls() {
+      ['linkRichViewBtn', 'promptRichViewBtn'].forEach(id => {
+        const el = $(id);
+        if (el) el.classList.toggle('active', state.viewMode === 'rich');
+      });
+      ['linkSimpleViewBtn', 'promptSimpleViewBtn'].forEach(id => {
+        const el = $(id);
+        if (el) el.classList.toggle('active', state.viewMode === 'simple');
+      });
+      if ($('linkPerPageSelect')) $('linkPerPageSelect').value = state.linkPerPage;
+      if ($('promptPerPageSelect')) $('promptPerPageSelect').value = state.promptPerPage;
+    }
+
+    function setViewMode(mode) {
+      state.viewMode = mode === 'simple' ? 'simple' : 'rich';
+      save(); render();
+    }
+
+    function renderLinkChips() {
+      const counts = new Map();
+      state.items.filter(item => !item.archived).forEach(item => {
+        const p = item.projectName || '未分類';
+        counts.set(p, (counts.get(p) || 0) + 1);
+      });
+      const chips = [
+        `<button class="chip ${state.currentProject === 'ALL' && !state.onlyFavorites ? 'active' : ''}" data-project="ALL">すべて (${state.items.filter(i => !i.archived).length})</button>`,
+        `<button class="chip favorite ${state.onlyFavorites ? 'active' : ''}" data-favorite="1">★ お気に入り (${state.items.filter(i => !i.archived && isFavorite(i)).length})</button>`
+      ];
+      state.projects.forEach(project => {
+        const count = counts.get(project) || 0;
+        if (count === 0 && project !== '未分類') return;
+        chips.push(`<button class="chip ${state.currentProject === project && !state.onlyFavorites ? 'active' : ''}" data-project="${escapeHtml(project)}" style="${state.currentProject === project && !state.onlyFavorites ? '' : badgeStyle(project)}">${escapeHtml(project)} (${count})</button>`);
+      });
+      $('linkChips').innerHTML = chips.join('');
+      $('linkChips').querySelectorAll('[data-project]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentProject = btn.dataset.project || 'ALL';
+          state.onlyFavorites = false;
+          state.linkPage = 1;
+          save(); render();
+        });
+      });
+      $('linkChips').querySelectorAll('[data-favorite]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.onlyFavorites = !state.onlyFavorites;
+          if (state.onlyFavorites) state.currentProject = 'ALL';
+          state.linkPage = 1;
+          save(); render();
+        });
+      });
+    }
+
+
+    function cleanupSelections() {
+      const linkIds = new Set(state.items.map(item => item.id));
+      state.selectedLinkIds = (state.selectedLinkIds || []).filter(id => linkIds.has(id));
+      const promptIds = new Set(state.promptMemos.map(memo => memo.id));
+      state.selectedPromptIds = (state.selectedPromptIds || []).filter(id => promptIds.has(id));
+      if (!state.selectedLinkIds.length && state.linkSelectMode && !state.items.length) state.linkSelectMode = false;
+      if (!state.selectedPromptIds.length && state.promptSelectMode && !state.promptMemos.length) state.promptSelectMode = false;
+    }
+
+    function renderLinkBulkBar(list) {
+      const el = $('linkBulkBar');
+      const selectedCount = state.selectedLinkIds.length;
+      if (!state.linkSelectMode) {
+        el.classList.add('show');
+        el.innerHTML = `
+          <div class="bulk-label">まとめて操作</div>
+          <button class="btn ghost compact" id="startLinkSelectBtn">選択して削除</button>`;
+        $('startLinkSelectBtn').addEventListener('click', () => {
+          state.linkSelectMode = true;
+          state.selectedLinkIds = [];
+          render();
+        });
+        return;
+      }
+      el.classList.add('show');
+      el.innerHTML = `
+        <div class="bulk-label"><span class="select-mode-badge">${selectedCount}</span> 件選択中</div>
+        <button class="btn ghost compact" id="selectVisibleLinksBtn">表示中を選択</button>
+        <button class="btn ghost compact" id="clearLinkSelectionBtn">解除</button>
+        <button class="btn danger compact" id="deleteSelectedLinksBtn" ${selectedCount ? '' : 'disabled'}>削除</button>
+        <button class="btn primary compact" id="finishLinkSelectBtn">完了</button>`;
+      $('selectVisibleLinksBtn').addEventListener('click', () => {
+        state.selectedLinkIds = [...new Set([...(state.selectedLinkIds || []), ...list.map(item => item.id)])];
+        render();
+      });
+      $('clearLinkSelectionBtn').addEventListener('click', () => {
+        state.selectedLinkIds = [];
+        render();
+      });
+      $('deleteSelectedLinksBtn').addEventListener('click', deleteSelectedLinks);
+      $('finishLinkSelectBtn').addEventListener('click', () => {
+        state.linkSelectMode = false;
+        state.selectedLinkIds = [];
+        render();
+      });
+    }
+
+    function renderPromptBulkBar(list) {
+      const el = $('promptBulkBar');
+      const selectedCount = state.selectedPromptIds.length;
+      if (!state.promptSelectMode) {
+        el.classList.add('show');
+        el.innerHTML = `
+          <div class="bulk-label">まとめて操作</div>
+          <button class="btn ghost compact" id="startPromptSelectBtn">選択して削除</button>`;
+        $('startPromptSelectBtn').addEventListener('click', () => {
+          state.promptSelectMode = true;
+          state.selectedPromptIds = [];
+          render();
+        });
+        return;
+      }
+      el.classList.add('show');
+      el.innerHTML = `
+        <div class="bulk-label"><span class="select-mode-badge">${selectedCount}</span> 件選択中</div>
+        <button class="btn ghost compact" id="selectVisiblePromptsBtn">表示中を選択</button>
+        <button class="btn ghost compact" id="clearPromptSelectionBtn">解除</button>
+        <button class="btn danger compact" id="deleteSelectedPromptsBtn" ${selectedCount ? '' : 'disabled'}>削除</button>
+        <button class="btn primary compact" id="finishPromptSelectBtn">完了</button>`;
+      $('selectVisiblePromptsBtn').addEventListener('click', () => {
+        state.selectedPromptIds = [...new Set([...(state.selectedPromptIds || []), ...list.map(memo => memo.id)])];
+        render();
+      });
+      $('clearPromptSelectionBtn').addEventListener('click', () => {
+        state.selectedPromptIds = [];
+        render();
+      });
+      $('deleteSelectedPromptsBtn').addEventListener('click', deleteSelectedPrompts);
+      $('finishPromptSelectBtn').addEventListener('click', () => {
+        state.promptSelectMode = false;
+        state.selectedPromptIds = [];
+        render();
+      });
+    }
+
+    function toggleSelectedLink(id) {
+      const set = new Set(state.selectedLinkIds || []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      state.selectedLinkIds = [...set];
+      render();
+    }
+
+    function toggleSelectedPrompt(id) {
+      const set = new Set(state.selectedPromptIds || []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      state.selectedPromptIds = [...set];
+      render();
+    }
+
+    function deleteSelectedLinks() {
+      const ids = new Set(state.selectedLinkIds || []);
+      const count = ids.size;
+      if (!count) return;
+      if (!confirm(`選択したリンク${count}件を削除しますか？\nこの操作はlocalStorage上から削除します。必要なら先にJSONを書き出してください。`)) return;
+      state.items = state.items.filter(item => !ids.has(item.id));
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.selectedLinkIds = [];
+      state.linkSelectMode = false;
+      save(); render(); toast(`リンク${count}件を削除しました`);
+    }
+
+    function deleteSelectedPrompts() {
+      const ids = new Set(state.selectedPromptIds || []);
+      const count = ids.size;
+      if (!count) return;
+      if (!confirm(`選択したプロンプト${count}件を削除しますか？\nこの操作はlocalStorage上から削除します。必要なら先にJSONを書き出してください。`)) return;
+      state.promptMemos = state.promptMemos.filter(memo => !ids.has(memo.id));
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.selectedPromptIds = [];
+      state.promptSelectMode = false;
+      save(); render(); toast(`プロンプト${count}件を削除しました`);
+    }
+
+    function renderLinks() {
+      renderLinkChips();
+      $('linkSortSelect').value = state.linkSort;
+      const list = filteredLinks();
+      const page = paginate(list, 'links');
+      renderLinkBulkBar(page.items);
+      renderPager('linkPagerTop', page, 'links');
+      renderPager('linkPagerBottom', page, 'links');
+      const rangeText = list.length ? `${page.startIndex + 1}-${page.endIndex}` : '0';
+      $('linkCountLabel').textContent = `${rangeText}件表示 / 全${list.length.toLocaleString()}件`;
+      $('linksList').className = `list ${state.viewMode === 'simple' ? 'simple' : ''}`;
+      if (!list.length) {
+        $('linkPagerTop').style.display = 'none';
+        $('linkPagerBottom').style.display = 'none';
+        $('linksList').innerHTML = `<div class="empty"><div class="empty-title">リンクが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいリンクを追加してください。' : '右下の＋から追加できます。既存バックアップは管理画面からインポートできます。'}</div></div>`;
+        return;
+      }
+      $('linksList').innerHTML = page.items.map(item => state.viewMode === 'simple' ? renderLinkSimpleRow(item) : renderLinkCard(item)).join('');
+      bindLinkCardEvents();
+    }
+
+    function renderLinkCard(item) {
+      const fav = isFavorite(item);
+      const note = item.note ? `<div class="card-note">${highlight(item.note)}</div>` : '';
+      const selecting = state.linkSelectMode;
+      const selected = state.selectedLinkIds.includes(item.id);
+      return `
+        <article class="card ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(item.id)}">
+          <div class="card-inner">
+            <div class="card-top">
+              ${selecting ? `<input class="select-check" type="checkbox" data-action="select-link" ${selected ? 'checked' : ''} aria-label="選択" />` : ''}
+              <div class="title-area">
+                <span class="badge" style="${badgeStyle(item.projectName)}">${escapeHtml(item.projectName || '未分類')}</span>
+                <h3 class="card-title">${highlight(item.title)}</h3>
+              </div>
+              <button class="star-btn ${fav ? 'on' : ''}" data-action="favorite" aria-label="お気に入り切り替え">${fav ? '★' : '☆'}</button>
+            </div>
+            ${note}
+            <div class="card-url">${highlight(item.url)}</div>
+            <div class="meta">
+              <span>追加 ${formatDate(item.addedAt) || '-'}</span>
+              <span>開いた回数 ${Number(item.clickCount || 0).toLocaleString()}</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn primary" data-action="open">開く</button>
+              <button class="btn ghost" data-action="copy">コピー</button>
+              <button class="btn ghost" data-action="edit">編集</button>
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function renderLinkSimpleRow(item) {
+      const fav = isFavorite(item);
+      const selecting = state.linkSelectMode;
+      const selected = state.selectedLinkIds.includes(item.id);
+      return `
+        <article class="simple-row ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(item.id)}">
+          ${selecting ? `<input class="select-check" type="checkbox" data-action="select-link" ${selected ? 'checked' : ''} aria-label="選択" />` : `<button class="simple-star ${fav ? 'on' : ''}" data-action="favorite" aria-label="お気に入り切り替え">${fav ? '★' : '☆'}</button>`}
+          <div class="simple-main">
+            <div class="simple-title">${highlight(item.title)}</div>
+            <div class="simple-sub">
+              <span class="badge" style="${badgeStyle(item.projectName)}">${escapeHtml(item.projectName || '未分類')}</span>
+              <span>${Number(item.clickCount || 0).toLocaleString()}回</span>
+              <span class="simple-url">${highlight(item.url)}</span>
+            </div>
+          </div>
+          <div class="simple-actions">
+            <button class="btn primary" data-action="open">開く</button>
+            <button class="btn ghost" data-action="copy">URL</button>
+            <button class="btn ghost" data-action="edit">編集</button>
+          </div>
+        </article>`;
+    }
+
+    function renderPromptChips() {
+      const counts = new Map();
+      state.promptMemos.forEach(memo => {
+        const c = memo.categoryName || '未分類';
+        counts.set(c, (counts.get(c) || 0) + 1);
+      });
+      const chips = [`<button class="chip ${state.currentPromptCategory === 'ALL' ? 'active' : ''}" data-prompt-category="ALL">すべて (${state.promptMemos.length})</button>`];
+      state.promptCategories.forEach(category => {
+        const count = counts.get(category) || 0;
+        if (count === 0 && category !== '未分類') return;
+        chips.push(`<button class="chip ${state.currentPromptCategory === category ? 'active' : ''}" data-prompt-category="${escapeHtml(category)}" style="${state.currentPromptCategory === category ? '' : promptBadgeStyle(category)}">${escapeHtml(category)} (${count})</button>`);
+      });
+      $('promptChips').innerHTML = chips.join('');
+      $('promptChips').querySelectorAll('[data-prompt-category]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.currentPromptCategory = btn.dataset.promptCategory || 'ALL';
+          state.promptPage = 1;
+          save(); render();
+        });
+      });
+    }
+
+    function renderPrompts() {
+      renderPromptChips();
+      $('promptSortSelect').value = state.promptSort;
+      const list = filteredPrompts();
+      const page = paginate(list, 'prompts');
+      renderPromptBulkBar(page.items);
+      renderPager('promptPagerTop', page, 'prompts');
+      renderPager('promptPagerBottom', page, 'prompts');
+      const rangeText = list.length ? `${page.startIndex + 1}-${page.endIndex}` : '0';
+      $('promptCountLabel').textContent = `${rangeText}件表示 / 全${list.length.toLocaleString()}件`;
+      $('promptsList').className = `list ${state.viewMode === 'simple' ? 'simple' : ''}`;
+      if (!list.length) {
+        $('promptPagerTop').style.display = 'none';
+        $('promptPagerBottom').style.display = 'none';
+        $('promptsList').innerHTML = `<div class="empty"><div class="empty-title">プロンプトが見つかりません</div><div>${state.query ? '検索条件をゆるめるか、新しいプロンプトを追加してください。' : '右下の＋から保存できます。よく使う指示文をここに置いておけます。'}</div></div>`;
+        return;
+      }
+      $('promptsList').innerHTML = page.items.map(memo => state.viewMode === 'simple' ? renderPromptSimpleRow(memo) : renderPromptCard(memo)).join('');
+      bindPromptCardEvents();
+    }
+
+    function renderPromptCard(memo) {
+      const body = String(memo.body || '');
+      const preview = body.length > 360 ? body.slice(0, 360) + '…' : body;
+      const selecting = state.promptSelectMode;
+      const selected = state.selectedPromptIds.includes(memo.id);
+      return `
+        <article class="card prompt-card ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(memo.id)}">
+          <div class="card-inner">
+            <div class="card-top">
+              ${selecting ? `<input class="select-check" type="checkbox" data-action="select-prompt" ${selected ? 'checked' : ''} aria-label="選択" />` : ''}
+              <div class="title-area">
+              <span class="badge" style="${promptBadgeStyle(memo.categoryName)}">${escapeHtml(memo.categoryName || '未分類')}</span>
+              <h3 class="card-title">${highlight(memo.title || '無題のプロンプト')}</h3>
+              </div>
+            </div>
+            <div class="prompt-body ${body.length > 360 ? 'long' : ''}">${highlight(preview || '本文なし')}</div>
+            <div class="meta">
+              <span>${body.length.toLocaleString()}文字</span>
+              <span>コピー ${Number(memo.copyCount || 0).toLocaleString()}回</span>
+              <span>更新 ${formatDate(memo.updatedAt) || '-'}</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn green" data-action="copy-prompt">コピー</button>
+              <button class="btn ghost" data-action="edit-prompt">編集</button>
+              <button class="btn danger" data-action="delete-prompt">削除</button>
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function renderPromptSimpleRow(memo) {
+      const body = String(memo.body || '');
+      const selecting = state.promptSelectMode;
+      const selected = state.selectedPromptIds.includes(memo.id);
+      return `
+        <article class="simple-row ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''}" data-id="${escapeHtml(memo.id)}">
+          ${selecting ? `<input class="select-check" type="checkbox" data-action="select-prompt" ${selected ? 'checked' : ''} aria-label="選択" />` : `<span class="select-mode-badge">✍</span>`}
+          <div class="simple-main">
+            <div class="simple-title">${highlight(memo.title || '無題のプロンプト')}</div>
+            <div class="simple-sub">
+              <span class="badge" style="${promptBadgeStyle(memo.categoryName)}">${escapeHtml(memo.categoryName || '未分類')}</span>
+              <span>${body.length.toLocaleString()}文字</span>
+              <span>${Number(memo.copyCount || 0).toLocaleString()}回コピー</span>
+            </div>
+          </div>
+          <div class="simple-actions">
+            <button class="btn green" data-action="copy-prompt">コピー</button>
+            <button class="btn ghost" data-action="edit-prompt">編集</button>
+            <button class="btn danger" data-action="delete-prompt">削除</button>
+          </div>
+        </article>`;
+    }
+
+
+    function bindLinkCardEvents() {
+      $('linksList').querySelectorAll('.card, .simple-row').forEach(card => {
+        const id = card.dataset.id;
+        card.addEventListener('click', (event) => {
+          if (!state.linkSelectMode) return;
+          if (event.target.closest('button, input, a, textarea, select')) return;
+          toggleSelectedLink(id);
+        });
+        card.querySelectorAll('[data-action]').forEach(btn => {
+          btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handleLinkAction(id, btn.dataset.action);
+          });
+        });
+      });
+    }
+
+    function bindPromptCardEvents() {
+      $('promptsList').querySelectorAll('.card, .simple-row').forEach(card => {
+        const id = card.dataset.id;
+        card.addEventListener('click', (event) => {
+          if (!state.promptSelectMode) return;
+          if (event.target.closest('button, input, a, textarea, select')) return;
+          toggleSelectedPrompt(id);
+        });
+        card.querySelectorAll('[data-action]').forEach(btn => {
+          btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            handlePromptAction(id, btn.dataset.action);
+          });
+        });
+      });
+    }
+
+    function handleLinkAction(id, action) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      if (action === 'select-link') return toggleSelectedLink(id);
+      if (state.linkSelectMode && action !== 'favorite') return toggleSelectedLink(id);
+      if (action === 'favorite') return toggleFavorite(id);
+      if (action === 'copy') return copyText(item.url, 'URLをコピーしました');
+      if (action === 'edit') return openLinkModal(item);
+      if (action === 'open') {
+        const now = new Date().toISOString();
+        item.clickCount = Number(item.clickCount || 0) + 1;
+        item.lastClickedAt = now;
+        item.clickHistory = [...(item.clickHistory || []), now].slice(-100);
+        save(); render();
+        window.open(item.url, '_blank', 'noopener');
+      }
+    }
+
+    function handlePromptAction(id, action) {
+      const memo = state.promptMemos.find(m => m.id === id);
+      if (!memo) return;
+      if (action === 'select-prompt') return toggleSelectedPrompt(id);
+      if (state.promptSelectMode) return toggleSelectedPrompt(id);
+      if (action === 'copy-prompt') return copyPrompt(id);
+      if (action === 'edit-prompt') return openPromptModal(memo);
+      if (action === 'delete-prompt') return deletePrompt(id);
+    }
+
+    function toggleFavorite(id) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      const next = !isFavorite(item);
+      item.isFavorite = next;
+      item.favoriteType = next ? 'normal' : 'none';
+      item.favoriteExpiry = null;
+      item.updatedAt = new Date().toISOString();
+      save(); render();
+      toast(next ? 'お気に入りに追加しました' : 'お気に入りを外しました');
+    }
+
+    async function copyText(text, message = 'コピーしました') {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      toast(message);
+    }
+
+    function copyPrompt(id) {
+      const memo = state.promptMemos.find(m => m.id === id);
+      if (!memo) return;
+      const now = new Date().toISOString();
+      memo.copyCount = Number(memo.copyCount || 0) + 1;
+      memo.lastCopiedAt = now;
+      memo.updatedAt = memo.updatedAt || now;
+      save(); render();
+      copyText(memo.body || '', 'プロンプトをコピーしました');
+    }
+
+    function deletePrompt(id) {
+      const memo = state.promptMemos.find(m => m.id === id);
+      if (!memo) return;
+      if (!confirm(`プロンプト「${memo.title || '無題'}」を削除しますか？`)) return;
+      state.promptMemos = state.promptMemos.filter(m => m.id !== id);
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      save(); render();
+      toast('削除しました');
+    }
+
+
+    function extractFirstUrl(text) {
+      const value = String(text || '').trim();
+      if (!value) return '';
+      const httpMatch = value.match(/https?:\/\/[^\s<>'"（）()\[\]{}]+/i);
+      if (httpMatch) return httpMatch[0].replace(/[.,;:!?、。]+$/, '');
+      const wwwMatch = value.match(/www\.[^\s<>'"（）()\[\]{}]+/i);
+      if (wwwMatch) return `https://${wwwMatch[0].replace(/[.,;:!?、。]+$/, '')}`;
+      return '';
+    }
+
+    function setClipboardHint(message) {
+      const el = $('clipboardHint');
+      if (el) el.textContent = message;
+    }
+
+    async function tryAutofillClipboardUrl(options = {}) {
+      const { forceToast = false } = options;
+      if (!$('linkUrl') || $('linkUrl').value.trim()) return false;
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setClipboardHint('このブラウザでは自動読み取りが使えません。URL欄に手動で貼り付けてください。');
+        if (forceToast) toast('クリップボード読み取りに非対応です');
+        return false;
+      }
+      try {
+        const text = await navigator.clipboard.readText();
+        const url = extractFirstUrl(text);
+        if (!url) {
+          setClipboardHint('クリップボード内にURLが見つかりませんでした。');
+          if (forceToast) toast('URLが見つかりませんでした');
+          return false;
+        }
+        $('linkUrl').value = url;
+        setClipboardHint('クリップボードのURLを入力しました。');
+        if (forceToast) toast('URLを貼り付けました');
+        return true;
+      } catch (error) {
+        console.warn('Clipboard read failed', error);
+        setClipboardHint('ブラウザに拒否されました。URL欄を長押しして貼り付けるか、「貼る」を再度試してください。');
+        if (forceToast) toast('クリップボードを読めませんでした');
+        return false;
+      }
+    }
+
+    function createBookmarkletCode() {
+      return "javascript:(async()=>{function c(v){return String(v||'').replace(/\\r\\n/g,'\\n').replace(/\\r/g,'\\n').trim()}function q(v){return JSON.stringify(c(v))}const m=s=>document.querySelector(s)?.content||'';const d=c(m('meta[name=\"description\"]')||m('meta[property=\"og:description\"]')||m('meta[name=\"twitter:description\"]')||window.getSelection()?.toString()||'');const y='title: '+q(document.title)+'\\nurl: '+q(location.href)+'\\ndescription: '+q(d);try{await navigator.clipboard.writeText(y);alert('Quick Links用YAMLをコピーしました')}catch(e){prompt('Quick Links用YAMLをコピーしてください',y)}})()";
+    }
+
+
+    function decodePossiblyEncodedYaml(text) {
+      let value = String(text || '').trim();
+      if (!value) return '';
+
+      // 一部ブラウザやブックマーク編集画面経由では、YAML全体がURLエンコードされたまま
+      // 貼り付くことがある。例：title:%20%22...%22%0Aurl%3A%20%22...%22
+      // その場合だけ decodeURIComponent してからYAMLとして読む。
+      const looksEncodedYaml = /%0A|%0D|%3A|%22|%E[0-9A-F]/i.test(value)
+        && /(title|url|description|note|%74%69%74%6C%65|%75%72%6C|%64%65%73%63%72%69%70%74%69%6F%6E)\s*:|%3A/i.test(value);
+
+      if (!looksEncodedYaml) return value;
+
+      let decoded = value;
+      for (let i = 0; i < 2; i += 1) {
+        try {
+          const next = decodeURIComponent(decoded);
+          if (!next || next === decoded) break;
+          decoded = next;
+        } catch (error) {
+          console.warn('YAML decode skipped', error);
+          break;
+        }
+      }
+      return decoded.trim();
+    }
+
+    function normalizeYamlTextareaValue(id, showMessage = false) {
+      const el = $(id);
+      if (!el) return false;
+      const before = el.value;
+      const after = decodePossiblyEncodedYaml(before);
+      if (after && after !== before) {
+        el.value = after;
+        if (showMessage) toast('URLエンコードされたYAMLを復元しました');
+        return true;
+      }
+      return false;
+    }
+
+    function bindYamlPasteNormalization(id) {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('paste', () => {
+        setTimeout(() => normalizeYamlTextareaValue(id, true), 0);
+      });
+      el.addEventListener('blur', () => normalizeYamlTextareaValue(id, false));
+    }
+
+    function refreshBookmarkletUi() {
+      const link = $('bookmarkletLink');
+      const code = $('bookmarkletCode');
+      if (!link || !code) return;
+      const bookmarklet = createBookmarkletCode();
+      link.setAttribute('href', bookmarklet);
+      code.value = bookmarklet;
+    }
+
+    function parseYamlScalar(rawValue) {
+      let value = String(rawValue || '').trim();
+      if (!value) return '';
+      if (value.startsWith('"') && value.endsWith('"')) {
+        try { return JSON.parse(value); } catch (_) {}
+      }
+      if (value.startsWith("'") && value.endsWith("'")) {
+        return value.slice(1, -1).replace(/''/g, "'");
+      }
+      return value.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+
+    function parseBookmarkletYaml(text) {
+      const result = {};
+      const normalizedText = decodePossiblyEncodedYaml(text);
+      String(normalizedText || '').split(/\r?\n/).forEach(line => {
+        const match = line.match(/^\s*(title|url|description|note|備考)\s*:\s*(.*)\s*$/i);
+        if (!match) return;
+        const key = match[1].toLowerCase();
+        const value = parseYamlScalar(match[2]);
+        if (key === 'note' || key === '備考') result.description = value;
+        else result[key] = value;
+      });
+      return {
+        title: String(result.title || '').trim(),
+        url: String(result.url || '').trim(),
+        description: String(result.description || '').trim()
+      };
+    }
+
+    function getDefaultProjectName() {
+      return state.currentProject !== 'ALL' ? state.currentProject : '未分類';
+    }
+
+    function fillLinkModalFromYaml(parsed) {
+      const projectName = getDefaultProjectName();
+      openLinkModal(null, { skipClipboardAutofill: true });
+      $('linkTitle').value = parsed.title;
+      $('linkUrl').value = parsed.url;
+      $('linkProject').value = projectName;
+      $('linkProjectSelect').value = state.projects.includes(projectName) ? projectName : '';
+      $('linkNote').value = parsed.description || '';
+      setClipboardHint('YAMLから入力しました。内容を確認して、必要なら分類や備考を調整してください。');
+      toast('YAMLから入力しました。確認して保存してください');
+    }
+
+    async function readClipboardText() {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        toast('クリップボード読み取りに非対応です');
+        return '';
+      }
+      try {
+        return await navigator.clipboard.readText();
+      } catch (error) {
+        console.warn('Clipboard read failed', error);
+        toast('クリップボードを読めませんでした');
+        return '';
+      }
+    }
+
+    async function pasteBookmarkletYaml() {
+      const text = await readClipboardText();
+      if (!text) return;
+      $('bookmarkletYamlText').value = decodePossiblyEncodedYaml(text);
+      toast($('bookmarkletYamlText').value !== text ? 'URLエンコードされたYAMLを復元しました' : 'YAMLを貼り付けました');
+    }
+
+    async function pasteQuickYaml() {
+      const text = await readClipboardText();
+      if (!text) return;
+      $('quickYamlText').value = decodePossiblyEncodedYaml(text);
+      toast($('quickYamlText').value !== text ? 'URLエンコードされたYAMLを復元しました' : 'YAMLを貼り付けました');
+    }
+
+    async function tryAutofillQuickYaml() {
+      const el = $('quickYamlText');
+      if (!el || el.value.trim()) return;
+      if (!navigator.clipboard || !navigator.clipboard.readText) return;
+      try {
+        const text = await navigator.clipboard.readText();
+        const normalizedText = decodePossiblyEncodedYaml(text);
+        const parsed = parseBookmarkletYaml(normalizedText);
+        if (parsed.title && parsed.url) {
+          el.value = normalizedText;
+          toast(normalizedText !== text ? 'URLエンコードされたYAMLを復元しました' : 'クリップボードのYAMLを入力しました');
+        }
+      } catch (error) {
+        console.warn('Quick YAML autofill failed', error);
+      }
+    }
+
+    function openYamlAddModal() {
+      $('quickYamlText').value = '';
+      openModal('yamlAddModal');
+      setTimeout(() => tryAutofillQuickYaml(), 80);
+      setTimeout(() => $('quickYamlText').focus(), 140);
+    }
+
+    function confirmQuickYamlLink() {
+      normalizeYamlTextareaValue('quickYamlText', true);
+      const parsed = parseBookmarkletYaml($('quickYamlText').value);
+      if (!parsed.title || !parsed.url) {
+        toast('YAMLにtitleとurlが必要です');
+        return;
+      }
+      closeModal('yamlAddModal');
+      fillLinkModalFromYaml(parsed);
+    }
+
+    function addLinkFromBookmarkletYaml() {
+      normalizeYamlTextareaValue('bookmarkletYamlText', true);
+      const parsed = parseBookmarkletYaml($('bookmarkletYamlText').value);
+      if (!parsed.title || !parsed.url) {
+        toast('YAMLにtitleとurlが必要です');
+        return;
+      }
+      fillLinkModalFromYaml(parsed);
+    }
+
+    function openLinkModal(item = null, options = {}) {
+      $('linkModalTitle').textContent = item ? 'リンクを編集' : 'リンクを追加';
+      $('linkId').value = item?.id || '';
+      $('linkTitle').value = item?.title || '';
+      $('linkUrl').value = item?.url || '';
+      const projectValue = item?.projectName || (state.currentProject !== 'ALL' ? state.currentProject : '未分類');
+      $('linkProject').value = projectValue;
+      $('linkProjectSelect').value = state.projects.includes(projectValue) ? projectValue : '';
+      $('linkNote').value = item?.note || '';
+      $('linkFavorite').checked = item ? isFavorite(item) : false;
+      setClipboardHint('クリップボードにURLがあれば自動入力します。失敗したら「貼る」を押してください。');
+      openModal('linkModal');
+      if (!item && !options.skipClipboardAutofill) {
+        setTimeout(() => tryAutofillClipboardUrl(), 80);
+      }
+      setTimeout(() => $('linkTitle').focus(), 120);
+    }
+
+    function saveLinkFromModal() {
+      const id = $('linkId').value;
+      const title = $('linkTitle').value.trim();
+      const url = $('linkUrl').value.trim();
+      const projectName = $('linkProject').value.trim() || '未分類';
+      const note = $('linkNote').value;
+      const favorite = $('linkFavorite').checked;
+      if (!title || !url) {
+        toast('タイトルとURLを入力してください');
+        return;
+      }
+      if (projectName === '未分類' && !window.confirm('分類が「未分類」のままです。このまま保存しますか？')) {
+        $('linkProject').focus();
+        return;
+      }
+      const now = new Date().toISOString();
+      if (id) {
+        const item = state.items.find(i => i.id === id);
+        if (!item) return;
+        Object.assign(item, {
+          title,
+          url,
+          projectName,
+          note,
+          isFavorite: favorite,
+          favoriteType: favorite ? (item.favoriteType && item.favoriteType !== 'none' ? item.favoriteType : 'normal') : 'none',
+          favoriteExpiry: favorite ? item.favoriteExpiry || null : null,
+          updatedAt: now
+        });
+      } else {
+        state.items.unshift({
+          id: uid('link'),
+          title,
+          url,
+          projectName,
+          note,
+          addedAt: now,
+          updatedAt: now,
+          lastClickedAt: null,
+          clickCount: 0,
+          clickHistory: [],
+          archived: false,
+          isFavorite: favorite,
+          favoriteType: favorite ? 'normal' : 'none',
+          favoriteExpiry: null
+        });
+      }
+      state.projects = normalizeProjects([...state.projects, projectName], state.items);
+      save(); closeModal('linkModal'); render(); toast('保存しました');
+    }
+
+    function openPromptModal(memo = null) {
+      $('promptModalTitle').textContent = memo ? 'プロンプトを編集' : 'プロンプトを追加';
+      $('promptId').value = memo?.id || '';
+      $('promptTitle').value = memo?.title || '';
+      const categoryValue = memo?.categoryName || (state.currentPromptCategory !== 'ALL' ? state.currentPromptCategory : '未分類');
+      $('promptCategory').value = categoryValue;
+      $('promptCategorySelect').value = state.promptCategories.includes(categoryValue) ? categoryValue : '';
+      $('promptBody').value = memo?.body || '';
+      updatePromptCount();
+      openModal('promptModal');
+      setTimeout(() => $('promptTitle').focus(), 0);
+    }
+
+    function savePromptFromModal() {
+      const id = $('promptId').value;
+      const title = $('promptTitle').value.trim() || '無題のプロンプト';
+      const categoryName = $('promptCategory').value.trim() || '未分類';
+      const body = $('promptBody').value;
+      if (!title && !body.trim()) {
+        toast('タイトルか本文を入力してください');
+        return;
+      }
+      if (categoryName === '未分類' && !window.confirm('カテゴリが「未分類」のままです。このまま保存しますか？')) {
+        $('promptCategory').focus();
+        return;
+      }
+      const now = new Date().toISOString();
+      if (id) {
+        const memo = state.promptMemos.find(m => m.id === id);
+        if (!memo) return;
+        Object.assign(memo, { title, categoryName, body, updatedAt: now });
+      } else {
+        state.promptMemos.unshift({
+          id: uid('prompt'),
+          title,
+          categoryName,
+          body,
+          createdAt: now,
+          updatedAt: now,
+          copyCount: 0,
+          lastCopiedAt: null
+        });
+      }
+      state.promptCategories = normalizePromptCategories([...state.promptCategories, categoryName], state.promptMemos);
+      save(); closeModal('promptModal'); render(); toast('保存しました');
+    }
+
+    function openModal(id) {
+      $(id).classList.add('open');
+      $(id).setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal(id) {
+      $(id).classList.remove('open');
+      $(id).setAttribute('aria-hidden', 'true');
+    }
+
+    function updatePromptCount() {
+      $('promptCharCount').textContent = `${($('promptBody').value || '').length.toLocaleString()}文字`;
+    }
+
+    function updateSettingsControls() {
+      state.items = state.items.filter(item => !item.archived);
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      if (state.currentProject !== 'ALL' && !state.projects.includes(state.currentProject)) state.currentProject = 'ALL';
+      if (state.currentPromptCategory !== 'ALL' && !state.promptCategories.includes(state.currentPromptCategory)) state.currentPromptCategory = 'ALL';
+    }
+
+    function exportData() {
+      const activeItems = state.items.filter(item => !item.archived).map(item => ({ ...item, archived: false }));
+      const activeProjects = normalizeProjects(state.projects, activeItems);
+      const activeProjectColors = Object.fromEntries(Object.entries(state.projectColors || {}).filter(([name]) => activeProjects.includes(name)));
+      const activePromptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      const backup = {
+        schemaVersion: 'quick-links-backup-v2',
+        exportedAt: new Date().toISOString(),
+        source: 'quick-links-mobile-localstorage-html',
+        quickLinks: {
+          items: activeItems,
+          projects: activeProjects,
+          projectColors: activeProjectColors,
+          currentSortMode: state.linkSort,
+          showArchived: false,
+          floatingSearchEnabled: false
+        },
+        promptMemos: {
+          items: state.promptMemos,
+          categories: activePromptCategories
+        }
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `quick_links_mobile_backup_${date}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast('JSONを書き出しました');
+    }
+
+    function normalizeImportedQuickLinks(raw) {
+      if (Array.isArray(raw)) return raw;
+      if (Array.isArray(raw?.quickLinks?.items)) return raw.quickLinks.items;
+      if (Array.isArray(raw?.items)) return raw.items;
+      return [];
+    }
+
+    function normalizeImportedPrompts(raw) {
+      if (Array.isArray(raw?.promptMemos?.items)) return raw.promptMemos.items;
+      if (Array.isArray(raw?.promptMemos)) return raw.promptMemos;
+      return [];
+    }
+
+    function normalizeImportedProjects(raw, importedLinks) {
+      if (Array.isArray(raw?.quickLinks?.projects)) return raw.quickLinks.projects;
+      if (Array.isArray(raw?.projects)) return raw.projects;
+      return (importedLinks || []).map(item => item.projectName || '未分類');
+    }
+
+    function normalizeImportedProjectColors(raw) {
+      return raw?.quickLinks?.projectColors || raw?.projectColors || {};
+    }
+
+    function normalizeImportedPromptCategories(raw, importedPrompts) {
+      if (Array.isArray(raw?.promptMemos?.categories)) return raw.promptMemos.categories;
+      if (Array.isArray(raw?.promptCategories)) return raw.promptCategories;
+      return (importedPrompts || []).map(memo => memo.categoryName || memo.projectName || '未分類');
+    }
+
+    function importFromText(text, mode = $('importMode').value) {
+      if (!String(text || '').trim()) {
+        toast('JSONを入力してください');
+        return;
+      }
+      let raw;
+      try {
+        raw = JSON.parse(text);
+      } catch (error) {
+        toast('JSONの形式を確認してください');
+        alert('JSONパースエラー：' + error.message);
+        return;
+      }
+
+      const importedLinks = normalizeLinkItems(normalizeImportedQuickLinks(raw));
+      const importedPrompts = normalizePromptItems(normalizeImportedPrompts(raw));
+      const importedProjects = normalizeImportedProjects(raw, importedLinks);
+      const importedColors = normalizeImportedProjectColors(raw);
+      const importedPromptCategories = normalizeImportedPromptCategories(raw, importedPrompts);
+
+      if (!importedLinks.length && !importedPrompts.length && !importedProjects.length && !importedPromptCategories.length) {
+        toast('取り込めるデータが見つかりません');
+        return;
+      }
+
+      if (mode === 'replace') {
+        state.items = importedLinks;
+        state.projects = normalizeProjects(importedProjects, importedLinks);
+        state.projectColors = importedColors || {};
+        state.promptMemos = importedPrompts;
+        state.promptCategories = normalizePromptCategories(importedPromptCategories, importedPrompts);
+        state.currentProject = 'ALL';
+        state.currentPromptCategory = 'ALL';
+        state.onlyFavorites = false;
+        state.linkPage = 1;
+        state.promptPage = 1;
+        save(); render();
+        toast(`置き換えました：リンク${importedLinks.length}件 / プロンプト${importedPrompts.length}件`);
+        return;
+      }
+
+      let linkAdd = 0, linkMerge = 0, promptAdd = 0, promptMerge = 0;
+      const linkIndex = new Map();
+      state.items.forEach((item, index) => linkIndex.set(getLinkKey(item), index));
+      importedLinks.forEach(item => {
+        const key = getLinkKey(item);
+        if (linkIndex.has(key)) {
+          const idx = linkIndex.get(key);
+          state.items[idx] = mergeLink(state.items[idx], item);
+          linkMerge++;
+        } else {
+          state.items.push(item);
+          linkIndex.set(key, state.items.length - 1);
+          linkAdd++;
+        }
+      });
+
+      const promptIndex = new Map();
+      state.promptMemos.forEach((memo, index) => promptIndex.set(getPromptKey(memo), index));
+      importedPrompts.forEach(memo => {
+        const key = getPromptKey(memo);
+        if (promptIndex.has(key)) {
+          const idx = promptIndex.get(key);
+          state.promptMemos[idx] = mergePrompt(state.promptMemos[idx], memo);
+          promptMerge++;
+        } else {
+          state.promptMemos.push(memo);
+          promptIndex.set(key, state.promptMemos.length - 1);
+          promptAdd++;
+        }
+      });
+
+      state.projects = normalizeProjects([...state.projects, ...importedProjects], state.items);
+      state.projectColors = { ...(state.projectColors || {}), ...(importedColors || {}) };
+      state.promptCategories = normalizePromptCategories([...state.promptCategories, ...importedPromptCategories], state.promptMemos);
+      state.linkPage = 1;
+      state.promptPage = 1;
+      save(); render();
+      toast(`統合完了：リンク追加${linkAdd}件 / プロンプト追加${promptAdd}件`);
+      if (linkMerge || promptMerge) {
+        console.info(`重複統合：リンク${linkMerge}件 / プロンプト${promptMerge}件`);
+      }
+    }
+
+    function dedupe() {
+      const linkMap = new Map();
+      const newLinks = [];
+      let removedLinks = 0;
+      state.items.forEach(item => {
+        const key = getLinkKey(item);
+        if (linkMap.has(key)) {
+          const idx = linkMap.get(key);
+          newLinks[idx] = mergeLink(newLinks[idx], item);
+          removedLinks++;
+        } else {
+          linkMap.set(key, newLinks.length);
+          newLinks.push(item);
+        }
+      });
+
+      const promptMap = new Map();
+      const newPrompts = [];
+      let removedPrompts = 0;
+      state.promptMemos.forEach(memo => {
+        const key = getPromptKey(memo);
+        if (promptMap.has(key)) {
+          const idx = promptMap.get(key);
+          newPrompts[idx] = mergePrompt(newPrompts[idx], memo);
+          removedPrompts++;
+        } else {
+          promptMap.set(key, newPrompts.length);
+          newPrompts.push(memo);
+        }
+      });
+
+      if (!removedLinks && !removedPrompts) {
+        toast('完全重複はありませんでした');
+        return;
+      }
+      if (!confirm(`完全重複を整理します。\nリンク：${removedLinks}件\nプロンプト：${removedPrompts}件`)) return;
+      state.items = newLinks;
+      state.promptMemos = newPrompts;
+      state.projects = normalizeProjects(state.projects, state.items);
+      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      save(); render();
+      toast('重複を整理しました');
+    }
+
+    function resetAll() {
+      if (!confirm('このHTML内のlocalStorageデータをすべて削除しますか？')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      Object.assign(state, {
+        activeTab: 'links', query: '', currentProject: 'ALL', currentPromptCategory: 'ALL', onlyFavorites: false,
+        linkSort: 'recent', promptSort: 'popular', viewMode: 'rich', linkPage: 1, promptPage: 1, linkPerPage: '10', promptPerPage: '10',
+        items: [], projects: ['未分類'], projectColors: {}, promptMemos: [], promptCategories: ['未分類'],
+        linkSelectMode: false, selectedLinkIds: [], promptSelectMode: false, selectedPromptIds: []
+      });
+      render();
+      toast('削除しました');
+    }
+
+    let toastTimer = null;
+    function toast(message) {
+      const el = $('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeTab = btn.dataset.tab;
+          save(); render();
+        });
+      });
+
+      $('globalSearch').addEventListener('input', (event) => {
+        state.query = event.target.value;
+        state.linkPage = 1;
+        state.promptPage = 1;
+        save(); render();
+      });
+      $('clearSearchBtn').addEventListener('click', () => {
+        state.query = '';
+        state.linkPage = 1;
+        state.promptPage = 1;
+        save(); render();
+        $('globalSearch').focus();
+      });
+
+      $('fabBtn').addEventListener('click', () => {
+        if (state.activeTab === 'prompts') openPromptModal();
+        else openYamlAddModal();
+      });
+      $('quickAddBtn').addEventListener('click', () => {
+        if (state.activeTab === 'prompts') openPromptModal();
+        else openYamlAddModal();
+      });
+
+      $('linkSortSelect').addEventListener('change', (event) => {
+        state.linkSort = event.target.value;
+        state.linkPage = 1;
+        save(); render();
+      });
+      $('promptSortSelect').addEventListener('change', (event) => {
+        state.promptSort = event.target.value;
+        state.promptPage = 1;
+        save(); render();
+      });
+
+      $('linkRichViewBtn').addEventListener('click', () => setViewMode('rich'));
+      $('linkSimpleViewBtn').addEventListener('click', () => setViewMode('simple'));
+      $('promptRichViewBtn').addEventListener('click', () => setViewMode('rich'));
+      $('promptSimpleViewBtn').addEventListener('click', () => setViewMode('simple'));
+      $('linkPerPageSelect').addEventListener('change', (event) => {
+        state.linkPerPage = event.target.value;
+        state.linkPage = 1;
+        save(); render();
+      });
+      $('promptPerPageSelect').addEventListener('change', (event) => {
+        state.promptPerPage = event.target.value;
+        state.promptPage = 1;
+        save(); render();
+      });
+
+      $('saveLinkBtn').addEventListener('click', saveLinkFromModal);
+      $('pasteClipboardUrlBtn').addEventListener('click', () => tryAutofillClipboardUrl({ forceToast: true }));
+      $('linkProjectSelect').addEventListener('change', (event) => {
+        if (event.target.value) $('linkProject').value = event.target.value;
+      });
+      $('linkProject').addEventListener('input', () => {
+        $('linkProjectSelect').value = state.projects.includes($('linkProject').value.trim()) ? $('linkProject').value.trim() : '';
+      });
+      $('savePromptBtn').addEventListener('click', savePromptFromModal);
+      $('promptCategorySelect').addEventListener('change', (event) => {
+        if (event.target.value) $('promptCategory').value = event.target.value;
+      });
+      $('promptCategory').addEventListener('input', () => {
+        $('promptCategorySelect').value = state.promptCategories.includes($('promptCategory').value.trim()) ? $('promptCategory').value.trim() : '';
+      });
+      $('promptBody').addEventListener('input', updatePromptCount);
+
+      document.querySelectorAll('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+      });
+      document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', event => {
+          if (event.target === modal) closeModal(modal.id);
+        });
+      });
+
+      $('exportBtn').addEventListener('click', exportData);
+      $('exportTopBtn').addEventListener('click', exportData);
+      $('runImportBtn').addEventListener('click', () => importFromText($('importText').value));
+      $('importFile').addEventListener('change', async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        $('importText').value = text;
+        importFromText(text, $('importMode').value);
+        event.target.value = '';
+      });
+      bindYamlPasteNormalization('quickYamlText');
+      bindYamlPasteNormalization('bookmarkletYamlText');
+      $('pasteQuickYamlBtn').addEventListener('click', pasteQuickYaml);
+      $('confirmQuickYamlBtn').addEventListener('click', confirmQuickYamlLink);
+      $('manualLinkAddBtn').addEventListener('click', () => { closeModal('yamlAddModal'); openLinkModal(null, { skipClipboardAutofill: true }); });
+      $('copyBookmarkletBtn').addEventListener('click', () => copyText(createBookmarkletCode(), 'ブックマークレットをコピーしました'));
+      $('pasteBookmarkletYamlBtn').addEventListener('click', pasteBookmarkletYaml);
+      $('addBookmarkletYamlBtn').addEventListener('click', addLinkFromBookmarkletYaml);
+      $('cleanEmptyProjectsBtn').addEventListener('click', cleanEmptyProjects);
+      $('cleanEmptyPromptCategoriesBtn').addEventListener('click', cleanEmptyPromptCategories);
+      $('dedupeBtn').addEventListener('click', dedupe);
+      $('resetBtn').addEventListener('click', resetAll);
+    }
+
+    load();
+    bindEvents();
+    render();
+  </script>
+</body>
+</html>
