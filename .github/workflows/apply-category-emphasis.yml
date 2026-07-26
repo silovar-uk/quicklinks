@@ -24,14 +24,6 @@ jobs:
           text = path.read_text(encoding='utf-8')
 
           css_anchor = """    .category-input-grid {
-              display: grid;
-              grid-template-columns: 1fr;
-              gap: 8px;
-            }
-          """
-
-          # Match the repository's existing two-space-indented CSS exactly.
-          css_anchor = """    .category-input-grid {
             display: grid;
             grid-template-columns: 1fr;
             gap: 8px;
@@ -40,33 +32,30 @@ jobs:
 
           css_block = """
 
-              .category-emphasis {
-                padding: 10px;
-                border: 1px solid #f3d79a;
-                border-radius: 18px;
-                background: #fffaf0;
-                box-shadow: 0 5px 14px rgba(146, 64, 14, .05);
-              }
+          .category-emphasis {
+            padding: 10px;
+            border: 1px solid #f3d79a;
+            border-radius: 18px;
+            background: #fffaf0;
+            box-shadow: 0 5px 14px rgba(146, 64, 14, .05);
+          }
 
-              .category-emphasis label {
-                color: #92400e;
-              }
+          .category-emphasis label {
+            color: #92400e;
+          }
 
-              .category-emphasis .input,
-              .category-emphasis .select {
-                border-color: #e9c879;
-                background: #fffefb;
-              }
+          .category-emphasis .input,
+          .category-emphasis .select {
+            border-color: #e9c879;
+            background: #fffefb;
+          }
 
-              .category-emphasis .input:focus,
-              .category-emphasis .select:focus {
-                border-color: #d97706;
-                box-shadow: 0 0 0 3px rgba(217, 119, 6, .11);
-              }
+          .category-emphasis .input:focus,
+          .category-emphasis .select:focus {
+            border-color: #d97706;
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, .11);
+          }
           """
-
-          # Normalize the inserted block indentation to the surrounding stylesheet.
-          css_block = '\n\n' + '\n'.join(line[4:] if line.startswith('    ') else line for line in css_block.strip('\n').splitlines()) + '\n'
 
           if '.category-emphasis {' not in text:
               if css_anchor not in text:
