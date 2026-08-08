@@ -25,7 +25,7 @@
     (async () => {
       const loader = document.getElementById('loader');
       try {
-        const response = await fetch('./app.html?v=20260726-category-emphasis', { cache: 'no-store' });
+        const response = await fetch('./app.html?v=20260808-url-metadata-quick-add', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         let html = await response.text();
@@ -63,8 +63,54 @@
     }
 `;
 
+        const quickUrlModal = `
+  <div class="modal" id="quickUrlModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 class="modal-title">URLからリンク追加</h2>
+        <button class="modal-close" data-close-modal="quickUrlModal">×</button>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">
+        URLだけ貼れば、ページのタイトル・サイト名・画像・説明などを取得し、保存前に内容を確認できます。分類は自動で決めません。
+      </div>
+      <div class="form-row">
+        <label for="quickUrlInput">URL</label>
+        <div class="quick-url-actions">
+          <input id="quickUrlInput" class="input" inputmode="url" autocomplete="url" placeholder="https://..." />
+          <button class="btn ghost compact" id="pasteQuickUrlBtn" type="button">貼る</button>
+        </div>
+        <div class="duplicate-warning" id="quickUrlDuplicate"></div>
+      </div>
+      <div class="form-row">
+        <label for="quickUrlProject">分類 <span style="color:#94a3b8;font-weight:700;">（今でも後でも変更可）</span></label>
+        <div class="category-input-grid">
+          <input id="quickUrlProject" class="input" list="quickUrlProjectList" placeholder="自由入力：未分類" />
+          <select id="quickUrlProjectSelect" class="select" aria-label="既存分類から選ぶ">
+            <option value="">既存分類から選ぶ</option>
+          </select>
+        </div>
+        <datalist id="quickUrlProjectList"></datalist>
+      </div>
+      <div class="fetch-status" id="quickUrlStatus">URLを貼ると、ページ情報を取得してから内容確認へ進みます。</div>
+      <div class="quick-url-privacy">まず対象ページへ直接アクセスし、取得できない場合のみMicrolink公開APIでメタデータを取得します。AIによる分類・生成は行いません。</div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="manualQuickUrlBtn" type="button">情報取得せず入力</button>
+        <button class="btn primary" id="fetchQuickUrlBtn" type="button">情報を取得</button>
+      </div>
+    </div>
+  </div>
+`;
+
+        const metadataPreview = `
+      <div class="metadata-preview" id="linkMetadataPreview" hidden></div>
+`;
+
         if (!html.includes('</style>')) throw new Error('style closing tag not found');
         html = html.replace('</style>', `${categoryCss}  </style>`);
+        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260808-1" />\n</head>`);
+        html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
+        html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `${metadataPreview}      <div class="form-row">\n        <label for="linkNote">備考</label>`);
+        html = html.replace('</body>', `  <script src="./quick-add.js?v=20260808-1"></script>\n</body>`);
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
 
         document.open();
