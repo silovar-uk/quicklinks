@@ -25,7 +25,7 @@
     (async () => {
       const loader = document.getElementById('loader');
       try {
-        const response = await fetch('./app.html?v=20260808-url-metadata-quick-add', { cache: 'no-store' });
+        const response = await fetch('./app.html?v=20260808-url-metadata-quick-add-fix1', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         let html = await response.text();
@@ -107,10 +107,11 @@
 
         if (!html.includes('</style>')) throw new Error('style closing tag not found');
         html = html.replace('</style>', `${categoryCss}  </style>`);
-        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260808-1" />\n</head>`);
+        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260808-2" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `${metadataPreview}      <div class="form-row">\n        <label for="linkNote">備考</label>`);
-        html = html.replace('</body>', `  <script src="./quick-add.js?v=20260808-1"></script>\n</body>`);
+        const quickAddScriptTag = '  <scr' + 'ipt src="./quick-add.js?v=20260808-2"></scr' + 'ipt>\n';
+        html = html.replace('</body>', quickAddScriptTag + '</body>');
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
 
         document.open();
