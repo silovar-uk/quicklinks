@@ -25,7 +25,7 @@
     (async () => {
       const loader = document.getElementById('loader');
       try {
-        const response = await fetch('./app.html?v=20260808-url-metadata-quick-add-fix1', { cache: 'no-store' });
+        const response = await fetch('./app.html?v=20260808-add-menu-v3', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         let html = await response.text();
@@ -67,11 +67,11 @@
   <div class="modal" id="quickUrlModal" aria-hidden="true">
     <div class="modal-sheet">
       <div class="modal-head">
-        <h2 class="modal-title">URLからリンク追加</h2>
+        <h2 class="modal-title">リンクを追加</h2>
         <button class="modal-close" data-close-modal="quickUrlModal">×</button>
       </div>
       <div class="hint" style="margin-bottom:12px;">
-        URLだけ貼れば、ページのタイトル・サイト名・画像・説明などを取得し、保存前に内容を確認できます。分類は自動で決めません。
+        1件ならURLから追加。複数件をまとめて入れる場合は、下の「JSONからまとめて追加」を使えます。
       </div>
       <div class="form-row">
         <label for="quickUrlInput">URL</label>
@@ -95,8 +95,15 @@
       <div class="quick-url-privacy">まず対象ページへ直接アクセスし、取得できない場合のみMicrolink公開APIでメタデータを取得します。AIによる分類・生成は行いません。</div>
       <div class="modal-actions">
         <button class="btn ghost" id="manualQuickUrlBtn" type="button">情報取得せず入力</button>
-        <button class="btn primary" id="fetchQuickUrlBtn" type="button">情報を取得</button>
+        <button class="btn primary" id="fetchQuickUrlBtn" type="button">URLから追加</button>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin:15px 0 9px;color:#94a3b8;font-size:10px;font-weight:900;">
+        <span style="height:1px;background:var(--line);flex:1;"></span>
+        <span>まとめて追加</span>
+        <span style="height:1px;background:var(--line);flex:1;"></span>
+      </div>
+      <button class="btn ghost" id="openJsonImportBtn" type="button" style="width:100%;min-height:44px;">JSONからまとめて追加</button>
+      <div class="quick-url-privacy" style="text-align:center;">既存のJSONファイル選択・JSON貼り付け・統合／置換機能へ移動します。</div>
     </div>
   </div>
 `;
@@ -107,11 +114,12 @@
 
         if (!html.includes('</style>')) throw new Error('style closing tag not found');
         html = html.replace('</style>', `${categoryCss}  </style>`);
-        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260808-2" />\n</head>`);
+        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260808-3" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `${metadataPreview}      <div class="form-row">\n        <label for="linkNote">備考</label>`);
-        const quickAddScriptTag = '  <scr' + 'ipt src="./quick-add.js?v=20260808-2"></scr' + 'ipt>\n';
-        html = html.replace('</body>', quickAddScriptTag + '</body>');
+        const quickAddScriptTag = '  <scr' + 'ipt src="./quick-add.js?v=20260808-3"></scr' + 'ipt>\n';
+        const jsonRouteScriptTag = '  <scr' + 'ipt src="./quick-add-json-route.js?v=20260808-1"></scr' + 'ipt>\n';
+        html = html.replace('</body>', quickAddScriptTag + jsonRouteScriptTag + '</body>');
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
 
         document.open();
