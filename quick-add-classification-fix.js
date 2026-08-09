@@ -3,7 +3,7 @@
 
   function contextProject() {
     const current = String(state.currentProject || '').trim();
-    return current && current !== 'ALL' ? current : '';
+    return current && current !== 'ALL' && state.projects.includes(current) ? current : '';
   }
 
   function syncSelect(inputId, selectId, value) {
