@@ -25,7 +25,7 @@
     (async () => {
       const loader = document.getElementById('loader');
       try {
-        const response = await fetch('./app.html?v=20260809-classification-first', { cache: 'no-store' });
+        const response = await fetch('./app.html?v=20260809-mobile-modal-scroll', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         let html = await response.text();
@@ -84,7 +84,7 @@
       <div class="form-row">
         <label for="quickUrlProject">分類 <span style="color:#94a3b8;font-weight:700;">（今でも後でも変更可）</span></label>
         <div class="category-input-grid">
-          <input id="quickUrlProject" class="input" list="quickUrlProjectList" placeholder="分類を選択 / 入力（任意）" />
+          <input id="quickUrlProject" class="input" list="quickUrlProjectList" placeholder="未分類（必要なら新しい分類名を入力）" />
           <select id="quickUrlProjectSelect" class="select" aria-label="既存分類から選ぶ">
             <option value="">既存分類から選ぶ</option>
           </select>
@@ -114,11 +114,11 @@
 
         if (!html.includes('</style>')) throw new Error('style closing tag not found');
         html = html.replace('</style>', `${categoryCss}  </style>`);
-        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260809-1" />\n</head>`);
+        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260809-2" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `${metadataPreview}      <div class="form-row">\n        <label for="linkNote">備考</label>`);
         const quickAddScriptTag = '  <scr' + 'ipt src="./quick-add.js?v=20260809-1"></scr' + 'ipt>\n';
-        const classificationFixScriptTag = '  <scr' + 'ipt src="./quick-add-classification-fix.js?v=20260809-1"></scr' + 'ipt>\n';
+        const classificationFixScriptTag = '  <scr' + 'ipt src="./quick-add-classification-fix.js?v=20260809-2"></scr' + 'ipt>\n';
         const jsonRouteScriptTag = '  <scr' + 'ipt src="./quick-add-json-route.js?v=20260809-1"></scr' + 'ipt>\n';
         html = html.replace('</body>', quickAddScriptTag + classificationFixScriptTag + jsonRouteScriptTag + '</body>');
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
