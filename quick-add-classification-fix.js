@@ -35,13 +35,15 @@
 
   prioritizeLinkProject();
 
-  const originalOpenQuickAdd = openYamlAddModal;
-  openYamlAddModal = function(...args) {
-    originalOpenQuickAdd(...args);
-    const inherited = contextProject();
-    syncSelect('quickUrlProject', 'quickUrlProjectSelect', inherited);
-    pendingQuickProject = undefined;
-  };
+  const quickUrlModal = $('quickUrlModal');
+  if (quickUrlModal) {
+    const quickObserver = new MutationObserver(() => {
+      if (!quickUrlModal.classList.contains('open')) return;
+      syncSelect('quickUrlProject', 'quickUrlProjectSelect', contextProject());
+      pendingQuickProject = undefined;
+    });
+    quickObserver.observe(quickUrlModal, { attributes: true, attributeFilter: ['class'] });
+  }
 
   $('fetchQuickUrlBtn')?.addEventListener('click', rememberQuickProject, true);
   $('manualQuickUrlBtn')?.addEventListener('click', rememberQuickProject, true);
