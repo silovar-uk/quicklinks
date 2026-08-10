@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#b4232c" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <title>Quick Links Mobile</title>
   <style>
     html, body { height: 100%; }
@@ -114,7 +115,7 @@
 
         if (!html.includes('</style>')) throw new Error('style closing tag not found');
         html = html.replace('</style>', `${categoryCss}  </style>`);
-        html = html.replace('</head>', `  <link rel="stylesheet" href="./quick-add.css?v=20260810-1" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260810-1" />\n</head>`);
+        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260810-1" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260810-1" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `${metadataPreview}      <div class="form-row">\n        <label for="linkNote">備考</label>`);
         const quickAddScriptTag = '  <scr' + 'ipt src="./quick-add.js?v=20260810-1"></scr' + 'ipt>\n';
