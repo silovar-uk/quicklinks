@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#b4232c" />
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <title>Quick Links Mobile</title>
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <title>Quick Links</title>
   <style>
     html, body { height: 100%; }
     body {
@@ -26,44 +28,10 @@
     (async () => {
       const loader = document.getElementById('loader');
       try {
-        const response = await fetch('./app.html?v=20260810-layered-minimal', { cache: 'no-store' });
+        const response = await fetch('./app.html?v=20260811-precision', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         let html = await response.text();
-        const categoryCss = `
-
-    /* 内容確認時に分類へ自然に視線を誘導 */
-    #linkModal .form-row:has(> label[for="linkProject"]),
-    #promptModal .form-row:has(> label[for="promptCategory"]) {
-      padding: 10px;
-      border: 1px solid #f3d79a;
-      border-radius: 18px;
-      background: #fffaf0;
-      box-shadow: 0 5px 14px rgba(146, 64, 14, .05);
-    }
-
-    label[for="linkProject"],
-    label[for="promptCategory"] {
-      color: #92400e;
-    }
-
-    #linkProject,
-    #linkProjectSelect,
-    #promptCategory,
-    #promptCategorySelect {
-      border-color: #e9c879;
-      background: #fffefb;
-    }
-
-    #linkProject:focus,
-    #linkProjectSelect:focus,
-    #promptCategory:focus,
-    #promptCategorySelect:focus {
-      border-color: #d97706;
-      box-shadow: 0 0 0 3px rgba(217, 119, 6, .11);
-    }
-`;
-
         const quickUrlModal = `
   <div class="modal" id="quickUrlModal" aria-hidden="true">
     <div class="modal-sheet">
@@ -71,9 +39,7 @@
         <h2 class="modal-title">リンクを追加</h2>
         <button class="modal-close" data-close-modal="quickUrlModal">×</button>
       </div>
-      <div class="hint" style="margin-bottom:12px;">
-        1件ならURLから追加。複数件をまとめて入れる場合は、下の「JSONからまとめて追加」を使えます。
-      </div>
+      <div class="hint" style="margin-bottom:12px;">URLを貼るだけでページ情報を取得し、保存前に内容を確認できます。</div>
       <div class="form-row">
         <label for="quickUrlInput">URL</label>
         <div class="quick-url-actions">
@@ -83,46 +49,40 @@
         <div class="duplicate-warning" id="quickUrlDuplicate"></div>
       </div>
       <div class="form-row">
-        <label for="quickUrlProject">分類 <span style="color:#94a3b8;font-weight:700;">（今でも後でも変更可）</span></label>
+        <label for="quickUrlProject">分類 <span style="color:#94a3b8;font-weight:700;">（あとから変更可）</span></label>
         <div class="category-input-grid">
           <input id="quickUrlProject" class="input" list="quickUrlProjectList" placeholder="未分類（必要なら新しい分類名を入力）" />
-          <select id="quickUrlProjectSelect" class="select" aria-label="既存分類から選ぶ">
-            <option value="">既存分類から選ぶ</option>
-          </select>
+          <select id="quickUrlProjectSelect" class="select" aria-label="既存分類から選ぶ"><option value="">既存分類から選ぶ</option></select>
         </div>
         <datalist id="quickUrlProjectList"></datalist>
       </div>
-      <div class="fetch-status" id="quickUrlStatus">URLを貼ると、ページ情報を取得してから内容確認へ進みます。</div>
-      <div class="quick-url-privacy">まず対象ページへ直接アクセスし、取得できない場合のみMicrolink公開APIでメタデータを取得します。AIによる分類・生成は行いません。</div>
+      <div class="fetch-status" id="quickUrlStatus">URLを貼るとページ情報を取得し、保存前に内容を確認できます。</div>
+      <div class="quick-url-privacy">ページ情報を取得できない場合は、取得のため外部サービスを使用します。AIによる分類・文章生成は行いません。</div>
       <div class="modal-actions">
         <button class="btn ghost" id="manualQuickUrlBtn" type="button">情報取得せず入力</button>
         <button class="btn primary" id="fetchQuickUrlBtn" type="button">URLから追加</button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin:15px 0 9px;color:#94a3b8;font-size:10px;font-weight:900;">
-        <span style="height:1px;background:var(--line);flex:1;"></span>
-        <span>まとめて追加</span>
-        <span style="height:1px;background:var(--line);flex:1;"></span>
-      </div>
-      <button class="btn ghost" id="openJsonImportBtn" type="button" style="width:100%;min-height:44px;">JSONからまとめて追加</button>
-      <div class="quick-url-privacy" style="text-align:center;">既存のJSONファイル選択・JSON貼り付け・統合／置換機能へ移動します。</div>
+      <div style="display:flex;align-items:center;gap:8px;margin:15px 0 9px;color:#94949c;font-size:10px;font-weight:720;"><span style="height:1px;background:var(--line);flex:1;"></span><span>まとめて追加</span><span style="height:1px;background:var(--line);flex:1;"></span></div>
+      <button class="btn ghost" id="openJsonImportBtn" type="button" aria-expanded="false" style="width:100%;min-height:44px;">JSONからまとめて追加</button>
     </div>
-  </div>
-`;
+  </div>`;
 
-        const metadataPreview = `
-      <div class="metadata-preview" id="linkMetadataPreview" hidden></div>
-`;
+        const metadataPreview = `<div class="metadata-preview" id="linkMetadataPreview" hidden></div>`;
 
-        if (!html.includes('</style>')) throw new Error('style closing tag not found');
-        html = html.replace('</style>', `${categoryCss}  </style>`);
-        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260810-1" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260810-1" />\n</head>`);
+        if (!html.includes('</head>') || !html.includes('</body>')) throw new Error('app shell is incomplete');
+        html = html.replace('<title>Quick Links Mobile</title>', '<title>Quick Links</title>');
+        html = html.replace('<h1 class="brand-title">Quick Links Mobile</h1>', '<h1 class="brand-title">Quick Links</h1>');
+        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="apple-touch-icon" href="./icon-192.png" />\n  <link rel="manifest" href="./manifest.webmanifest" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260811-precision" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260811-precision" />\n  <link rel="stylesheet" href="./precision-upgrade.css?v=20260811-precision" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
-        html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `${metadataPreview}      <div class="form-row">\n        <label for="linkNote">備考</label>`);
-        const quickAddScriptTag = '  <scr' + 'ipt src="./quick-add.js?v=20260810-1"></scr' + 'ipt>\n';
-        const classificationFixScriptTag = '  <scr' + 'ipt src="./quick-add-classification-fix.js?v=20260810-1"></scr' + 'ipt>\n';
-        const jsonRouteScriptTag = '  <scr' + 'ipt src="./quick-add-json-route.js?v=20260810-1"></scr' + 'ipt>\n';
-        html = html.replace('</body>', quickAddScriptTag + classificationFixScriptTag + jsonRouteScriptTag + '</body>');
+        html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `      ${metadataPreview}\n      <div class="form-row">\n        <label for="linkNote">備考</label>`);
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
+        const scripts = [
+          '  <scr' + 'ipt src="./quick-add.js?v=20260811-precision"></scr' + 'ipt>',
+          '  <scr' + 'ipt src="./precision-data.js?v=20260811-precision"></scr' + 'ipt>',
+          '  <scr' + 'ipt src="./precision-ui.js?v=20260811-precision"></scr' + 'ipt>',
+          '  <scr' + 'ipt src="./precision-a11y.js?v=20260811-precision"></scr' + 'ipt>'
+        ].join('\n') + '\n';
+        html = html.replace('</body>', scripts + '</body>');
 
         document.open();
         document.write(html);
