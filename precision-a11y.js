@@ -1,3 +1,4 @@
+// Modal, keyboard, and category handoff refinements.
 (() => {
   'use strict';
 
