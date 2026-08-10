@@ -72,5 +72,65 @@
     }
   });
 
+  function presentClassification(inputId, selectId, names) {
+    const input = $(inputId);
+    const select = $(selectId);
+    if (!input || !select) return;
+    const value = String(input.value || select.value || '').trim();
+    if (value && names.includes(value)) {
+      select.value = value;
+      input.value = '';
+    } else if (value) {
+      select.value = '';
+      input.value = value;
+    }
+  }
+
+  function bindSeparatedClassification(inputId, selectId) {
+    const input = $(inputId);
+    const select = $(selectId);
+    if (!input || !select) return;
+    select.addEventListener('change', event => {
+      if (event.target.value) input.value = '';
+      event.stopImmediatePropagation();
+    }, true);
+  }
+
+  function copySelectedClassification(inputId, selectId) {
+    const input = $(inputId);
+    const select = $(selectId);
+    if (input && select && !input.value.trim() && select.value) input.value = select.value;
+  }
+
+  const baseOpenLinkForClassification = openLinkModal;
+  openLinkModal = function(...args) {
+    baseOpenLinkForClassification(...args);
+    queueMicrotask(() => presentClassification('linkProject', 'linkProjectSelect', state.projects));
+  };
+
+  const baseOpenPromptForClassification = openPromptModal;
+  openPromptModal = function(...args) {
+    baseOpenPromptForClassification(...args);
+    queueMicrotask(() => presentClassification('promptCategory', 'promptCategorySelect', state.promptCategories));
+  };
+
+  const baseOpenAddForClassification = openYamlAddModal;
+  openYamlAddModal = function(...args) {
+    baseOpenAddForClassification(...args);
+    queueMicrotask(() => presentClassification('quickUrlProject', 'quickUrlProjectSelect', state.projects));
+  };
+
+  bindSeparatedClassification('quickUrlProject', 'quickUrlProjectSelect');
+  bindSeparatedClassification('linkProject', 'linkProjectSelect');
+  bindSeparatedClassification('promptCategory', 'promptCategorySelect');
+
+  $('fetchQuickUrlBtn')?.addEventListener('click', () => copySelectedClassification('quickUrlProject', 'quickUrlProjectSelect'), true);
+  $('manualQuickUrlBtn')?.addEventListener('click', () => copySelectedClassification('quickUrlProject', 'quickUrlProjectSelect'), true);
+  $('quickUrlInput')?.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.isComposing) copySelectedClassification('quickUrlProject', 'quickUrlProjectSelect');
+  }, true);
+  $('saveLinkBtn')?.addEventListener('click', () => copySelectedClassification('linkProject', 'linkProjectSelect'), true);
+  $('savePromptBtn')?.addEventListener('click', () => copySelectedClassification('promptCategory', 'promptCategorySelect'), true);
+
   render();
 })();
