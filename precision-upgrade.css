@@ -22,24 +22,32 @@
   height: 20px;
   display: block;
 }
+.tab-btn span {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
 .fab {
   display: inline-grid;
   place-items: center;
-  font-size: 0;
   line-height: 0;
 }
-.fab::before,
-.fab::after {
-  content: "";
-  grid-area: 1 / 1;
-  width: 24px;
-  height: 3px;
-  border-radius: 999px;
-  background: currentColor;
-  pointer-events: none;
-}
-.fab::after { transform: rotate(90deg); }
 .fab svg { width: 25px; height: 25px; }
+.modal-close,
+.clear-btn {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  line-height: 0;
+}
+.modal-close svg,
+.clear-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
 
 /* Compact stats: informative, not a dashboard before the content. */
 .summary {
@@ -235,13 +243,20 @@ select:focus-visible,
 }
 .precision-settings-disclosure > summary::-webkit-details-marker { display: none; }
 .precision-settings-disclosure > summary::after {
-  content: '＋';
+  content: '';
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   margin-left: auto;
   color: #9898a1;
-  font-size: 18px;
-  font-weight: 500;
+  background:
+    linear-gradient(currentColor 0 0) center / 12px 2px no-repeat,
+    linear-gradient(currentColor 0 0) center / 2px 12px no-repeat;
+  transition: background-size .16s ease;
 }
-.precision-settings-disclosure[open] > summary::after { content: '−'; }
+.precision-settings-disclosure[open] > summary::after {
+  background-size: 12px 2px, 0 0;
+}
 .precision-settings-disclosure > .settings-card {
   margin: 0;
   border: 0;
