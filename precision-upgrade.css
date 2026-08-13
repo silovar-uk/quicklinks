@@ -32,9 +32,19 @@
 .fab {
   display: inline-grid;
   place-items: center;
+  width: 54px;
+  min-width: 54px;
+  padding: 0;
   line-height: 0;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.fab svg { width: 25px; height: 25px; }
+.fab svg {
+  width: 25px;
+  height: 25px;
+  display: block;
+  margin: 0;
+}
 .modal-close,
 .clear-btn {
   display: inline-grid;

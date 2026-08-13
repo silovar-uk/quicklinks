@@ -1685,7 +1685,10 @@
       syncViewControls();
       $('globalSearch').value = state.query;
       $('clearSearchBtn').classList.toggle('show', !!state.query);
-      $('fabBtn').style.display = state.activeTab === 'settings' ? 'none' : 'block';
+      // Leave the visible display mode to CSS so the FAB keeps its grid centering.
+      // Setting `display: block` here overrides `.fab { display: inline-grid; }`
+      // and makes SVG alignment depend on each mobile browser's button defaults.
+      $('fabBtn').style.display = state.activeTab === 'settings' ? 'none' : '';
     }
 
     function renderTabs() {
