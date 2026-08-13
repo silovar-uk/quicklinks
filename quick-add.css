@@ -341,3 +341,51 @@
     max-height: min(820px, calc(100dvh - 32px));
   }
 }
+
+/* Accessibility hardening: keep actions visible even with large text / short viewports. */
+#quickUrlModal .modal-sheet,
+#linkModal .modal-sheet {
+  min-height: 0 !important;
+  height: min(820px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px) !important;
+}
+
+#quickUrlModal .modal-scroll-body,
+#linkModal .modal-scroll-body {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+#quickUrlModal .modal-fixed-actions,
+#linkModal .modal-fixed-actions {
+  position: relative;
+  z-index: 3;
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 719px) {
+  #quickUrlModal,
+  #linkModal {
+    box-sizing: border-box;
+    padding-top: max(8px, var(--safe-top));
+    padding-bottom: max(8px, var(--safe-bottom));
+  }
+
+  #quickUrlModal .modal-sheet,
+  #linkModal .modal-sheet {
+    height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px) !important;
+  }
+}
+
+/* Fallback for browsers where dvh is unavailable. */
+@supports not (height: 100dvh) {
+  #quickUrlModal .modal-sheet,
+  #linkModal .modal-sheet {
+    height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 16px);
+    max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 16px) !important;
+  }
+}
