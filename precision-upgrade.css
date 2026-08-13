@@ -25,7 +25,20 @@
 .fab {
   display: inline-grid;
   place-items: center;
+  font-size: 0;
+  line-height: 0;
 }
+.fab::before,
+.fab::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  pointer-events: none;
+}
+.fab::after { transform: rotate(90deg); }
 .fab svg { width: 25px; height: 25px; }
 
 /* Compact stats: informative, not a dashboard before the content. */
