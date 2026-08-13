@@ -32,16 +32,17 @@
 .fab {
   display: inline-grid;
   place-items: center;
-  width: 54px;
-  min-width: 54px;
+  width: 62px;
+  min-width: 62px;
+  height: 62px;
   padding: 0;
   line-height: 0;
   -webkit-appearance: none;
   appearance: none;
 }
 .fab svg {
-  width: 25px;
-  height: 25px;
+  width: 28px;
+  height: 28px;
   display: block;
   margin: 0;
 }
