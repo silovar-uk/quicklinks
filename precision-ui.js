@@ -1,14 +1,23 @@
 (() => {
   'use strict';
 
-  const ICONS = {
+  // Functional UI icons share one 24x24 coordinate system so alignment does not depend on font glyphs or emoji rendering.
+  const ICONS = Object.freeze({
     search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     link: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.4 13.6a4 4 0 0 0 5.7.1l2-2a4 4 0 1 0-5.7-5.7l-1.2 1.2M13.6 10.4a4 4 0 0 0-5.7-.1l-2 2a4 4 0 1 0 5.7 5.7l1.2-1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     prompt: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h4l10-10-4-4L5 15v4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m13.5 6.5 4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg>'
-  };
+  });
+
+  function setIconButton(button, icon, label) {
+    if (!button || !icon) return;
+    button.innerHTML = icon;
+    if (label) button.setAttribute('aria-label', label);
+    button.removeAttribute('title');
+  }
 
   function decorateHeaderAndNav() {
     document.title = 'Quick Links';
@@ -22,13 +31,9 @@
       const span = btn.querySelector('span');
       if (span && tabIcons[btn.dataset.tab]) span.innerHTML = tabIcons[btn.dataset.tab];
     });
-    const fab = $('fabBtn');
-    if (fab) {
-      fab.innerHTML = ICONS.plus;
-      fab.setAttribute('aria-label', '追加');
-      fab.removeAttribute('title');
-    }
-    $('clearSearchBtn')?.setAttribute('aria-label', '検索をクリア');
+    setIconButton($('fabBtn'), ICONS.plus, '追加');
+    setIconButton($('clearSearchBtn'), ICONS.close, '検索をクリア');
+    document.querySelectorAll('.modal-close').forEach(button => setIconButton(button, ICONS.close, '閉じる'));
     $('globalSearch')?.setAttribute('aria-label', 'リンクとプロンプトを検索');
   }
 
@@ -266,5 +271,5 @@
   improveQuickAddCopy();
   markOverflowButtons();
 
-  window.QuickLinksPrecisionUI = { closeActionMenu };
+  window.QuickLinksPrecisionUI = { closeActionMenu, icons: ICONS };
 })();
