@@ -1,6 +1,10 @@
 /* Precision structure — preserve ergonomics without adding visual chrome */
 :root {
   --precision-focus: rgba(180, 35, 44, .34);
+  --surface-top: #fcfcfa;
+  --surface-controls: #f1f1ed;
+  --surface-nav: #ffffff;
+  --section-line: #d9d9d3;
 }
 
 /* One primary add affordance: FAB. */
@@ -66,6 +70,24 @@
   display: block;
 }
 
+/* Quiet layered correction: sections are legible, repeated items stay flat. */
+.top {
+  background: var(--surface-top);
+  border-bottom-color: var(--section-line);
+  box-shadow: 0 1px 3px rgba(20,20,20,.045);
+}
+
+.search-wrap {
+  background: #fff;
+  border-color: #d2d2cc;
+}
+
+.tabs {
+  background: var(--surface-nav);
+  border-top-color: var(--section-line);
+  box-shadow: 0 -2px 8px rgba(20,20,20,.035);
+}
+
 /* Compact stats: metadata, not dashboard cards. */
 .summary {
   display: flex;
@@ -85,6 +107,23 @@
   flex: 0 0 auto;
 }
 
+/* Controls are grouped as one quiet rail rather than separate pills/cards. */
+.toolbar {
+  margin: 8px 0 6px;
+  padding: 6px 8px;
+  border: 1px solid #e2e2dc;
+  border-radius: 8px;
+  background: var(--surface-controls);
+}
+
+.chips {
+  margin: 0 0 9px;
+  padding: 0 8px 5px;
+  border: 1px solid #e2e2dc;
+  border-radius: 8px;
+  background: #f5f5f2;
+}
+
 /* Sort remains visible. Density and bulk actions stay progressive. */
 .precision-toolbar-actions {
   min-width: 0;
@@ -102,11 +141,10 @@
   align-items: center;
   gap: 8px;
   margin: 4px 0 8px;
-  padding: 7px 0 8px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
+  padding: 7px 8px 8px;
+  border: 1px solid #e2e2dc;
+  border-radius: 8px;
+  background: #f7f7f4;
   overflow-x: auto;
 }
 
@@ -386,9 +424,16 @@ select:focus-visible,
   padding: 10px 16px calc(10px + var(--safe-bottom));
   border-top: 1px solid var(--line);
   background: #fbfbf9;
-  box-shadow: none;
+  box-shadow: 0 -2px 8px rgba(20,20,20,.03);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+/* Loading feedback: functional motion should not be accidentally disabled. */
+.fetch-status.loading::before {
+  transform-origin: 50% 50%;
+  will-change: transform;
+  animation: quickAddSpin .72s linear infinite !important;
 }
 
 @media (max-width: 719px) {
@@ -397,7 +442,7 @@ select:focus-visible,
   #linkPagerTop,
   #promptPagerTop { display: none !important; }
 
-  main { padding-top: 8px; }
+  main { padding-top: 10px; }
   .chips { padding-bottom: 5px; }
   .toolbar-title { white-space: nowrap; }
   .precision-toolbar-actions { gap: 5px; }
@@ -409,16 +454,40 @@ select:focus-visible,
   .precision-action-backdrop { align-items: center; }
   .precision-action-menu { border-radius: 12px; }
   .view-tools { width: fit-content; margin-left: auto; }
+
+  .tabs {
+    background: #fff;
+    border: 1px solid var(--section-line);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(20,20,20,.035);
+    padding: 2px;
+  }
 }
 
 @media (display-mode: standalone) {
   .top { padding-top: calc(7px + var(--safe-top)); }
 }
 
+@keyframes quickAddReducedPulse {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    scroll-behavior: auto !important;
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
+  html:focus-within { scroll-behavior: auto; }
+
+  .card,
+  .btn,
+  .icon-btn,
+  .fab,
+  .tab-btn,
+  .seg-btn {
+    transition: none !important;
+  }
+
+  .fetch-status.loading::before {
+    animation: quickAddReducedPulse 1.2s ease-in-out infinite !important;
+    transform: none !important;
+    will-change: opacity;
   }
 }
