@@ -1,0 +1,64 @@
+name: Visual QA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local server
+        run: |
+          mkdir -p visual-qa
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/quicklinks-server.log 2>&1 &
+          echo $! > /tmp/quicklinks-server.pid
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'Local server did not become ready.' >&2
+          exit 1
+
+      - name: Run browser visual QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+          PRODUCTION_URL: https://silovar-uk.github.io/quicklinks/
+          RUN_PRODUCTION_QA: '1'
+          VISUAL_QA_DIR: visual-qa
+        run: node scripts/visual-qa.mjs
+
+      - name: Collect server log
+        if: always()
+        run: cp /tmp/quicklinks-server.log visual-qa/server.log || true
+
+      - name: Upload visual QA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-qa-${{ github.sha }}
+          path: visual-qa/
+          if-no-files-found: warn
+          retention-days: 14
