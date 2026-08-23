@@ -25,6 +25,7 @@ async function openAddModal(page) {
   await page.waitForSelector('#quickUrlInput', { state: 'visible', timeout: 5000 });
   await page.waitForSelector('#quickUrlProjectSelect', { state: 'visible', timeout: 5000 });
   await page.waitForSelector('#quickProjectSort', { state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(350);
 }
 
 async function runViewport(browser, baseUrl, prefix, viewport, reducedMotion = 'no-preference') {
