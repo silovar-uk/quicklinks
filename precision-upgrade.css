@@ -88,6 +88,18 @@
   box-shadow: 0 -2px 8px rgba(20,20,20,.035);
 }
 
+/* Modal depth: the sheet is opaque; the page behind is intentionally subdued. */
+.modal {
+  background: rgba(18,18,18,.50) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.modal.open .modal-sheet {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 /* Compact stats: metadata, not dashboard cards. */
 .summary {
   display: flex;
@@ -394,6 +406,9 @@ select:focus-visible,
   max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 10px);
   padding: 0;
   overflow: hidden;
+  background: #fff !important;
+  opacity: 1 !important;
+  box-shadow: 0 18px 50px rgba(0,0,0,.18);
 }
 
 #quickUrlModal .modal-fixed-head,
@@ -402,7 +417,7 @@ select:focus-visible,
   margin: 0;
   padding: 14px 16px 11px;
   border-bottom: 1px solid var(--line);
-  background: #fbfbf9;
+  background: #fff;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -415,6 +430,7 @@ select:focus-visible,
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding: 12px 16px 16px;
+  background: #fff;
 }
 
 #quickUrlModal .modal-fixed-actions,
@@ -423,7 +439,7 @@ select:focus-visible,
   margin: 0;
   padding: 10px 16px calc(10px + var(--safe-bottom));
   border-top: 1px solid var(--line);
-  background: #fbfbf9;
+  background: #fff;
   box-shadow: 0 -2px 8px rgba(20,20,20,.03);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
