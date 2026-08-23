@@ -88,7 +88,7 @@
         if (!html.includes('</head>') || !html.includes('</body>')) throw new Error('app shell is incomplete');
         html = html.replace('<title>Quick Links Mobile</title>', '<title>Quick Links</title>');
         html = html.replace('<h1 class="brand-title">Quick Links Mobile</h1>', '<h1 class="brand-title">Quick Links</h1>');
-        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814" />\n  <link rel="manifest" href="./manifest.webmanifest" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260811-precision" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260823-quiet" />\n  <link rel="stylesheet" href="./precision-upgrade.css?v=20260823-hierarchy" />\n</head>`);
+        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814" />\n  <link rel="manifest" href="./manifest.webmanifest" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260811-precision" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260823-quiet" />\n  <link rel="stylesheet" href="./precision-upgrade.css?v=20260823-modal-depth" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `      ${metadataPreview}\n      <div class="form-row">\n        <label for="linkNote">備考</label>`);
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
