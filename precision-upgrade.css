@@ -1,12 +1,12 @@
-/* Precision upgrade — reduce chrome, unify actions, strengthen mobile ergonomics */
-
+/* Precision structure — preserve ergonomics without adding visual chrome */
 :root {
   --precision-focus: rgba(180, 35, 44, .34);
 }
 
-/* One primary add affordance: FAB. Header stays quiet. */
+/* One primary add affordance: FAB. */
 .top-actions { display: none !important; }
 .brand { max-width: 100%; }
+
 .search-icon {
   width: 20px;
   height: 20px;
@@ -14,6 +14,7 @@
   place-items: center;
   padding-left: 0;
 }
+
 .search-icon svg,
 .tab-btn svg,
 .fab svg,
@@ -22,6 +23,7 @@
   height: 20px;
   display: block;
 }
+
 .tab-btn span {
   width: 20px;
   height: 20px;
@@ -29,23 +31,26 @@
   place-items: center;
   line-height: 0;
 }
+
 .fab {
   display: inline-grid;
   place-items: center;
-  width: 62px;
-  min-width: 62px;
-  height: 62px;
+  width: 54px;
+  min-width: 54px;
+  height: 54px;
   padding: 0;
   line-height: 0;
   -webkit-appearance: none;
   appearance: none;
 }
+
 .fab svg {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: block;
   margin: 0;
 }
+
 .modal-close,
 .clear-btn {
   display: inline-grid;
@@ -53,6 +58,7 @@
   padding: 0;
   line-height: 0;
 }
+
 .modal-close svg,
 .clear-btn svg {
   width: 18px;
@@ -60,45 +66,26 @@
   display: block;
 }
 
-/* Compact stats: informative, not a dashboard before the content. */
+/* Compact stats: metadata, not dashboard cards. */
 .summary {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 28px;
-  margin: 2px 0 7px;
-  padding: 0 2px 7px;
+  min-height: 26px;
   overflow-x: auto;
-  border-bottom: 1px solid rgba(24,24,27,.065);
   scrollbar-width: none;
 }
+
 .summary::-webkit-scrollbar { display: none; }
+
 .stat {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
   flex: 0 0 auto;
-  padding: 0;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-.stat-num {
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 760;
-  letter-spacing: -.02em;
-}
-.stat-label {
-  margin: 0;
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 650;
-  color: #9a9aa1;
 }
 
-/* Sort remains visible. Display density and bulk selection are progressive disclosure. */
-.toolbar { margin-top: 7px; }
+/* Sort remains visible. Density and bulk actions stay progressive. */
 .precision-toolbar-actions {
   min-width: 0;
   display: flex;
@@ -106,71 +93,80 @@
   justify-content: flex-end;
   gap: 6px;
 }
+
 .precision-toolbar-actions .select-mini { max-width: min(47vw, 180px); }
-.precision-display-btn { min-width: 48px; }
+.precision-display-btn { min-width: 44px; }
+
 .view-tools {
   display: none;
   align-items: center;
   gap: 8px;
-  margin: 4px 0 10px;
-  padding: 8px;
-  border: 1px solid rgba(24,24,27,.07);
-  border-radius: 13px;
-  background: rgba(255,255,255,.54);
+  margin: 4px 0 8px;
+  padding: 7px 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   overflow-x: auto;
 }
+
 .view-tools.precision-open { display: flex; }
 .precision-select-btn { margin-left: auto; }
 
-/* On phones, content starts immediately; page controls live at the bottom. */
-@media (max-width: 719px) {
-  .app { padding-bottom: calc(150px + var(--safe-bottom)); }
-  #linkPagerTop,
-  #promptPagerTop { display: none !important; }
-  main { padding-top: 9px; }
-  .chips { padding-bottom: 7px; }
-  .toolbar-title { white-space: nowrap; }
-  .precision-toolbar-actions { gap: 5px; }
-  .precision-toolbar-actions .select-mini { padding-left: 9px; padding-right: 26px; }
-}
-
-/* One color grammar: brand red for primary actions, neutral for secondary. */
+/* Secondary color classes stay neutral in repeated list actions. */
 .btn.blue,
 .btn.green {
+  color: #444;
+  background: #fff;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+.modal .btn.blue,
+.modal .btn.green {
   color: #fff;
   background: var(--red);
   border-color: var(--red);
-  box-shadow: 0 4px 12px rgba(180,35,44,.14);
-}
-.btn.blue:active,
-.btn.green:active { background: #9f2028; }
-.btn.danger {
-  color: #a1262f;
-  background: rgba(180,35,44,.055);
-  border-color: rgba(180,35,44,.17);
 }
 
-/* Consistent card action model: primary + secondary + overflow. */
-.card-actions.precision-card-actions {
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 42px;
+.btn.danger {
+  color: #9b252d;
+  background: #fff;
+  border-color: #e7c6c8;
 }
+
+/* Repeated card actions should not become three competing CTAs. */
+.card-actions.precision-card-actions {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) 40px;
+}
+
+.card-actions.precision-card-actions .btn.blue,
+.card-actions.precision-card-actions .btn.green,
+.card-actions.precision-card-actions .btn.primary {
+  color: #30302e;
+  background: #f2f2ef;
+  border-color: #dfdfda;
+}
+
 .precision-more {
-  min-width: 42px;
-  width: 42px;
+  min-width: 40px;
+  width: 40px;
   padding-left: 0;
   padding-right: 0;
+  background: transparent !important;
 }
+
 .precision-more svg { width: 18px; height: 18px; }
 .precision-simple-actions .precision-more { min-width: 36px; width: 36px; }
 
-/* More forgiving touch targets without making the UI bulky. */
-.chip { min-height: 38px; display: inline-flex; align-items: center; }
+/* Forgiving touch targets without bulky surfaces. */
+.chip { min-height: 34px; display: inline-flex; align-items: center; }
 .seg-btn { min-height: 36px; }
 .simple-actions .btn { min-height: 36px; }
 .modal-close,
 .clear-btn { min-width: 38px; min-height: 38px; }
 
-/* Strong, consistent keyboard focus. */
+/* Strong keyboard focus remains explicit. */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -181,101 +177,117 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
-/* Category choice has one clear hierarchy: existing first, new second. */
+/* Classification: hierarchy through spacing, not nested cards. */
 .category-input-grid {
   grid-template-columns: 1fr !important;
   gap: 8px !important;
 }
+
 .precision-category-control {
   display: grid;
   gap: 5px;
-  padding: 8px;
-  border: 1px solid rgba(24,24,27,.075);
-  border-radius: 13px;
-  background: rgba(24,24,27,.025);
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
 }
+
 .precision-category-control.precision-category-new {
-  background: rgba(255,255,255,.48);
-  border-style: dashed;
+  background: transparent;
+  border-style: solid;
 }
+
 .precision-field-label {
-  color: #8b8b93;
+  color: #898883;
   font-size: 9px;
-  font-weight: 720;
-  letter-spacing: .02em;
+  font-weight: 600;
+  letter-spacing: .01em;
 }
+
 .precision-category-control .select,
 .precision-category-control .input {
   min-height: 44px;
 }
+
 .classification-priority {
-  padding: 9px;
-  border: 1px solid rgba(24,24,27,.075);
-  border-radius: 14px;
-  background: rgba(255,255,255,.48);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-/* Quick JSON import stays inside the Add flow. */
+/* Quick JSON import stays inside Add flow, visually secondary. */
 .precision-quick-json-panel {
   display: grid;
   gap: 8px;
   margin-top: 9px;
-  padding: 10px;
-  border: 1px solid rgba(24,24,27,.075);
-  border-radius: 14px;
-  background: rgba(24,24,27,.025);
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
 }
+
 .precision-quick-json-panel[hidden] { display: none; }
 .precision-quick-json-panel .textarea { min-height: 116px; }
+
 .precision-json-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-/* Management becomes scan-friendly: core data controls first, everything else collapsible. */
+/* Management: simple disclosure rows rather than stacked cards. */
 .precision-settings-disclosure {
-  margin-bottom: 9px;
-  border: 1px solid rgba(24,24,27,.075);
-  border-radius: 16px;
-  background: rgba(255,255,255,.66);
+  margin-bottom: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   overflow: clip;
 }
+
 .precision-settings-disclosure > summary {
-  min-height: 52px;
+  min-height: 50px;
   display: flex;
   align-items: center;
-  padding: 0 14px;
+  padding: 0 2px;
   cursor: pointer;
-  color: #323238;
+  color: #323230;
   font-size: 13px;
-  font-weight: 740;
+  font-weight: 600;
   list-style: none;
 }
+
 .precision-settings-disclosure > summary::-webkit-details-marker { display: none; }
+
 .precision-settings-disclosure > summary::after {
   content: '';
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
   margin-left: auto;
-  color: #9898a1;
+  color: #96958f;
   background:
-    linear-gradient(currentColor 0 0) center / 12px 2px no-repeat,
-    linear-gradient(currentColor 0 0) center / 2px 12px no-repeat;
-  transition: background-size .16s ease;
+    linear-gradient(currentColor 0 0) center / 10px 1px no-repeat,
+    linear-gradient(currentColor 0 0) center / 1px 10px no-repeat;
 }
+
 .precision-settings-disclosure[open] > summary::after {
-  background-size: 12px 2px, 0 0;
+  background-size: 10px 1px, 0 0;
 }
+
 .precision-settings-disclosure > .settings-card {
   margin: 0;
+  padding: 12px 2px 14px;
   border: 0;
-  border-top: 1px solid rgba(24,24,27,.065);
   border-radius: 0;
   background: transparent;
 }
-.precision-settings-disclosure.danger { border-color: rgba(180,35,44,.13); }
+
+.precision-settings-disclosure.danger { border-color: #ead7d8; }
+
 .precision-visually-hidden {
   position: absolute !important;
   width: 1px !important;
@@ -288,7 +300,7 @@ select:focus-visible,
   border: 0 !important;
 }
 
-/* Reusable overflow action sheet. */
+/* Overflow action sheet: one allowed elevated layer. */
 .precision-action-backdrop {
   position: fixed;
   inset: 0;
@@ -297,40 +309,46 @@ select:focus-visible,
   align-items: flex-end;
   justify-content: center;
   padding: 12px 12px calc(12px + var(--safe-bottom));
-  background: rgba(17,17,19,.28);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  background: rgba(20,20,20,.34);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
+
 .precision-action-backdrop[hidden] { display: none; }
+
 .precision-action-menu {
   width: min(440px, 100%);
   display: grid;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid rgba(255,255,255,.74);
-  border-radius: 20px;
-  background: rgba(252,252,253,.96);
-  box-shadow: 0 22px 58px rgba(15,23,42,.22);
+  gap: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfbf9;
+  box-shadow: 0 16px 44px rgba(0,0,0,.13);
 }
+
 .precision-action-item,
 .precision-action-cancel {
   width: 100%;
   min-height: 48px;
   border: 0;
-  border-radius: 13px;
-  color: #303036;
-  background: rgba(24,24,27,.035);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  color: #30302e;
+  background: transparent;
   font: inherit;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
-.precision-action-item.danger { color: #a1262f; background: rgba(180,35,44,.06); }
-.precision-action-cancel { margin-top: 2px; background: rgba(255,255,255,.9); }
 
-/* Modal ergonomics remain stable on compact screens. */
+.precision-action-item.danger { color: #9b252d; background: transparent; }
+.precision-action-cancel { margin-top: 4px; border-bottom: 0; background: transparent; }
+
+/* Modal ergonomics: fixed head/actions, no glass layers. */
 #quickUrlModal,
 #linkModal { overflow: hidden; }
+
 #quickUrlModal .modal-sheet,
 #linkModal .modal-sheet {
   display: flex;
@@ -339,16 +357,18 @@ select:focus-visible,
   padding: 0;
   overflow: hidden;
 }
+
 #quickUrlModal .modal-fixed-head,
 #linkModal .modal-fixed-head {
   flex: 0 0 auto;
   margin: 0;
   padding: 14px 16px 11px;
-  border-bottom: 1px solid rgba(24,24,27,.07);
-  background: rgba(252,252,253,.90);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
+  border-bottom: 1px solid var(--line);
+  background: #fbfbf9;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
+
 #quickUrlModal .modal-scroll-body,
 #linkModal .modal-scroll-body {
   min-height: 0;
@@ -358,22 +378,36 @@ select:focus-visible,
   -webkit-overflow-scrolling: touch;
   padding: 12px 16px 16px;
 }
+
 #quickUrlModal .modal-fixed-actions,
 #linkModal .modal-fixed-actions {
   flex: 0 0 auto;
   margin: 0;
   padding: 10px 16px calc(10px + var(--safe-bottom));
-  border-top: 1px solid rgba(24,24,27,.07);
-  background: rgba(252,252,253,.92);
-  box-shadow: 0 -10px 28px rgba(15,23,42,.05);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
+  border-top: 1px solid var(--line);
+  background: #fbfbf9;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@media (max-width: 719px) {
+  .app { padding-bottom: calc(118px + var(--safe-bottom)); }
+
+  #linkPagerTop,
+  #promptPagerTop { display: none !important; }
+
+  main { padding-top: 8px; }
+  .chips { padding-bottom: 5px; }
+  .toolbar-title { white-space: nowrap; }
+  .precision-toolbar-actions { gap: 5px; }
+  .precision-toolbar-actions .select-mini { padding-left: 9px; padding-right: 26px; }
 }
 
 @media (min-width: 720px) {
   .summary { max-width: 520px; }
   .precision-action-backdrop { align-items: center; }
-  .precision-action-menu { border-radius: 18px; }
+  .precision-action-menu { border-radius: 12px; }
   .view-tools { width: fit-content; margin-left: auto; }
 }
 
@@ -382,5 +416,9 @@ select:focus-visible,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
