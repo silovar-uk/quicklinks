@@ -29,7 +29,7 @@
     (async () => {
       const loader = document.getElementById('loader');
       try {
-        const response = await fetch('./app.html?v=20260823-quiet', { cache: 'no-store' });
+        const response = await fetch('./app.html?v=20260823-projectsort', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         let html = await response.text();
@@ -51,6 +51,21 @@
       </div>
       <div class="form-row">
         <label for="quickUrlProject">分類 <span style="color:#94a3b8;font-weight:700;">（あとから変更可）</span></label>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-1px 0 8px;">
+          <span style="color:#85857f;font-size:10px;font-weight:600;white-space:nowrap;">並び順</span>
+          <select id="quickProjectSort" class="select" aria-label="分類の並び順" style="width:auto;min-width:138px;height:34px;padding-top:0;padding-bottom:0;font-size:11px;font-weight:500;">
+            <option value="recent">最近使った順</option>
+            <option value="count">使用数が多い順</option>
+            <option value="name">名前順</option>
+            <option value="default">現在の並び順</option>
+          </select>
+        </div>
+        <div id="quickProjectRecents" hidden style="margin:0 0 9px;padding:8px 0 9px;border-bottom:1px solid var(--line);">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:#85857f;font-size:10px;font-weight:600;white-space:nowrap;padding-top:7px;">最近</span>
+            <div id="quickProjectRecentButtons" style="display:flex;flex-wrap:wrap;gap:6px;min-width:0;"></div>
+          </div>
+        </div>
         <div class="category-input-grid">
           <input id="quickUrlProject" class="input" list="quickUrlProjectList" placeholder="未分類（必要なら新しい分類名を入力）" />
           <select id="quickUrlProjectSelect" class="select" aria-label="既存分類から選ぶ"><option value="">既存分類から選ぶ</option></select>
@@ -78,7 +93,7 @@
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `      ${metadataPreview}\n      <div class="form-row">\n        <label for="linkNote">備考</label>`);
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
         const scripts = [
-          '  <scr' + 'ipt src="./quick-add.js?v=20260811-precision"></scr' + 'ipt>',
+          '  <scr' + 'ipt src="./quick-add.js?v=20260823-projectsort"></scr' + 'ipt>',
           '  <scr' + 'ipt src="./precision-data.js?v=20260811-precision"></scr' + 'ipt>',
           '  <scr' + 'ipt src="./precision-ui.js?v=20260813-iconsystem"></scr' + 'ipt>',
           '  <scr' + 'ipt src="./precision-a11y.js?v=20260811-precision"></scr' + 'ipt>'
