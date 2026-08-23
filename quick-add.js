@@ -2,6 +2,9 @@
   const METADATA_ENDPOINT = 'https://api.microlink.io/';
   const BODY_PREVIEW_LIMIT = 1600;
   const DIRECT_FETCH_TIMEOUT = 6500;
+  const PROJECT_SORT_KEY = 'quick-links-quick-project-sort-v1';
+  const PROJECT_SORT_MODES = new Set(['recent', 'count', 'name', 'default']);
+  const PROJECT_COLLATOR = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
 
   const originalOpenLinkModal = openLinkModal;
 
@@ -77,16 +80,105 @@
     el.textContent = message;
   }
 
+  function projectTimeValue(value) {
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  function readQuickProjectSortMode() {
+    try {
+      const saved = localStorage.getItem(PROJECT_SORT_KEY);
+      return PROJECT_SORT_MODES.has(saved) ? saved : 'recent';
+    } catch (_) {
+      return 'recent';
+    }
+  }
+
+  function writeQuickProjectSortMode(mode) {
+    if (!PROJECT_SORT_MODES.has(mode)) return;
+    try { localStorage.setItem(PROJECT_SORT_KEY, mode); } catch (_) {}
+  }
+
+  function getQuickProjectSortMode() {
+    const selected = $('quickProjectSort')?.value;
+    return PROJECT_SORT_MODES.has(selected) ? selected : readQuickProjectSortMode();
+  }
+
+  function getQuickProjectEntries(mode = getQuickProjectSortMode()) {
+    const names = Array.isArray(state.projects) && state.projects.length ? [...state.projects] : ['未分類'];
+    const order = new Map(names.map((name, index) => [name, index]));
+    const entries = new Map(names.map(name => [name, { name, count: 0, lastUsed: 0, order: order.get(name) }]));
+
+    (Array.isArray(state.items) ? state.items : []).forEach(item => {
+      if (!item || item.archived) return;
+      const name = String(item.projectName || '未分類').trim() || '未分類';
+      if (!entries.has(name)) {
+        order.set(name, order.size);
+        names.push(name);
+        entries.set(name, { name, count: 0, lastUsed: 0, order: order.get(name) });
+      }
+      const entry = entries.get(name);
+      entry.count += 1;
+      entry.lastUsed = Math.max(entry.lastUsed, projectTimeValue(item.updatedAt), projectTimeValue(item.addedAt));
+    });
+
+    const sorted = names.map(name => entries.get(name));
+    if (mode === 'count') {
+      sorted.sort((a, b) => b.count - a.count || b.lastUsed - a.lastUsed || a.order - b.order);
+    } else if (mode === 'name') {
+      sorted.sort((a, b) => PROJECT_COLLATOR.compare(a.name, b.name) || a.order - b.order);
+    } else if (mode === 'default') {
+      sorted.sort((a, b) => a.order - b.order);
+    } else {
+      sorted.sort((a, b) => b.lastUsed - a.lastUsed || b.count - a.count || a.order - b.order);
+    }
+    return sorted;
+  }
+
+  function chooseQuickProject(name) {
+    const input = $('quickUrlProject');
+    const select = $('quickUrlProjectSelect');
+    if (!input || !select) return;
+    input.value = name;
+    select.value = state.projects.includes(name) ? name : '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function renderQuickProjectRecents() {
+    const wrap = $('quickProjectRecents');
+    const buttons = $('quickProjectRecentButtons');
+    if (!wrap || !buttons) return;
+    const projects = getQuickProjectEntries('recent');
+    if (projects.length < 4) {
+      wrap.hidden = true;
+      buttons.innerHTML = '';
+      return;
+    }
+    wrap.hidden = false;
+    buttons.innerHTML = projects.slice(0, 3).map(entry => {
+      const encoded = encodeURIComponent(entry.name);
+      return `<button type="button" class="btn ghost compact" data-quick-project="${encoded}" title="${escapeHtml(entry.name)}（${entry.count.toLocaleString()}件）" style="min-height:30px;padding:5px 8px;border-radius:6px;font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(entry.name)}</button>`;
+    }).join('');
+    buttons.querySelectorAll('[data-quick-project]').forEach(button => {
+      button.addEventListener('click', () => chooseQuickProject(decodeURIComponent(button.dataset.quickProject || '')));
+    });
+  }
+
   function syncQuickProjectSelect() {
     const input = $('quickUrlProject');
     const select = $('quickUrlProjectSelect');
     const list = $('quickUrlProjectList');
     if (!input || !select || !list) return;
-    const projects = Array.isArray(state.projects) && state.projects.length ? state.projects : ['未分類'];
-    list.innerHTML = projects.map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
-    select.innerHTML = `<option value="">既存分類から選ぶ</option>` + projects.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    const mode = getQuickProjectSortMode();
+    const projects = getQuickProjectEntries(mode);
+    list.innerHTML = projects.map(entry => `<option value="${escapeHtml(entry.name)}"></option>`).join('');
+    select.innerHTML = `<option value="">既存分類から選ぶ</option>` + projects.map(entry => {
+      const label = mode === 'count' ? `${entry.name}（${entry.count.toLocaleString()}）` : entry.name;
+      return `<option value="${escapeHtml(entry.name)}">${escapeHtml(label)}</option>`;
+    }).join('');
     const value = input.value.trim();
-    select.value = projects.includes(value) ? value : '';
+    select.value = projects.some(entry => entry.name === value) ? value : '';
+    renderQuickProjectRecents();
   }
 
   function updateDuplicateWarning() {
@@ -362,6 +454,7 @@
     $('quickUrlInput').value = '';
     const defaultProject = state.currentProject !== 'ALL' ? state.currentProject : '未分類';
     $('quickUrlProject').value = defaultProject;
+    if ($('quickProjectSort')) $('quickProjectSort').value = readQuickProjectSortMode();
     syncQuickProjectSelect();
     $('quickUrlProjectSelect').value = state.projects.includes(defaultProject) ? defaultProject : '';
     $('quickUrlDuplicate').classList.remove('show');
@@ -378,10 +471,12 @@
   const urlInput = $('quickUrlInput');
   const projectInput = $('quickUrlProject');
   const projectSelect = $('quickUrlProjectSelect');
+  const projectSort = $('quickProjectSort');
   const fetchBtn = $('fetchQuickUrlBtn');
   const pasteBtn = $('pasteQuickUrlBtn');
   const manualBtn = $('manualQuickUrlBtn');
 
+  if (projectSort) projectSort.value = readQuickProjectSortMode();
   urlInput?.addEventListener('input', updateDuplicateWarning);
   urlInput?.addEventListener('paste', () => setTimeout(updateDuplicateWarning, 0));
   urlInput?.addEventListener('keydown', event => {
@@ -395,6 +490,10 @@
   });
   projectSelect?.addEventListener('change', event => {
     if (event.target.value) projectInput.value = event.target.value;
+  });
+  projectSort?.addEventListener('change', event => {
+    writeQuickProjectSortMode(event.target.value);
+    syncQuickProjectSelect();
   });
   fetchBtn?.addEventListener('click', confirmQuickUrl);
   pasteBtn?.addEventListener('click', pasteQuickUrl);
