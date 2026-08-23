@@ -14,15 +14,6 @@ const results = {
   production: {},
 };
 
-function attachDiagnostics(page, bucket) {
-  bucket.consoleErrors = [];
-  bucket.pageErrors = [];
-  page.on('console', msg => {
-    if (msg.type() === 'error') bucket.consoleErrors.push(msg.text());
-  });
-  page.on('pageerror', error => bucket.pageErrors.push(String(error?.stack || error)));
-}
-
 async function waitForApp(page) {
   await page.waitForSelector('.brand-title', { state: 'visible', timeout: 15000 });
   await page.waitForSelector('#fabBtn', { state: 'visible', timeout: 15000 });
@@ -43,12 +34,12 @@ async function runViewport(browser, baseUrl, prefix, viewport, reducedMotion = '
     reducedMotion,
     status: 'running',
     checks: {},
+    consoleErrors: [],
+    pageErrors: [],
   };
-  attachDiagnostics(null, bucket);
+
   const context = await browser.newContext({ viewport, reducedMotion });
   const page = await context.newPage();
-  bucket.consoleErrors = [];
-  bucket.pageErrors = [];
   page.on('console', msg => {
     if (msg.type() === 'error') bucket.consoleErrors.push(msg.text());
   });
@@ -82,6 +73,7 @@ async function runViewport(browser, baseUrl, prefix, viewport, reducedMotion = '
   } finally {
     await context.close();
   }
+
   return bucket;
 }
 
@@ -100,7 +92,13 @@ const browser = await chromium.launch({ headless: true });
 try {
   results.local.desktop = await runViewport(browser, LOCAL_URL, 'local-desktop', { width: 1440, height: 1000 });
   results.local.mobile = await runViewport(browser, LOCAL_URL, 'local-mobile', { width: 390, height: 844 });
-  results.local.mobileReducedMotion = await runViewport(browser, LOCAL_URL, 'local-mobile-reduced-motion', { width: 390, height: 844 }, 'reduce');
+  results.local.mobileReducedMotion = await runViewport(
+    browser,
+    LOCAL_URL,
+    'local-mobile-reduced-motion',
+    { width: 390, height: 844 },
+    'reduce',
+  );
 
   if (process.env.RUN_PRODUCTION_QA === '1') {
     results.production.mobile = await runProduction(browser);
