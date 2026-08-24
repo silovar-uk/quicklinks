@@ -1,0 +1,76 @@
+/* Mobile-first project finder for Quick Add */
+.quick-project-search-shell {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 9px;
+}
+
+.quick-project-search {
+  position: relative;
+}
+
+.quick-project-search .input {
+  width: 100%;
+  min-height: 42px;
+  padding-right: 42px;
+  background: #fff;
+}
+
+.quick-project-search .input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.quick-project-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 999px;
+  color: #64748b;
+  background: #f1f5f9;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.quick-project-search-clear[hidden] {
+  display: none;
+}
+
+.quick-project-search-meta {
+  min-height: 16px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.quick-project-search-meta[hidden] {
+  display: none;
+}
+
+#quickUrlProjectSelect:disabled {
+  color: #94a3b8;
+  background: #f8fafc;
+  cursor: not-allowed;
+}
+
+@media (max-width: 719px) {
+  .quick-project-search-shell {
+    margin-bottom: 8px;
+  }
+
+  .quick-project-search .input {
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .quick-project-search-clear {
+    width: 30px;
+    height: 30px;
+  }
+}
