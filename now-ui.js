@@ -18,6 +18,7 @@
       }
 
       .now-context[hidden] { display: none !important; }
+      .now-context-active .prompt-reuse-recent { display: none !important; }
 
       .now-head {
         display: flex;
@@ -244,6 +245,7 @@
     const context = ensureContext();
     if (!context) return;
     const candidates = getCandidates();
+    document.body.classList.toggle('now-context-active', candidates.length > 0);
     const visible = shouldShow() && candidates.length > 0;
     context.hidden = !visible;
     if (!visible) {
