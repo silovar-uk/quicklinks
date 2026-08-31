@@ -9,6 +9,7 @@
   const tabs = document.querySelector('.tabs');
   const topRow = document.querySelector('.top-row');
   const fab = $('fabBtn');
+  const app = document.querySelector('.app');
   const basePanels = ['linksPanel', 'promptsPanel', 'settingsPanel'].map(id => $(id)).filter(Boolean);
 
   if (!searchInput || !main) return;
@@ -165,7 +166,10 @@
             if (!item) return;
             if (action === 'open') return handleLinkAction(id, 'open');
             if (action === 'copy-link') return handleLinkAction(id, 'copy');
-            if (action === 'edit-link') return openLinkModal(item);
+            if (action === 'edit-link') {
+              searchInput.focus({ preventScroll: true });
+              return openLinkModal(item);
+            }
           }
           if (kind === 'prompt') {
             const memo = state.promptMemos.find(entry => entry.id === id);
@@ -175,7 +179,10 @@
               if (window.QuickLinksRediscoveryUI?.openPreview) return window.QuickLinksRediscoveryUI.openPreview(id);
               return openPromptModal(memo);
             }
-            if (action === 'edit-prompt') return openPromptModal(memo);
+            if (action === 'edit-prompt') {
+              searchInput.focus({ preventScroll: true });
+              return openPromptModal(memo);
+            }
           }
         });
       });
@@ -191,6 +198,7 @@
     if (tabs) tabs.style.display = active ? 'none' : '';
     if (topRow) topRow.style.display = active ? 'none' : '';
     if (fab) fab.style.display = active ? 'none' : '';
+    if (app) app.style.paddingBottom = active ? '24px' : '';
     if (active) renderSearchResults();
     else panel.innerHTML = '';
   }
