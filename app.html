@@ -1151,6 +1151,7 @@
         </div>
         <div class="bulk-toolbar" id="promptBulkBar"></div>
         <div class="chips" id="promptChips"></div>
+        <div id="promptReuse"></div>
         <div class="pager" id="promptPagerTop"></div>
         <div class="list" id="promptsList"></div>
         <div class="pager bottom" id="promptPagerBottom"></div>
@@ -1418,6 +1419,14 @@
       const date = new Date(value);
       if (!Number.isFinite(date.getTime())) return '';
       return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function formatShortDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return '';
+      const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+      return date.getFullYear() === new Date().getFullYear() ? monthDay : `${date.getFullYear()}/${monthDay}`;
     }
 
     function save() {
@@ -2252,8 +2261,87 @@
       });
     }
 
+    function shouldShowPromptReuse() {
+      return !state.query &&
+        state.currentPromptCategory === 'ALL' &&
+        state.promptPage === 1 &&
+        !state.promptSelectMode;
+    }
+
+    function getRecentPrompts() {
+      if (!shouldShowPromptReuse()) return [];
+      return state.promptMemos
+        .filter(memo => timeValue(memo.lastCopiedAt) > 0)
+        .sort((a, b) => timeValue(b.lastCopiedAt) - timeValue(a.lastCopiedAt))
+        .slice(0, 3);
+    }
+
+    function getDormantPrompt(recent = []) {
+      if (!shouldShowPromptReuse()) return null;
+      const recentIds = new Set(recent.map(memo => memo.id));
+      const minimumAge = 60 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const candidates = state.promptMemos
+        .filter(memo => {
+          const lastCopied = timeValue(memo.lastCopiedAt);
+          return Number(memo.copyCount || 0) >= 2 &&
+            lastCopied > 0 &&
+            now - lastCopied >= minimumAge &&
+            !recentIds.has(memo.id);
+        })
+        .map(memo => {
+          const daysSinceUse = Math.floor((now - timeValue(memo.lastCopiedAt)) / (24 * 60 * 60 * 1000));
+          const score = daysSinceUse + Math.log2(Number(memo.copyCount || 0) + 1) * 45;
+          return { memo, daysSinceUse, score };
+        })
+        .sort((a, b) => b.score - a.score || b.daysSinceUse - a.daysSinceUse || Number(b.memo.copyCount || 0) - Number(a.memo.copyCount || 0));
+      const shortlist = candidates.slice(0, 3);
+      if (!shortlist.length) return null;
+      const dayIndex = Math.floor(now / (24 * 60 * 60 * 1000)) % shortlist.length;
+      return shortlist[dayIndex];
+    }
+
+    function formatTimeAway(days) {
+      if (days >= 365) return `${Math.floor(days / 365)}年ぶり`;
+      if (days >= 60) return `${Math.floor(days / 30)}か月ぶり`;
+      return `${days}日ぶり`;
+    }
+
+    function renderPromptReuse() {
+      const el = $('promptReuse');
+      const recent = getRecentPrompts();
+      const dormant = getDormantPrompt(recent);
+      if (!recent.length && !dormant) {
+        el.innerHTML = '';
+        return;
+      }
+      const recentSection = recent.length ? `
+        <section class="prompt-reuse prompt-reuse-recent" aria-label="最近使ったプロンプト">
+          <h2 class="prompt-reuse-title">最近使った</h2>
+          <div class="prompt-reuse-list">
+            ${recent.map(memo => `
+              <button class="prompt-reuse-button" type="button" data-copy-prompt-id="${escapeHtml(memo.id)}" aria-label="${escapeHtml(memo.title || '無題のプロンプト')}をコピー">
+                <span>${escapeHtml(memo.title || '無題のプロンプト')}</span>
+              </button>`).join('')}
+          </div>
+        </section>` : '';
+      const dormantSection = dormant ? `
+        <section class="prompt-reuse prompt-reuse-dormant" aria-label="久しぶりのプロンプト">
+          <h2 class="prompt-reuse-title">久しぶり</h2>
+          <button class="prompt-dormant-button" type="button" data-copy-prompt-id="${escapeHtml(dormant.memo.id)}" aria-label="${escapeHtml(dormant.memo.title || '無題のプロンプト')}をコピー">
+            <span class="prompt-dormant-title">${escapeHtml(dormant.memo.title || '無題のプロンプト')}</span>
+            <span class="prompt-dormant-meta">${formatTimeAway(dormant.daysSinceUse)} · 以前${Number(dormant.memo.copyCount || 0).toLocaleString()}回使用</span>
+          </button>
+        </section>` : '';
+      el.innerHTML = `<div class="prompt-reuse-group">${recentSection}${dormantSection}</div>`;
+      el.querySelectorAll('[data-copy-prompt-id]').forEach(button => {
+        button.addEventListener('click', () => copyPrompt(button.dataset.copyPromptId));
+      });
+    }
+
     function renderPrompts() {
       renderPromptChips();
+      renderPromptReuse();
       $('promptSortSelect').value = state.promptSort;
       const list = filteredPrompts();
       const page = paginate(list, 'prompts');
@@ -2291,7 +2379,7 @@
             <div class="prompt-body ${body.length > 360 ? 'long' : ''}">${highlight(preview || '本文なし')}</div>
             <div class="meta">
               <span>${body.length.toLocaleString()}文字</span>
-              <span>コピー ${Number(memo.copyCount || 0).toLocaleString()}回</span>
+              ${renderPromptUsageMeta(memo)}
               <span>更新 ${formatDate(memo.updatedAt) || '-'}</span>
             </div>
             <div class="card-actions">
@@ -2315,7 +2403,7 @@
             <div class="simple-sub">
               <span class="badge" style="${promptBadgeStyle(memo.categoryName)}">${escapeHtml(memo.categoryName || '未分類')}</span>
               <span>${body.length.toLocaleString()}文字</span>
-              <span>${Number(memo.copyCount || 0).toLocaleString()}回コピー</span>
+              ${renderPromptUsageMeta(memo, true)}
             </div>
           </div>
           <div class="simple-actions">
@@ -2324,6 +2412,15 @@
             <button class="btn danger" data-action="delete-prompt">削除</button>
           </div>
         </article>`;
+    }
+
+    function renderPromptUsageMeta(memo, compact = false) {
+      const count = Number(memo.copyCount || 0);
+      const lastUsed = formatShortDate(memo.lastCopiedAt);
+      const parts = [];
+      if (count > 0) parts.push(`<span>${count.toLocaleString()}回使用</span>`);
+      if (lastUsed) parts.push(`<span>${compact ? '最終' : '最終利用'} ${lastUsed}</span>`);
+      return parts.join('');
     }
 
 

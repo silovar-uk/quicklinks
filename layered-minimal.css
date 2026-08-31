@@ -219,6 +219,96 @@ main {
   border-color: #9a761d;
 }
 
+/* Prompt reuse: compact shortcuts, intentionally quieter than the main list */
+.prompt-reuse-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.prompt-reuse {
+  padding: 10px 1px 9px;
+}
+
+.prompt-reuse + .prompt-reuse {
+  padding-top: 0;
+}
+
+.prompt-reuse-title {
+  margin: 0 0 6px;
+  color: #85847f;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.prompt-reuse-list {
+  display: flex;
+  gap: 6px;
+}
+
+.prompt-reuse-button {
+  min-width: 0;
+  min-height: 36px;
+  flex: 1 1 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #51514d;
+  background: #fbfbf9;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 550;
+  text-align: left;
+}
+
+.prompt-reuse-button span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-reuse-button:active {
+  background: #f0f0ed;
+}
+
+.prompt-dormant-button {
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 9px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #51514d;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.prompt-dormant-title,
+.prompt-dormant-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-dormant-title {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.prompt-dormant-meta {
+  margin-top: 2px;
+  color: #92918c;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.prompt-dormant-button:active {
+  background: #f0f0ed;
+}
+
 /* Lists: rows separated by rules, not floating cards */
 .list { gap: 0; }
 

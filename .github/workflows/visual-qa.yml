@@ -53,6 +53,11 @@ jobs:
           VISUAL_QA_DIR: visual-qa
         run: node scripts/visual-qa.mjs
 
+      - name: Run history regression QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+        run: node scripts/history-regression.mjs
+
       - name: Collect server log
         if: always()
         run: cp /tmp/quicklinks-server.log visual-qa/server.log || true
