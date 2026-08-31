@@ -102,36 +102,40 @@
   }
 
   function primaryActionFor(row, kind) {
-    if (!row) return null;
-    return kind === 'link'
+    if (!row || row.offsetParent === null) return null;
+    const primary = kind === 'link'
       ? row.querySelector('[data-action="open"], button:not([disabled])')
       : row.querySelector('[data-action="copy-prompt"], button:not([disabled])');
+    return primary && primary.offsetParent !== null ? primary : null;
   }
 
-  function focusAfterDelete(kind, visualIndex) {
+  function focusCurrentContext(kind, preferredId = null, visualIndex = 0) {
     requestAnimationFrame(() => {
-      const rows = visibleRows(kind);
-      const row = rows[Math.min(visualIndex, Math.max(rows.length - 1, 0))];
-      const primary = primaryActionFor(row, kind);
-      if (primary) {
-        primary.focus({ preventScroll: true });
+      if (document.body.classList.contains('search-shift-active')) {
+        $('globalSearch')?.focus?.({ preventScroll: true });
         return;
       }
-      const toolbar = kind === 'link' ? $('linkSortSelect') : $('promptSortSelect');
-      toolbar?.focus?.({ preventScroll: true });
-    });
-  }
 
-  function focusRestoredItem(kind, id) {
-    requestAnimationFrame(() => {
-      const row = visibleRows(kind).find(element => element.dataset.id === id);
-      const primary = primaryActionFor(row, kind);
-      if (primary) {
-        primary.focus({ preventScroll: true });
-        return;
+      const activeTab = state.activeTab || document.querySelector('.tab-btn.active')?.dataset.tab;
+      const matchingTab = (kind === 'link' && activeTab === 'links') || (kind === 'prompt' && activeTab === 'prompts');
+      if (matchingTab) {
+        const rows = visibleRows(kind);
+        const row = preferredId
+          ? rows.find(element => element.dataset.id === preferredId)
+          : rows[Math.min(visualIndex, Math.max(rows.length - 1, 0))];
+        const primary = primaryActionFor(row, kind);
+        if (primary) {
+          primary.focus({ preventScroll: true });
+          return;
+        }
+        const toolbar = kind === 'link' ? $('linkSortSelect') : $('promptSortSelect');
+        if (toolbar && toolbar.offsetParent !== null) {
+          toolbar.focus({ preventScroll: true });
+          return;
+        }
       }
-      const toolbar = kind === 'link' ? $('linkSortSelect') : $('promptSortSelect');
-      toolbar?.focus?.({ preventScroll: true });
+
+      document.querySelector('.tab-btn.active')?.focus?.({ preventScroll: true });
     });
   }
 
@@ -173,7 +177,7 @@
     save();
     render();
     showUndo('link', item, index);
-    focusAfterDelete('link', visualIndex);
+    focusCurrentContext('link', null, visualIndex);
   }
 
   function deletePromptWithUndo(id) {
@@ -188,7 +192,7 @@
     save();
     render();
     showUndo('prompt', memo, index);
-    focusAfterDelete('prompt', visualIndex);
+    focusCurrentContext('prompt', null, visualIndex);
   }
 
   function undoPendingDelete() {
@@ -215,7 +219,7 @@
     save();
     render();
     toast('元に戻しました');
-    focusRestoredItem(pending.kind, pending.item.id);
+    focusCurrentContext(pending.kind, pending.item.id);
   }
 
   ensureStyles();
