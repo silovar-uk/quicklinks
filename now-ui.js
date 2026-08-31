@@ -292,6 +292,5 @@
     queueMicrotask(renderNow);
   };
 
-  document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', () => queueMicrotask(renderNow)));
   renderNow();
 })();
