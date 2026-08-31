@@ -1,0 +1,191 @@
+/* Prompt composer UI refinement — visual only, no behavior changes */
+
+#promptModal {
+  overflow: hidden;
+}
+
+#promptModal.open {
+  align-items: flex-end;
+}
+
+#promptModal .modal-sheet {
+  width: min(680px, 100%);
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+#promptModal .modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 14px 16px 11px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,.97);
+  backdrop-filter: blur(14px);
+}
+
+#promptModal .modal-title {
+  font-size: 17px;
+}
+
+#promptModal .modal-close {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+}
+
+#promptModal #promptId + .form-row {
+  margin-top: 14px;
+}
+
+#promptModal .form-row {
+  gap: 7px;
+  margin: 0 0 14px;
+  padding: 0 16px;
+}
+
+#promptModal .form-row label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .02em;
+}
+
+#promptModal .input,
+#promptModal .select,
+#promptModal .textarea {
+  border-radius: 14px;
+  border-color: #d7dee8;
+  box-shadow: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+
+#promptModal .input:focus,
+#promptModal .select:focus,
+#promptModal .textarea:focus {
+  border-color: #c94a52;
+  box-shadow: 0 0 0 3px rgba(185,28,28,.10);
+}
+
+#promptModal #promptTitle {
+  font-weight: 850;
+}
+
+/* Existing category first, free-text category second. DOM and values stay untouched. */
+#promptModal .category-input-grid {
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+#promptModal #promptCategorySelect {
+  order: 1;
+  background: #f8fafc;
+  font-weight: 800;
+}
+
+#promptModal #promptCategory {
+  order: 2;
+  border-style: dashed;
+  background: #fffdf8;
+}
+
+/* The prompt body is the primary work area. */
+#promptModal #promptBody {
+  min-height: clamp(220px, 38dvh, 420px);
+  line-height: 1.65;
+  resize: vertical;
+}
+
+/* Character count should read as status, not as another card. */
+#promptModal #promptCharCount {
+  margin: -7px 0 0;
+  padding: 0 16px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Keep the decisive action reachable while a long prompt scrolls. */
+#promptModal .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(104px, .72fr) minmax(150px, 1.28fr);
+  gap: 8px;
+  margin: 0;
+  padding: 10px 16px calc(10px + var(--safe-bottom));
+  border-top: 1px solid var(--line);
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 -8px 22px rgba(15,23,42,.06);
+  backdrop-filter: blur(14px);
+}
+
+#promptModal .modal-actions .btn {
+  min-height: 46px;
+}
+
+#promptModal #savePromptBtn {
+  font-size: 13px;
+}
+
+@media (max-width: 719px) {
+  #promptModal {
+    box-sizing: border-box;
+    padding: max(8px, var(--safe-top)) 8px max(8px, var(--safe-bottom));
+  }
+
+  #promptModal .modal-sheet {
+    height: min(760px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px));
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+    border-radius: 22px 22px 16px 16px;
+  }
+
+  #promptModal .form-row {
+    margin-bottom: 12px;
+  }
+
+  #promptModal #promptBody {
+    min-height: clamp(210px, 36dvh, 360px);
+  }
+}
+
+@media (min-width: 720px) {
+  #promptModal.open {
+    align-items: center;
+  }
+
+  #promptModal .modal-sheet {
+    max-height: min(820px, calc(100dvh - 32px));
+    border-radius: 26px;
+  }
+
+  #promptModal #promptBody {
+    min-height: 280px;
+  }
+}
+
+@supports not (height: 100dvh) {
+  #promptModal .modal-sheet {
+    max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 16px);
+  }
+
+  @media (max-width: 719px) {
+    #promptModal .modal-sheet {
+      height: min(760px, calc(100vh - var(--safe-top) - var(--safe-bottom) - 16px));
+    }
+  }
+}
