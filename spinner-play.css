@@ -1,0 +1,36 @@
+/* Playful URL-fetch spinner: familiar ring, slightly mischievous rhythm. */
+#fetchQuickUrlBtn:disabled::before {
+  width: 15px;
+  height: 15px;
+  flex-basis: 15px;
+  border-width: 2px;
+  border-right-color: transparent;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  animation: quickAddCatchUpSpin 1.08s linear infinite;
+}
+
+/*
+  Catch-up rhythm:
+  ordinary rotation -> quick dash -> settle -> tiny hesitation -> next lap.
+  Uneven angular distance between keyframes creates the personality without
+  changing the familiar spinner silhouette.
+*/
+@keyframes quickAddCatchUpSpin {
+  0%   { transform: rotate(0deg)   scale(1); }
+  28%  { transform: rotate(90deg)  scale(1); }
+  44%  { transform: rotate(224deg) scale(1.04); }
+  58%  { transform: rotate(260deg) scale(.98); }
+  76%  { transform: rotate(332deg) scale(1); }
+  86%  { transform: rotate(338deg) scale(1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Keep the state legible while removing the playful movement when requested. */
+@media (prefers-reduced-motion: reduce) {
+  #fetchQuickUrlBtn:disabled::before {
+    transform: none;
+    will-change: opacity;
+    animation: quickAddBusyPulse 1.2s ease-in-out infinite;
+  }
+}
