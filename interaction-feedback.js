@@ -20,7 +20,7 @@
         inset: 0;
         display: grid;
         place-items: center;
-        color: var(--red);
+        color: var(--quick-feedback-color, #30302e);
         font: inherit;
         white-space: nowrap;
         pointer-events: none;
@@ -144,6 +144,7 @@
     if (!node) return;
     node.classList.remove('quick-feedback-node');
     delete node.dataset.feedbackText;
+    node.style.removeProperty('--quick-feedback-color');
   }
 
   function success(context, { duration = 900, text = '✓ コピー' } = {}) {
@@ -157,6 +158,7 @@
       const node = feedbackNode(target, context.mode);
       if (!node) return;
 
+      node.style.setProperty('--quick-feedback-color', getComputedStyle(node).color);
       target.classList.add('quick-feedback-success');
       node.classList.add('quick-feedback-node');
       node.dataset.feedbackText = text;
