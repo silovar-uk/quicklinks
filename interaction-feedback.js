@@ -278,10 +278,21 @@
     return false;
   }
 
+  function handoffSelectedClassification(buttonId) {
+    const config = buttonId === 'saveLinkBtn'
+      ? { input: $('linkProject'), select: $('linkProjectSelect') }
+      : buttonId === 'savePromptBtn'
+        ? { input: $('promptCategory'), select: $('promptCategorySelect') }
+        : null;
+    if (!config?.input || !config.select) return;
+    if (!config.input.value.trim() && config.select.value) config.input.value = config.select.value;
+  }
+
   function runSaveWithFeedback(button, { modalId, action }) {
     if (!button || typeof action !== 'function' || button.dataset.saveFeedbackBusy === '1') return;
     button.dataset.saveFeedbackBusy = '1';
     button.setAttribute('aria-disabled', 'true');
+    handoffSelectedClassification(button.id);
 
     const originalCloseModal = closeModal;
     const originalToast = toast;
