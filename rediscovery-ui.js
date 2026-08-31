@@ -266,21 +266,14 @@
       if (event.target === modal) closeModal(MODAL_ID);
     });
 
-    const copyButton = document.getElementById('rediscoveryPreviewCopy');
-    copyButton.addEventListener('click', () => {
+    document.getElementById('rediscoveryPreviewCopy').addEventListener('click', () => {
       if (!activePromptId) return;
       const id = activePromptId;
       copyPrompt(id);
-      if (window.QuickLinksFeedback?.successForButton) {
-        window.QuickLinksFeedback.successForButton(copyButton, { duration: 320 });
-        setTimeout(() => {
-          closeModal(MODAL_ID);
-          focusPromptAfterRediscovery(id);
-        }, 320);
-        return;
-      }
-      closeModal(MODAL_ID);
-      focusPromptAfterRediscovery(id);
+      setTimeout(() => {
+        closeModal(MODAL_ID);
+        focusPromptAfterRediscovery(id);
+      }, window.QuickLinksFeedback?.timings?.transition || 320);
     });
 
     document.getElementById('rediscoveryPreviewEdit').addEventListener('click', () => {
@@ -380,7 +373,7 @@
       card.querySelector('[data-rediscovery-action="preview"]')?.addEventListener('click', () => openRediscoveryPreview(id));
       card.querySelector('[data-rediscovery-action="copy"]')?.addEventListener('click', () => {
         if (window.QuickLinksFeedback?.deferRender) {
-          window.QuickLinksFeedback.deferRender(() => copyPrompt(id), 320);
+          window.QuickLinksFeedback.deferRender(() => copyPrompt(id), window.QuickLinksFeedback.timings?.transition || 320);
           return;
         }
         copyPrompt(id);
