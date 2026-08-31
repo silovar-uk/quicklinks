@@ -19,6 +19,7 @@
 
       .now-context[hidden] { display: none !important; }
       .now-context-active .prompt-reuse-recent { display: none !important; }
+      .now-context-active .prompt-reuse-group:not(:has(.prompt-reuse-dormant)) { display: none !important; }
 
       .now-head {
         display: flex;
