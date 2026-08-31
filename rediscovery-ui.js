@@ -378,7 +378,13 @@
     el.querySelectorAll('[data-rediscovery-id]').forEach(card => {
       const id = card.dataset.rediscoveryId;
       card.querySelector('[data-rediscovery-action="preview"]')?.addEventListener('click', () => openRediscoveryPreview(id));
-      card.querySelector('[data-rediscovery-action="copy"]')?.addEventListener('click', () => copyPrompt(id));
+      card.querySelector('[data-rediscovery-action="copy"]')?.addEventListener('click', () => {
+        if (window.QuickLinksFeedback?.deferRender) {
+          window.QuickLinksFeedback.deferRender(() => copyPrompt(id), 320);
+          return;
+        }
+        copyPrompt(id);
+      });
     });
   }
 
