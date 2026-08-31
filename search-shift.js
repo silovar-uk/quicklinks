@@ -20,7 +20,6 @@
     panel.id = PANEL_ID;
     panel.className = 'panel';
     panel.setAttribute('aria-label', '検索結果');
-    panel.setAttribute('aria-live', 'polite');
     main.insertBefore(panel, main.firstChild);
     return panel;
   }
@@ -146,7 +145,7 @@
           <div class="prompt-reuse-title" style="margin-bottom:3px;">SEARCH RESULTS</div>
           <div class="toolbar-title">「${escapeHtml(state.query || searchInput.value)}」</div>
         </div>
-        <div class="pager-info">${(links.length + prompts.length).toLocaleString()}件</div>
+        <div class="pager-info" role="status" aria-live="polite">${(links.length + prompts.length).toLocaleString()}件</div>
       </div>
       ${links.length || prompts.length ? `${group('LINKS', links.length, visibleLinks.map(linkRow))}${group('PROMPTS', prompts.length, visiblePrompts.map(promptRow))}` : `
         <div class="empty">
@@ -172,7 +171,10 @@
             const memo = state.promptMemos.find(entry => entry.id === id);
             if (!memo) return;
             if (action === 'copy-prompt') return copyPrompt(id);
-            if (action === 'preview-prompt') return window.QuickLinksRediscoveryUI?.openPreview?.(id) || openPromptModal(memo);
+            if (action === 'preview-prompt') {
+              if (window.QuickLinksRediscoveryUI?.openPreview) return window.QuickLinksRediscoveryUI.openPreview(id);
+              return openPromptModal(memo);
+            }
             if (action === 'edit-prompt') return openPromptModal(memo);
           }
         });
@@ -208,6 +210,12 @@
     setSearchMode(false);
     if (blur) searchInput.blur();
   }
+
+  const baseRender = render;
+  render = function() {
+    baseRender();
+    queueMicrotask(syncSearchShift);
+  };
 
   searchInput.addEventListener('input', () => queueMicrotask(syncSearchShift));
   searchInput.addEventListener('keydown', event => {
