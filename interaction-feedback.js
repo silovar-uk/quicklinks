@@ -2,7 +2,15 @@
   'use strict';
 
   const STYLE_ID = 'quickLinksInteractionFeedbackStyles';
+  const COPY_STANDARD_MS = 900;
+  const COPY_TRANSITION_MS = 320;
+  const SAVE_SUCCESS_MS = 280;
   const timers = new Map();
+  const copyContextQueue = [];
+  const saveButtons = new Map([
+    ['saveLinkBtn', { modalId: 'linkModal', action: () => saveLinkFromModal() }],
+    ['savePromptBtn', { modalId: 'promptModal', action: () => savePromptFromModal() }]
+  ]);
 
   function ensureStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -26,12 +34,18 @@
         pointer-events: none;
       }
 
-      .quick-feedback-success {
+      .quick-feedback-success,
+      .quick-feedback-failure {
         position: relative;
+      }
+
+      .quick-feedback-failure.quick-feedback-node::after {
+        color: var(--danger, #b4232c);
       }
 
       @media (prefers-reduced-motion: reduce) {
         .quick-feedback-success,
+        .quick-feedback-failure,
         .quick-feedback-node { transition: none !important; }
       }
     `;
@@ -103,6 +117,7 @@
     }
 
     if (button.matches('[data-action="copy-prompt"]')) {
+      if (state.promptSelectMode) return null;
       const row = button.closest('[data-id]');
       if (!row) return null;
       const id = row.dataset.id;
@@ -117,6 +132,7 @@
     }
 
     if (button.matches('[data-action="copy"]')) {
+      if (state.linkSelectMode) return null;
       const row = button.closest('[data-id]');
       if (!row || !row.closest('#linksList')) return null;
       const id = row.dataset.id;
@@ -142,12 +158,16 @@
 
   function clearFeedbackNode(node) {
     if (!node) return;
-    node.classList.remove('quick-feedback-node');
+    node.classList.remove('quick-feedback-node', 'quick-feedback-failure');
     delete node.dataset.feedbackText;
     node.style.removeProperty('--quick-feedback-color');
   }
 
-  function success(context, { duration = 900, text = '✓ コピー' } = {}) {
+  function show(context, {
+    duration = COPY_STANDARD_MS,
+    text = '✓ コピー',
+    status = 'success'
+  } = {}) {
     if (!context) return;
     const previousTimer = timers.get(context.key);
     if (previousTimer) clearTimeout(previousTimer);
@@ -158,15 +178,18 @@
       const node = feedbackNode(target, context.mode);
       if (!node) return;
 
+      clearFeedbackNode(node);
       node.style.setProperty('--quick-feedback-color', getComputedStyle(node).color);
-      target.classList.add('quick-feedback-success');
+      target.classList.remove('quick-feedback-success', 'quick-feedback-failure');
+      target.classList.add(status === 'failure' ? 'quick-feedback-failure' : 'quick-feedback-success');
       node.classList.add('quick-feedback-node');
+      if (status === 'failure') node.classList.add('quick-feedback-failure');
       node.dataset.feedbackText = text;
 
       const timer = setTimeout(() => {
         const currentTarget = context.locate();
         const currentNode = feedbackNode(currentTarget, context.mode);
-        if (currentTarget) currentTarget.classList.remove('quick-feedback-success');
+        if (currentTarget) currentTarget.classList.remove('quick-feedback-success', 'quick-feedback-failure');
         clearFeedbackNode(currentNode);
         timers.delete(context.key);
       }, duration);
@@ -174,11 +197,27 @@
     });
   }
 
-  function successForButton(button, options) {
-    success(contextFromButton(button), options);
+  function success(context, options) {
+    show(context, { ...options, status: 'success' });
   }
 
-  function deferRender(action, delay = 320) {
+  function failure(context, options) {
+    show(context, { duration: COPY_STANDARD_MS, text: 'コピー失敗', ...options, status: 'failure' });
+  }
+
+  function elementContext(element, key = `element:${element?.id || 'anonymous'}`) {
+    return element ? { key, locate: () => element.isConnected ? element : null, mode: 'button' } : null;
+  }
+
+  function successForButton(button, options) {
+    success(contextFromButton(button) || elementContext(button), options);
+  }
+
+  function failureForButton(button, options) {
+    failure(contextFromButton(button) || elementContext(button), options);
+  }
+
+  function deferRender(action, delay = COPY_TRANSITION_MS) {
     if (typeof action !== 'function' || typeof render !== 'function') {
       action?.();
       return;
@@ -196,18 +235,133 @@
     if (requested) setTimeout(() => render(), delay);
   }
 
+  async function reliableCopyText(text, message = 'コピーしました') {
+    const context = copyContextQueue.shift() || null;
+    let copied = false;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(String(text ?? ''));
+        copied = true;
+      }
+    } catch (_) {
+      copied = false;
+    }
+
+    if (!copied) {
+      let textarea = null;
+      try {
+        textarea = document.createElement('textarea');
+        textarea.value = String(text ?? '');
+        textarea.style.position = 'fixed';
+        textarea.style.inset = '0 auto auto -9999px';
+        textarea.style.opacity = '0';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.select();
+        copied = document.execCommand('copy') === true;
+      } catch (_) {
+        copied = false;
+      } finally {
+        textarea?.remove();
+      }
+    }
+
+    if (copied) {
+      if (context) success(context);
+      toast(message);
+      return true;
+    }
+
+    if (context) failure(context);
+    toast('コピーできませんでした');
+    return false;
+  }
+
+  function runSaveWithFeedback(button, { modalId, action }) {
+    if (!button || typeof action !== 'function' || button.dataset.saveFeedbackBusy === '1') return;
+    button.dataset.saveFeedbackBusy = '1';
+    button.setAttribute('aria-disabled', 'true');
+
+    const originalCloseModal = closeModal;
+    const originalToast = toast;
+    let closeRequested = false;
+    let saveSucceeded = false;
+
+    closeModal = function(id) {
+      if (id === modalId) {
+        closeRequested = true;
+        saveSucceeded = true;
+        return;
+      }
+      return originalCloseModal(id);
+    };
+
+    toast = function(message, ...args) {
+      if (saveSucceeded && message === '保存しました') return;
+      return originalToast(message, ...args);
+    };
+
+    try {
+      action();
+    } catch (error) {
+      console.error(error);
+      failure(elementContext(button, `save:${modalId}`), { text: '保存失敗', duration: 1200 });
+      originalToast('保存できませんでした');
+    } finally {
+      closeModal = originalCloseModal;
+      toast = originalToast;
+    }
+
+    if (!closeRequested) {
+      delete button.dataset.saveFeedbackBusy;
+      button.removeAttribute('aria-disabled');
+      return;
+    }
+
+    success(elementContext(button, `save:${modalId}`), {
+      text: '✓ 保存しました',
+      duration: SAVE_SUCCESS_MS
+    });
+
+    setTimeout(() => {
+      delete button.dataset.saveFeedbackBusy;
+      button.removeAttribute('aria-disabled');
+      originalCloseModal(modalId);
+    }, SAVE_SUCCESS_MS);
+  }
+
   document.addEventListener('click', event => {
     const button = event.target.closest('button');
+    if (!button) return;
+
+    const saveConfig = saveButtons.get(button.id);
+    if (saveConfig) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      runSaveWithFeedback(button, saveConfig);
+      return;
+    }
+
     const context = contextFromButton(button);
-    if (!context || button?.matches('#rediscoveryPreviewCopy')) return;
-    queueMicrotask(() => success(context));
+    if (context) copyContextQueue.push(context);
   }, true);
 
   ensureStyles();
+  copyText = reliableCopyText;
+
   window.QuickLinksFeedback = {
     success,
+    failure,
     successForButton,
+    failureForButton,
     contextFromButton,
-    deferRender
+    deferRender,
+    runSaveWithFeedback,
+    timings: {
+      copy: COPY_STANDARD_MS,
+      transition: COPY_TRANSITION_MS,
+      save: SAVE_SUCCESS_MS
+    }
   };
 })();
