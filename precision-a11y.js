@@ -87,6 +87,25 @@
     }
   }
 
+  function presentPromptClassification() {
+    const input = $('promptCategory');
+    const select = $('promptCategorySelect');
+    if (!input || !select) return;
+
+    input.placeholder = '未分類';
+    const value = String(input.value || select.value || '').trim();
+
+    // "未分類" is a data fallback, not text the user should have to delete.
+    // Keep the visible field empty so the fallback is expressed only as a placeholder.
+    if (!value || value === '未分類') {
+      input.value = '';
+      select.value = '';
+      return;
+    }
+
+    presentClassification('promptCategory', 'promptCategorySelect', state.promptCategories);
+  }
+
   function bindSeparatedClassification(inputId, selectId) {
     const input = $(inputId);
     const select = $(selectId);
@@ -112,7 +131,7 @@
   const baseOpenPromptForClassification = openPromptModal;
   openPromptModal = function(...args) {
     baseOpenPromptForClassification(...args);
-    queueMicrotask(() => presentClassification('promptCategory', 'promptCategorySelect', state.promptCategories));
+    queueMicrotask(presentPromptClassification);
   };
 
   const baseOpenAddForClassification = openYamlAddModal;
@@ -124,6 +143,8 @@
   bindSeparatedClassification('quickUrlProject', 'quickUrlProjectSelect');
   bindSeparatedClassification('linkProject', 'linkProjectSelect');
   bindSeparatedClassification('promptCategory', 'promptCategorySelect');
+
+  $('promptCategory')?.setAttribute('placeholder', '未分類');
 
   $('fetchQuickUrlBtn')?.addEventListener('click', () => copySelectedClassification('quickUrlProject', 'quickUrlProjectSelect'), true);
   $('manualQuickUrlBtn')?.addEventListener('click', () => copySelectedClassification('quickUrlProject', 'quickUrlProjectSelect'), true);
