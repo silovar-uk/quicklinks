@@ -14,6 +14,25 @@
         padding-top: 4px;
       }
 
+      .prompt-reuse-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .prompt-reuse-button .prompt-reuse-label {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+
+      .prompt-reuse-button .prompt-reuse-action {
+        flex: 0 0 auto;
+        color: #85847f;
+        font-size: 9px;
+        font-weight: 600;
+        overflow: visible;
+      }
+
       .prompt-rediscovery {
         padding: 10px 0 11px;
         border-top: 1px solid var(--line);
@@ -183,6 +202,27 @@
     else button.textContent = '×';
   }
 
+  function focusPromptAfterRediscovery(id) {
+    requestAnimationFrame(() => {
+      const recentButton = [...document.querySelectorAll('[data-copy-prompt-id]')]
+        .find(button => button.dataset.copyPromptId === id);
+      if (recentButton) {
+        recentButton.focus({ preventScroll: true });
+        return;
+      }
+
+      const promptRow = [...document.querySelectorAll('#promptsList [data-id]')]
+        .find(row => row.dataset.id === id);
+      const rowAction = promptRow?.querySelector('button:not([disabled])');
+      if (rowAction) {
+        rowAction.focus({ preventScroll: true });
+        return;
+      }
+
+      $('promptSortSelect')?.focus?.({ preventScroll: true });
+    });
+  }
+
   function ensurePreviewModal() {
     let modal = document.getElementById(MODAL_ID);
     if (modal) return modal;
@@ -220,8 +260,10 @@
 
     document.getElementById('rediscoveryPreviewCopy').addEventListener('click', () => {
       if (!activePromptId) return;
-      copyPrompt(activePromptId);
+      const id = activePromptId;
+      copyPrompt(id);
       closeModal(MODAL_ID);
+      focusPromptAfterRediscovery(id);
     });
 
     document.getElementById('rediscoveryPreviewEdit').addEventListener('click', () => {
@@ -264,7 +306,8 @@
         <div class="prompt-reuse-list">
           ${recent.map(memo => `
             <button class="prompt-reuse-button" type="button" data-copy-prompt-id="${escapeHtml(memo.id)}" aria-label="${escapeHtml(memo.title || '無題のプロンプト')}をコピー">
-              <span>${escapeHtml(memo.title || '無題のプロンプト')}</span>
+              <span class="prompt-reuse-label">${escapeHtml(memo.title || '無題のプロンプト')}</span>
+              <span class="prompt-reuse-action" aria-hidden="true">コピー</span>
             </button>`).join('')}
         </div>
       </section>`;
