@@ -4,7 +4,6 @@
   const PANEL_ID = 'searchShiftPanel';
   const MAX_RESULTS_PER_KIND = 20;
   const searchInput = $('globalSearch');
-  const clearButton = $('clearSearchBtn');
   const main = document.querySelector('main');
   const tabs = document.querySelector('.tabs');
   const topRow = document.querySelector('.top-row');
@@ -213,7 +212,6 @@
     queueMicrotask(syncSearchShift);
   };
 
-  searchInput.addEventListener('input', () => queueMicrotask(syncSearchShift));
   searchInput.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -228,9 +226,6 @@
       }
     }
   });
-
-  clearButton?.addEventListener('click', () => queueMicrotask(syncSearchShift));
-  document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', () => queueMicrotask(syncSearchShift)));
 
   syncSearchShift();
   window.QuickLinksSearchShift = { sync: syncSearchShift, render: renderSearchResults };
