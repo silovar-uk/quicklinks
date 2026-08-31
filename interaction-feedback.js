@@ -9,21 +9,30 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+      .quick-feedback-node {
+        position: relative;
+        color: transparent !important;
+      }
+
+      .quick-feedback-node::after {
+        content: attr(data-feedback-text);
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--red);
+        font: inherit;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
       .quick-feedback-success {
         position: relative;
       }
 
-      .quick-feedback-success[data-feedback-kind="button"] {
-        font-variant-numeric: tabular-nums;
-      }
-
-      .quick-feedback-success .now-action,
-      .quick-feedback-success .prompt-reuse-action {
-        color: var(--red);
-      }
-
       @media (prefers-reduced-motion: reduce) {
-        .quick-feedback-success { transition: none !important; }
+        .quick-feedback-success,
+        .quick-feedback-node { transition: none !important; }
       }
     `;
     document.head.appendChild(style);
@@ -131,6 +140,12 @@
     return target;
   }
 
+  function clearFeedbackNode(node) {
+    if (!node) return;
+    node.classList.remove('quick-feedback-node');
+    delete node.dataset.feedbackText;
+  }
+
   function success(context, { duration = 900, text = '✓ コピー' } = {}) {
     if (!context) return;
     const previousTimer = timers.get(context.key);
@@ -142,19 +157,15 @@
       const node = feedbackNode(target, context.mode);
       if (!node) return;
 
-      const originalText = node.textContent;
       target.classList.add('quick-feedback-success');
-      target.dataset.feedbackKind = context.mode === 'button' ? 'button' : 'inline';
-      node.textContent = text;
+      node.classList.add('quick-feedback-node');
+      node.dataset.feedbackText = text;
 
       const timer = setTimeout(() => {
         const currentTarget = context.locate();
         const currentNode = feedbackNode(currentTarget, context.mode);
-        if (currentTarget && currentNode) {
-          currentTarget.classList.remove('quick-feedback-success');
-          delete currentTarget.dataset.feedbackKind;
-          if (currentNode.textContent === text) currentNode.textContent = originalText;
-        }
+        if (currentTarget) currentTarget.classList.remove('quick-feedback-success');
+        clearFeedbackNode(currentNode);
         timers.delete(context.key);
       }, duration);
       timers.set(context.key, timer);
@@ -163,6 +174,24 @@
 
   function successForButton(button, options) {
     success(contextFromButton(button), options);
+  }
+
+  function deferRender(action, delay = 320) {
+    if (typeof action !== 'function' || typeof render !== 'function') {
+      action?.();
+      return;
+    }
+
+    const currentRender = render;
+    let requested = false;
+    render = function() { requested = true; };
+    try {
+      action();
+    } finally {
+      render = currentRender;
+    }
+
+    if (requested) setTimeout(() => render(), delay);
   }
 
   document.addEventListener('click', event => {
@@ -176,6 +205,7 @@
   window.QuickLinksFeedback = {
     success,
     successForButton,
-    contextFromButton
+    contextFromButton,
+    deferRender
   };
 })();
