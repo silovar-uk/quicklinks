@@ -266,10 +266,19 @@
       if (event.target === modal) closeModal(MODAL_ID);
     });
 
-    document.getElementById('rediscoveryPreviewCopy').addEventListener('click', () => {
+    const copyButton = document.getElementById('rediscoveryPreviewCopy');
+    copyButton.addEventListener('click', () => {
       if (!activePromptId) return;
       const id = activePromptId;
       copyPrompt(id);
+      if (window.QuickLinksFeedback?.successForButton) {
+        window.QuickLinksFeedback.successForButton(copyButton, { duration: 320 });
+        setTimeout(() => {
+          closeModal(MODAL_ID);
+          focusPromptAfterRediscovery(id);
+        }, 320);
+        return;
+      }
       closeModal(MODAL_ID);
       focusPromptAfterRediscovery(id);
     });
