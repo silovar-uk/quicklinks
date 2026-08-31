@@ -364,6 +364,7 @@
 
   ensureStyles();
   ensurePreviewModal();
+  window.QuickLinksRediscoveryUI = { openPreview: openRediscoveryPreview };
   renderPromptReuse = renderRediscoveryPromptReuse;
   render();
 })();
