@@ -204,6 +204,14 @@
 
   function focusPromptAfterRediscovery(id) {
     requestAnimationFrame(() => {
+      const searchRow = [...document.querySelectorAll('#searchShiftPanel [data-search-kind="prompt"][data-search-id]')]
+        .find(row => row.dataset.searchId === id);
+      const searchAction = searchRow?.querySelector('[data-search-action="copy-prompt"]');
+      if (searchAction) {
+        searchAction.focus({ preventScroll: true });
+        return;
+      }
+
       const recentButton = [...document.querySelectorAll('[data-copy-prompt-id]')]
         .find(button => button.dataset.copyPromptId === id);
       if (recentButton) {
@@ -270,7 +278,10 @@
       const memo = state.promptMemos.find(item => item.id === activePromptId);
       if (!memo) return;
       closeModal(MODAL_ID);
-      requestAnimationFrame(() => openPromptModal(memo));
+      requestAnimationFrame(() => {
+        if (document.body.classList.contains('search-shift-active')) $('globalSearch')?.focus?.({ preventScroll: true });
+        openPromptModal(memo);
+      });
     });
 
     return modal;
