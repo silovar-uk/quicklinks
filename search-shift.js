@@ -89,8 +89,7 @@
         </div>
         <div class="simple-actions">
           <button class="btn primary" type="button" data-search-action="open">開く</button>
-          <button class="btn ghost" type="button" data-search-action="copy-link">URL</button>
-          <button class="btn ghost" type="button" data-search-action="edit-link">編集</button>
+          <button class="btn ghost" type="button" data-search-action="copy-link">URLをコピー</button>
         </div>
       </article>`;
   }
@@ -109,8 +108,7 @@
         </div>
         <div class="simple-actions">
           <button class="btn primary" type="button" data-search-action="copy-prompt">コピー</button>
-          <button class="btn ghost" type="button" data-search-action="preview-prompt">内容</button>
-          <button class="btn ghost" type="button" data-search-action="edit-prompt">編集</button>
+          <button class="btn ghost" type="button" data-search-action="preview-prompt">内容を見る</button>
         </div>
       </article>`;
   }
@@ -143,7 +141,7 @@
     panel.innerHTML = `
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:2px 1px 8px;border-bottom:1px solid var(--line);">
         <div>
-          <div class="prompt-reuse-title" style="margin-bottom:3px;">SEARCH RESULTS</div>
+          <div class="prompt-reuse-title" style="margin-bottom:3px;">SEARCH</div>
           <div class="toolbar-title">「${escapeHtml(state.query || searchInput.value)}」</div>
         </div>
         <div class="pager-info" role="status" aria-live="polite">${(links.length + prompts.length).toLocaleString()}件</div>
@@ -162,14 +160,9 @@
           event.preventDefault();
           const action = button.dataset.searchAction;
           if (kind === 'link') {
-            const item = state.items.find(entry => entry.id === id);
-            if (!item) return;
+            if (!state.items.some(entry => entry.id === id)) return;
             if (action === 'open') return handleLinkAction(id, 'open');
             if (action === 'copy-link') return handleLinkAction(id, 'copy');
-            if (action === 'edit-link') {
-              searchInput.focus({ preventScroll: true });
-              return openLinkModal(item);
-            }
           }
           if (kind === 'prompt') {
             const memo = state.promptMemos.find(entry => entry.id === id);
@@ -177,10 +170,6 @@
             if (action === 'copy-prompt') return copyPrompt(id);
             if (action === 'preview-prompt') {
               if (window.QuickLinksRediscoveryUI?.openPreview) return window.QuickLinksRediscoveryUI.openPreview(id);
-              return openPromptModal(memo);
-            }
-            if (action === 'edit-prompt') {
-              searchInput.focus({ preventScroll: true });
               return openPromptModal(memo);
             }
           }
@@ -204,8 +193,7 @@
   }
 
   function syncSearchShift() {
-    const active = Boolean(queryValue());
-    setSearchMode(active);
+    setSearchMode(Boolean(queryValue()));
   }
 
   function clearSearchAndExit({ blur = false } = {}) {
@@ -242,9 +230,7 @@
   });
 
   clearButton?.addEventListener('click', () => queueMicrotask(syncSearchShift));
-  document.querySelectorAll('.tab-btn').forEach(button => {
-    button.addEventListener('click', () => queueMicrotask(syncSearchShift));
-  });
+  document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', () => queueMicrotask(syncSearchShift)));
 
   syncSearchShift();
   window.QuickLinksSearchShift = { sync: syncSearchShift, render: renderSearchResults };
