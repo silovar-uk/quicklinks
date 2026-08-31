@@ -389,3 +389,38 @@
     max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 16px) !important;
   }
 }
+
+/* Busy state: keep the button text readable and add an explicit spinning indicator. */
+#fetchQuickUrlBtn:disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#fetchQuickUrlBtn:disabled::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  animation: quickAddSpin .72s linear infinite;
+}
+
+@keyframes quickAddBusyPulse {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #fetchQuickUrlBtn:disabled::before {
+    transform: none;
+    will-change: opacity;
+    animation: quickAddBusyPulse 1.2s ease-in-out infinite;
+  }
+}
