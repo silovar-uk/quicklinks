@@ -51,7 +51,7 @@
 
       .now-item {
         width: 100%;
-        min-height: 48px;
+        min-height: 52px;
         display: grid;
         grid-template-columns: 22px minmax(0, 1fr) auto;
         align-items: center;
@@ -67,6 +67,7 @@
         cursor: pointer;
       }
 
+      .now-item-link { min-height: 66px; }
       .now-item:first-child { border-top: 0; }
 
       .now-kind {
@@ -98,16 +99,37 @@
         white-space: nowrap;
       }
 
-      .now-meta {
+      .now-meta,
+      .now-note,
+      .now-usage {
         display: block;
-        margin-top: 2px;
         overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .now-meta {
+        margin-top: 2px;
+        color: #7e7d78;
+        font-size: 9px;
+        line-height: 1.35;
+        font-weight: 550;
+      }
+
+      .now-note {
+        margin-top: 2px;
         color: #92918c;
         font-size: 9px;
         line-height: 1.35;
         font-weight: 500;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+      }
+
+      .now-usage {
+        margin-top: 2px;
+        color: #aaa9a4;
+        font-size: 8px;
+        line-height: 1.3;
+        font-weight: 500;
       }
 
       .now-action {
@@ -124,6 +146,8 @@
 
       @media (max-width: 719px) {
         .now-item { min-height: 52px; }
+        .now-item-link { min-height: 64px; }
+        .now-action { min-width: 40px; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -160,27 +184,56 @@
     return recencyPoints(days) * 10 + frequency;
   }
 
-  function getCandidates() {
-    const links = state.items
-      .filter(item => !item.archived)
-      .map(item => {
-        const count = Number(item.clickCount || 0);
-        const usedAt = item.lastClickedAt;
-        const days = ageDays(usedAt);
-        return {
-          kind: 'link',
-          id: item.id,
-          title: item.title || item.url || '無題のリンク',
-          category: item.projectName || '未分類',
-          count,
-          usedAt,
-          days,
-          score: candidateScore(count, days)
-        };
-      })
-      .filter(item => item.count > 0 && item.days <= MAX_AGE_DAYS);
+  function activeKind() {
+    const tab = state?.activeTab || document.querySelector('.tab-btn.active')?.dataset.tab;
+    if (tab === 'links') return 'link';
+    if (tab === 'prompts') return 'prompt';
+    return null;
+  }
 
-    const prompts = state.promptMemos
+  function cleanText(value, max = 82) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+  }
+
+  function domainFor(url) {
+    try {
+      return new URL(String(url || '')).hostname.replace(/^www\./i, '') || '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function getCandidates(kind = activeKind()) {
+    if (!kind) return [];
+
+    if (kind === 'link') {
+      return state.items
+        .filter(item => !item.archived)
+        .map(item => {
+          const count = Number(item.clickCount || 0);
+          const usedAt = item.lastClickedAt;
+          const days = ageDays(usedAt);
+          return {
+            kind: 'link',
+            id: item.id,
+            title: item.title || item.url || '無題のリンク',
+            category: item.projectName || '未分類',
+            domain: domainFor(item.url),
+            note: cleanText(item.note),
+            count,
+            usedAt,
+            days,
+            score: candidateScore(count, days)
+          };
+        })
+        .filter(item => item.count > 0 && item.days <= MAX_AGE_DAYS)
+        .sort((a, b) => b.score - a.score || timestampValue(b.usedAt) - timestampValue(a.usedAt))
+        .slice(0, MAX_ITEMS);
+    }
+
+    return state.promptMemos
       .map(memo => {
         const count = Number(memo.copyCount || 0);
         const usedAt = memo.lastCopiedAt;
@@ -196,9 +249,7 @@
           score: candidateScore(count, days)
         };
       })
-      .filter(item => item.count > 0 && item.days <= MAX_AGE_DAYS);
-
-    return [...links, ...prompts]
+      .filter(item => item.count > 0 && item.days <= MAX_AGE_DAYS)
       .sort((a, b) => b.score - a.score || timestampValue(b.usedAt) - timestampValue(a.usedAt))
       .slice(0, MAX_ITEMS);
   }
@@ -223,6 +274,27 @@
     return kind === 'link' ? '開く' : 'コピー';
   }
 
+  function subLabel(kind) {
+    return kind === 'link' ? '最近使ったリンク' : '最近使ったプロンプト';
+  }
+
+  function metaFor(item) {
+    if (item.kind === 'link') {
+      return [item.domain, item.category].filter(Boolean).join(' · ');
+    }
+    return item.category;
+  }
+
+  function itemDetails(item) {
+    const note = item.kind === 'link' && item.note
+      ? `<span class="now-note">${escapeHtml(item.note)}</span>`
+      : '';
+    return `
+      <span class="now-meta">${escapeHtml(metaFor(item))}</span>
+      ${note}
+      <span class="now-usage">${timeLabel(item.days)} · ${item.count.toLocaleString()}回</span>`;
+  }
+
   function ensureContext() {
     let context = $(CONTEXT_ID);
     if (context) return context;
@@ -236,18 +308,19 @@
     return context;
   }
 
-  function shouldShow() {
+  function shouldShow(kind) {
+    if (!kind) return false;
     if (document.body.classList.contains('search-shift-active')) return false;
-    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
-    return activeTab !== 'settings';
+    return !state?.query;
   }
 
   function renderNow() {
     const context = ensureContext();
     if (!context) return;
-    const candidates = getCandidates();
-    document.body.classList.toggle('now-context-active', candidates.length > 0);
-    const visible = shouldShow() && candidates.length > 0;
+    const kind = activeKind();
+    const candidates = getCandidates(kind);
+    const visible = shouldShow(kind) && candidates.length > 0;
+    document.body.classList.toggle('now-context-active', visible && kind === 'prompt');
     context.hidden = !visible;
     if (!visible) {
       context.innerHTML = '';
@@ -257,15 +330,15 @@
     context.innerHTML = `
       <div class="now-head">
         <h2 class="now-title">NOW</h2>
-        <span class="now-sub">最近の利用から</span>
+        <span class="now-sub">${subLabel(kind)}</span>
       </div>
       <div class="now-list">
         ${candidates.map(item => `
-          <button class="now-item" type="button" data-now-kind="${item.kind}" data-now-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}を${actionFor(item.kind)}">
+          <button class="now-item ${item.kind === 'link' ? 'now-item-link' : 'now-item-prompt'}" type="button" data-now-kind="${item.kind}" data-now-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}を${actionFor(item.kind)}">
             <span class="now-kind" aria-hidden="true">${iconFor(item.kind)}</span>
             <span class="now-copy">
               <span class="now-item-title">${escapeHtml(item.title)}</span>
-              <span class="now-meta">${escapeHtml(item.category)} · ${timeLabel(item.days)} · ${item.count.toLocaleString()}回</span>
+              ${itemDetails(item)}
             </span>
             <span class="now-action" aria-hidden="true">${actionFor(item.kind)}</span>
           </button>`).join('')}
