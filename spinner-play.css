@@ -1,36 +1,63 @@
-/* Playful URL-fetch spinner: familiar ring, slightly mischievous rhythm. */
-#fetchQuickUrlBtn:disabled::before {
-  width: 15px;
-  height: 15px;
-  flex-basis: 15px;
-  border-width: 2px;
-  border-right-color: transparent;
+/* Quick-add loading feedback. Keep this file self-contained so the spinner does not depend on declarations in other stylesheets. */
+#fetchQuickUrlBtn:disabled {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#fetchQuickUrlBtn:disabled::before,
+.fetch-status.loading::before {
+  content: "" !important;
+  display: inline-block !important;
+  width: 15px !important;
+  height: 15px !important;
+  flex: 0 0 15px !important;
+  box-sizing: border-box;
+  border: 2px solid currentColor !important;
+  border-right-color: transparent !important;
+  border-radius: 50% !important;
   transform-origin: 50% 50%;
+  -webkit-transform-origin: 50% 50%;
   will-change: transform;
-  animation: quickAddCatchUpSpin 1.08s linear infinite;
+  animation: quickAddReliableSpin .72s linear infinite !important;
+  -webkit-animation: quickAddReliableSpin .72s linear infinite !important;
+  animation-play-state: running !important;
+  -webkit-animation-play-state: running !important;
 }
 
-/*
-  Catch-up rhythm:
-  ordinary rotation -> quick dash -> settle -> tiny hesitation -> next lap.
-  Uneven angular distance between keyframes creates the personality without
-  changing the familiar spinner silhouette.
-*/
-@keyframes quickAddCatchUpSpin {
-  0%   { transform: rotate(0deg)   scale(1); }
-  28%  { transform: rotate(90deg)  scale(1); }
-  44%  { transform: rotate(224deg) scale(1.04); }
-  58%  { transform: rotate(260deg) scale(.98); }
-  76%  { transform: rotate(332deg) scale(1); }
-  86%  { transform: rotate(338deg) scale(1); }
-  100% { transform: rotate(360deg) scale(1); }
+.fetch-status.loading::before {
+  color: var(--red);
 }
 
-/* Keep the state legible while removing the playful movement when requested. */
+@keyframes quickAddReliableSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@-webkit-keyframes quickAddReliableSpin {
+  from { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+  to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+
+@keyframes quickAddReliablePulse {
+  0%, 100% { opacity: .32; }
+  50% { opacity: 1; }
+}
+
+@-webkit-keyframes quickAddReliablePulse {
+  0%, 100% { opacity: .32; }
+  50% { opacity: 1; }
+}
+
+/* Respect the user's reduced-motion preference while keeping a visible busy state. */
 @media (prefers-reduced-motion: reduce) {
-  #fetchQuickUrlBtn:disabled::before {
-    transform: none;
+  #fetchQuickUrlBtn:disabled::before,
+  .fetch-status.loading::before {
+    transform: none !important;
+    -webkit-transform: none !important;
     will-change: opacity;
-    animation: quickAddBusyPulse 1.2s ease-in-out infinite;
+    animation: quickAddReliablePulse 1.1s ease-in-out infinite !important;
+    -webkit-animation: quickAddReliablePulse 1.1s ease-in-out infinite !important;
   }
 }
