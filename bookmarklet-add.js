@@ -237,6 +237,8 @@
     const modal = document.getElementById('quickUrlModal');
     if (!modal) return;
     modal.classList.remove(MODE_CLASS);
+    const modalTitle = modal.querySelector('.modal-title');
+    if (modalTitle) modalTitle.textContent = 'リンクを追加';
     modal.querySelector('.bookmarklet-page-preview')?.remove();
     modal.querySelector('.bookmarklet-mode-lead')?.remove();
     modal.querySelector('.bookmarklet-duplicate-note')?.remove();
@@ -362,6 +364,17 @@
       resetModalPresentation();
     }
   }, true);
+
+  const modal = document.getElementById('quickUrlModal');
+  if (modal) {
+    new MutationObserver(() => {
+      if (!payload || modal.classList.contains('open')) return;
+      clearAddHash();
+      payload = null;
+      projectTouched = false;
+      resetModalPresentation();
+    }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+  }
 
   window.addEventListener('hashchange', handleHash);
 
