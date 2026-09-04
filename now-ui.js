@@ -12,9 +12,8 @@
     style.id = STYLE_ID;
     style.textContent = `
       .now-context {
-        margin: 0 0 10px;
-        padding: 9px 1px 8px;
-        border-bottom: 1px solid var(--line);
+        margin: 0 0 18px;
+        padding: 10px 0 16px;
       }
 
       .now-context[hidden] { display: none !important; }
@@ -23,135 +22,175 @@
 
       .now-head {
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 5px;
+        align-items: center;
+        min-height: 18px;
+        margin-bottom: 7px;
       }
 
       .now-title {
         margin: 0;
-        color: #6f6e69;
+        color: #777670;
         font-size: 10px;
         line-height: 1.2;
-        font-weight: 700;
-        letter-spacing: .08em;
+        font-weight: 760;
+        letter-spacing: .11em;
       }
 
-      .now-sub {
-        color: #9a9994;
-        font-size: 9px;
-        font-weight: 500;
-      }
-
-      .now-list {
+      .now-tray {
         display: grid;
-        gap: 0;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+        padding: 7px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: rgba(255, 255, 255, .34);
       }
 
-      .now-item {
+      .now-slot {
         width: 100%;
-        min-height: 52px;
+        min-width: 0;
+        min-height: 76px;
         display: grid;
-        grid-template-columns: 22px minmax(0, 1fr) auto;
-        align-items: center;
+        grid-template-rows: 1fr auto;
         gap: 9px;
-        padding: 8px 1px;
+        padding: 11px 11px 9px;
         border: 0;
-        border-top: 1px solid var(--line);
-        border-radius: 0;
+        border-radius: 9px;
         color: var(--ink);
-        background: transparent;
+        background: rgba(255, 255, 255, .76);
+        box-shadow: 0 1px 0 rgba(36, 36, 33, .025);
         font: inherit;
         text-align: left;
         cursor: pointer;
+        transition: background-color .14s ease, transform .14s ease, box-shadow .14s ease;
       }
 
-      .now-item-link { min-height: 66px; }
-      .now-item:first-child { border-top: 0; }
+      .now-slot-main {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 19px minmax(0, 1fr);
+        align-items: start;
+        gap: 8px;
+      }
 
       .now-kind {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         display: grid;
         place-items: center;
         color: #85847f;
       }
 
       .now-kind svg {
-        width: 17px;
-        height: 17px;
+        width: 16px;
+        height: 16px;
         display: block;
-      }
-
-      .now-copy {
-        min-width: 0;
       }
 
       .now-item-title {
-        display: block;
+        min-width: 0;
+        display: -webkit-box;
         overflow: hidden;
-        color: #242421;
-        font-size: 13px;
-        line-height: 1.35;
-        font-weight: 620;
+        color: #252522;
+        font-size: 12.5px;
+        line-height: 1.36;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+
+      .now-slot-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-left: 27px;
+      }
+
+      .now-time {
+        min-width: 0;
+        overflow: hidden;
+        color: #9a9994;
+        font-size: 8.5px;
+        line-height: 1.25;
+        font-weight: 560;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-
-      .now-meta,
-      .now-note,
-      .now-usage {
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .now-meta {
-        margin-top: 2px;
-        color: #7e7d78;
-        font-size: 9px;
-        line-height: 1.35;
-        font-weight: 550;
-      }
-
-      .now-note {
-        margin-top: 2px;
-        color: #92918c;
-        font-size: 9px;
-        line-height: 1.35;
-        font-weight: 500;
-      }
-
-      .now-usage {
-        margin-top: 2px;
-        color: #aaa9a4;
-        font-size: 8px;
-        line-height: 1.3;
-        font-weight: 500;
       }
 
       .now-action {
-        min-width: 46px;
+        flex: 0 0 auto;
         color: var(--red);
-        font-size: 10px;
-        font-weight: 700;
-        text-align: right;
+        font-size: 9.5px;
+        line-height: 1.2;
+        font-weight: 720;
+        white-space: nowrap;
+      }
+
+      .now-slot.is-copied .now-action {
+        color: #6d6c67;
       }
 
       @media (hover: hover) and (pointer: fine) {
-        .now-item:hover { background: #fff; }
+        .now-slot:hover {
+          background: #fff;
+          box-shadow: 0 4px 14px rgba(36, 36, 33, .055);
+          transform: translateY(-1px);
+        }
+      }
+
+      .now-slot:focus-visible {
+        outline: 2px solid var(--red);
+        outline-offset: 2px;
       }
 
       @media (max-width: 719px) {
-        .now-item { min-height: 52px; }
-        .now-item-link { min-height: 64px; }
-        .now-action { min-width: 40px; }
+        .now-context {
+          margin-bottom: 15px;
+          padding-top: 8px;
+          padding-bottom: 14px;
+        }
+
+        .now-tray {
+          grid-template-columns: 1fr;
+          gap: 4px;
+          padding: 5px;
+          border-radius: 12px;
+        }
+
+        .now-slot {
+          min-height: 58px;
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-rows: 1fr;
+          align-items: center;
+          gap: 10px;
+          padding: 9px 10px;
+          border-radius: 8px;
+        }
+
+        .now-slot-main {
+          align-items: center;
+        }
+
+        .now-item-title {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .now-slot-foot {
+          min-width: 58px;
+          display: grid;
+          justify-items: end;
+          gap: 3px;
+          padding-left: 0;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .now-item { transition: none !important; }
+        .now-slot { transition: none !important; }
       }
 
       .search-shift-active #nowContext { display: none !important; }
@@ -274,27 +313,6 @@
     return kind === 'link' ? '開く' : 'コピー';
   }
 
-  function subLabel(kind) {
-    return kind === 'link' ? '最近使ったリンク' : '最近使ったプロンプト';
-  }
-
-  function metaFor(item) {
-    if (item.kind === 'link') {
-      return [item.domain, item.category].filter(Boolean).join(' · ');
-    }
-    return item.category;
-  }
-
-  function itemDetails(item) {
-    const note = item.kind === 'link' && item.note
-      ? `<span class="now-note">${escapeHtml(item.note)}</span>`
-      : '';
-    return `
-      <span class="now-meta">${escapeHtml(metaFor(item))}</span>
-      ${note}
-      <span class="now-usage">${timeLabel(item.days)} · ${item.count.toLocaleString()}回</span>`;
-  }
-
   function ensureContext() {
     let context = $(CONTEXT_ID);
     if (context) return context;
@@ -314,6 +332,26 @@
     return !state?.query;
   }
 
+  function showCopied(context, id) {
+    queueMicrotask(() => {
+      const button = Array.from(context.querySelectorAll('[data-now-kind="prompt"][data-now-id]'))
+        .find(item => item.dataset.nowId === id);
+      if (!button) return;
+
+      const action = button.querySelector('.now-action');
+      if (!action) return;
+
+      button.classList.add('is-copied');
+      action.textContent = '✓ コピー';
+
+      window.setTimeout(() => {
+        if (!button.isConnected) return;
+        button.classList.remove('is-copied');
+        action.textContent = 'コピー';
+      }, 1300);
+    });
+  }
+
   function renderNow() {
     const context = ensureContext();
     if (!context) return;
@@ -330,17 +368,18 @@
     context.innerHTML = `
       <div class="now-head">
         <h2 class="now-title">NOW</h2>
-        <span class="now-sub">${subLabel(kind)}</span>
       </div>
-      <div class="now-list">
+      <div class="now-tray">
         ${candidates.map(item => `
-          <button class="now-item ${item.kind === 'link' ? 'now-item-link' : 'now-item-prompt'}" type="button" data-now-kind="${item.kind}" data-now-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}を${actionFor(item.kind)}">
-            <span class="now-kind" aria-hidden="true">${iconFor(item.kind)}</span>
-            <span class="now-copy">
+          <button class="now-slot ${item.kind === 'link' ? 'now-slot-link' : 'now-slot-prompt'}" type="button" data-now-kind="${item.kind}" data-now-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(item.title)}を${actionFor(item.kind)}">
+            <span class="now-slot-main">
+              <span class="now-kind" aria-hidden="true">${iconFor(item.kind)}</span>
               <span class="now-item-title">${escapeHtml(item.title)}</span>
-              ${itemDetails(item)}
             </span>
-            <span class="now-action" aria-hidden="true">${actionFor(item.kind)}</span>
+            <span class="now-slot-foot">
+              <span class="now-time">${timeLabel(item.days)}</span>
+              <span class="now-action" aria-live="polite">${actionFor(item.kind)}</span>
+            </span>
           </button>`).join('')}
       </div>`;
 
@@ -348,7 +387,9 @@
       button.addEventListener('click', () => {
         const id = button.dataset.nowId;
         if (button.dataset.nowKind === 'link') return handleLinkAction(id, 'open');
-        return copyPrompt(id);
+        const result = copyPrompt(id);
+        showCopied(context, id);
+        return result;
       });
     });
   }
