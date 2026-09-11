@@ -91,7 +91,9 @@ async function showPromptHistory(page) {
     render();
   });
   await page.locator('#promptsPanel.active').waitFor({ state: 'visible' });
-  await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
+  await page.locator('#nowContext:not([hidden])').waitFor({ state: 'visible' });
+  await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'attached' });
+  await page.locator('.prompt-reuse-dormant .prompt-rediscovery').waitFor({ state: 'visible' });
 }
 
 async function seed(page) {
@@ -102,6 +104,7 @@ async function seed(page) {
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('[data-tab="prompts"]').waitFor({ state: 'attached' });
+  await page.waitForFunction(() => Boolean(window.QuickLinksRediscoveryUI));
   await showPromptHistory(page);
 }
 
@@ -147,8 +150,13 @@ async function runViewport(browser, width, height) {
     await seed(page);
 
     const recent = page.locator('.prompt-reuse-recent .prompt-reuse-button');
-    assert.equal(await recent.count(), 3, `${width}px: recent count`);
-    assert.deepEqual(await reuseTitles(page), ['Alpha', 'Bravo', 'Charlie'], `${width}px: recent order`);
+    assert.equal(await recent.count(), 3, `${width}px: recent history count`);
+    assert.deepEqual(await reuseTitles(page), ['Alpha', 'Bravo', 'Charlie'], `${width}px: recent history order`);
+    assert.equal(await page.locator('.prompt-reuse-recent').isVisible(), false, `${width}px: recent shortcuts yield to NOW when NOW is active`);
+
+    const nowAlpha = page.locator('[data-now-kind="prompt"][data-now-id="prompt-a"]');
+    await nowAlpha.waitFor({ state: 'visible' });
+    assert.equal(await page.locator('#nowContext').isVisible(), true, `${width}px: NOW is the visible recent-use surface`);
 
     const alphaMeta = await page.locator('[data-id="prompt-a"] .meta').innerText();
     assert.match(alphaMeta, /8回使用/, `${width}px: usage count meta`);
@@ -173,6 +181,7 @@ async function runViewport(browser, width, height) {
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.locator('[data-tab="prompts"]').waitFor({ state: 'attached' });
+    await page.waitForFunction(() => Boolean(window.QuickLinksRediscoveryUI));
     await showPromptHistory(page);
     assert.equal(
       await page.locator('.prompt-reuse-dormant .prompt-rediscovery').getAttribute('data-rediscovery-id'),
@@ -180,29 +189,32 @@ async function runViewport(browser, width, height) {
       `${width}px: dormant is stable during the day`,
     );
 
-    const bounds = await recent.evaluateAll(elements => elements.map(element => {
+    const nowBounds = await page.locator('#nowContext [data-now-kind="prompt"]').evaluateAll(elements => elements.map(element => {
       const rect = element.getBoundingClientRect();
       return { left: rect.left, right: rect.right, width: rect.width, viewport: innerWidth };
     }));
-    assert.ok(bounds.every(rect => rect.left >= 0 && rect.right <= rect.viewport && rect.width >= 80), `${width}px: recent buttons fit`);
+    assert.ok(nowBounds.length > 0 && nowBounds.every(rect => rect.left >= 0 && rect.right <= rect.viewport && rect.width >= 80), `${width}px: NOW prompt actions fit`);
 
-    await page.getByRole('button', { name: 'Alphaをコピー' }).click();
-    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'Alphaの本文', `${width}px: reuse clipboard`);
+    const alphaBefore = (await readStored(page)).promptMemos.find(item => item.id === 'prompt-a');
+    await page.locator('[data-now-kind="prompt"][data-now-id="prompt-a"]').click();
+    await waitForPromptCopy(page, 'prompt-a', alphaBefore.copyCount);
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'Alphaの本文', `${width}px: NOW clipboard`);
     const afterReuse = await readStored(page);
     const alpha = afterReuse.promptMemos.find(item => item.id === 'prompt-a');
-    assert.equal(alpha.copyCount, 9, `${width}px: reuse count increment`);
-    assert.ok(Date.parse(alpha.lastCopiedAt) > Date.now() - 10_000, `${width}px: reuse timestamp`);
+    assert.equal(alpha.copyCount, alphaBefore.copyCount + 1, `${width}px: NOW copy count increment`);
+    assert.ok(Date.parse(alpha.lastCopiedAt) > Date.now() - 10_000, `${width}px: NOW timestamp`);
 
     await page.locator('#globalSearch').fill('Alpha');
-    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: hidden during search`);
+    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: history hidden during search`);
+    assert.equal(await page.locator('#nowContext').isVisible(), false, `${width}px: NOW hidden during search`);
     await page.locator('#clearSearchBtn').click();
     await page.locator('[data-prompt-category="保管"]').click();
-    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: hidden during category filter`);
+    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: history hidden during category filter`);
     await page.locator('[data-prompt-category="ALL"]').click();
 
     const deltaCard = page.locator('[data-id="prompt-d"]');
     await deltaCard.getByRole('button', { name: 'コピー' }).click();
-    assert.deepEqual((await reuseTitles(page)).slice(0, 3), ['Delta', 'Alpha', 'Bravo'], `${width}px: normal copy updates recent`);
+    assert.deepEqual((await reuseTitles(page)).slice(0, 3), ['Delta', 'Alpha', 'Bravo'], `${width}px: normal copy updates recent history`);
 
     const dormantBeforeCopy = page.locator('.prompt-reuse-dormant .prompt-rediscovery');
     const dormantId = await dormantBeforeCopy.getAttribute('data-rediscovery-id');
@@ -216,7 +228,7 @@ async function runViewport(browser, width, height) {
     const dormantMemoAfter = storedAfterDormantCopy.promptMemos.find(item => item.id === dormantId);
     assert.equal(dormantMemoAfter.copyCount, dormantMemoBefore.copyCount + 1, `${width}px: dormant count increment`);
     assert.ok(Date.parse(dormantMemoAfter.lastCopiedAt) > Date.now() - 10_000, `${width}px: dormant timestamp`);
-    assert.equal((await reuseTitles(page))[0], dormantMemoBefore.title, `${width}px: dormant moves to recent`);
+    assert.equal((await reuseTitles(page))[0], dormantMemoBefore.title, `${width}px: dormant moves to recent history`);
 
     const allowedPromptKeys = ['body', 'categoryName', 'copyCount', 'createdAt', 'id', 'lastCopiedAt', 'title', 'updatedAt'];
     storedAfterDormantCopy.promptMemos.forEach(item => {
@@ -256,7 +268,7 @@ async function runCoreRegression(browser) {
     assert.equal(await page.locator('#promptsList [data-id]').first().getAttribute('data-id'), 'prompt-a', 'prompt sort');
     await page.locator('#promptPagerTop [data-page-action="next"]').click();
     assert.equal((await readStored(page)).promptPage, 2, 'prompt pagination next');
-    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, 'reuse hidden after page one');
+    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, 'history hidden after page one');
     await page.locator('#promptPagerTop [data-page-action="prev"]').click();
 
     await page.evaluate(() => openPromptModal());
