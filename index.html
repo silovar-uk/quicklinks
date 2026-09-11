@@ -59,7 +59,7 @@
           <div id="quickProjectSearchMeta" class="quick-project-search-meta" aria-live="polite" hidden></div>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-1px 0 8px;">
-          <span style="color:#85857f;font-size:10px;font-weight:600;white-space:nowrap;">並び順</span>
+          <span style="color:#85857f;font-size:10px;font-weight:600;white-space:nowrap;padding-top:7px;">並び順</span>
           <select id="quickProjectSort" class="select" aria-label="分類の並び順" style="width:auto;min-width:138px;height:34px;padding-top:0;padding-bottom:0;font-size:11px;font-weight:500;">
             <option value="recent">最近使った順</option>
             <option value="count">使用数が多い順</option>
@@ -79,7 +79,7 @@
         </div>
         <datalist id="quickUrlProjectList"></datalist>
       </div>
-      <div class="fetch-status" id="quickUrlStatus">URLを貼るとページ情報を取得し、保存前に内容を確認できます。</div>
+      <div class="fetch-status" id="quickUrlStatus" role="status" aria-live="polite" aria-atomic="true" aria-busy="false">URLを貼るとページ情報を取得し、保存前に内容を確認できます。</div>
       <div class="quick-url-privacy">ページ情報を取得できない場合は、取得のため外部サービスを使用します。AIによる分類・文章生成は行いません。</div>
       <div class="modal-actions">
         <button class="btn ghost" id="manualQuickUrlBtn" type="button">情報取得せず入力</button>
@@ -96,12 +96,13 @@
         html = html.replace('<title>Quick Links Mobile</title>', '<title>Quick Links</title>');
         html = html.replace('<h1 class="brand-title">Quick Links Mobile</h1>', '<h1 class="brand-title">Quick Links</h1>');
         html = html.replace('placeholder="タイトル・URL・備考・プロンプトを検索"', 'placeholder="リンク・プロンプトを検索"');
-        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814" />\n  <link rel="manifest" href="./manifest.webmanifest" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260831-loading-spinner" />\n  <link rel="stylesheet" href="./prompt-add.css?v=20260831-prompt-modal" />\n  <link rel="stylesheet" href="./quick-project-search.css?v=20260824-mobile-search" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260831-history-reuse" />\n  <link rel="stylesheet" href="./precision-upgrade.css?v=20260823-modal-depth" />\n  <link rel="stylesheet" href="./spinner-play.css?v=20260904-reliable-spinner" />\n</head>`);
+        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814" />\n  <link rel="manifest" href="./manifest.webmanifest" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260911-loading-state" />\n  <link rel="stylesheet" href="./prompt-add.css?v=20260831-prompt-modal" />\n  <link rel="stylesheet" href="./quick-project-search.css?v=20260824-mobile-search" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260831-history-reuse" />\n  <link rel="stylesheet" href="./precision-upgrade.css?v=20260911-loading-cleanup" />\n</head>`);
         html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
         html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `      ${metadataPreview}\n      <div class="form-row">\n        <label for="linkNote">備考</label>`);
         html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
         const scripts = [
           '  <scr' + 'ipt src="./quick-add.js?v=20260823-projectsort"></scr' + 'ipt>',
+          '  <scr' + 'ipt src="./quick-loading.js?v=20260911-loading-state"></scr' + 'ipt>',
           '  <scr' + 'ipt src="./precision-data.js?v=20260811-precision"></scr' + 'ipt>',
           '  <scr' + 'ipt src="./precision-ui.js?v=20260813-iconsystem"></scr' + 'ipt>',
           '  <scr' + 'ipt src="./precision-a11y.js?v=20260831-uncategorized-placeholder"></scr' + 'ipt>',
