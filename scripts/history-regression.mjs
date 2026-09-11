@@ -88,7 +88,7 @@ async function seed(page) {
     value: fixture(),
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.prompt-reuse', { state: 'visible' });
+  await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
 }
 
 async function readStored(page) {
@@ -96,7 +96,7 @@ async function readStored(page) {
 }
 
 async function reuseTitles(page) {
-  return (await page.locator('.prompt-reuse-button').allTextContents()).map(value => value.trim());
+  return (await page.locator('.prompt-reuse-recent .prompt-reuse-label').allTextContents()).map(value => value.trim());
 }
 
 async function setPromptPerPage(page, value) {
@@ -115,6 +115,14 @@ async function setSelectValue(page, id, value) {
   }, { selectId: id, nextValue: value });
 }
 
+async function waitForPromptCopy(page, id, previousCount) {
+  await page.waitForFunction(({ key, promptId, count }) => {
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    const memo = stored.promptMemos?.find(item => item.id === promptId);
+    return Number(memo?.copyCount || 0) > count;
+  }, { key: STORAGE_KEY, promptId: id, count: previousCount });
+}
+
 async function runViewport(browser, width, height) {
   const context = await browser.newContext({ viewport: { width, height }, permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
@@ -123,9 +131,11 @@ async function runViewport(browser, width, height) {
 
   try {
     await seed(page);
-    const recent = page.locator('.prompt-reuse-button');
+
+    const recent = page.locator('.prompt-reuse-recent .prompt-reuse-button');
     assert.equal(await recent.count(), 3, `${width}px: recent count`);
     assert.deepEqual(await reuseTitles(page), ['Alpha', 'Bravo', 'Charlie'], `${width}px: recent order`);
+
     const alphaMeta = await page.locator('[data-id="prompt-a"] .meta').innerText();
     assert.match(alphaMeta, /8回使用/, `${width}px: usage count meta`);
     assert.match(alphaMeta, /最終利用 \d{1,4}\/\d{1,2}/, `${width}px: last-used meta`);
@@ -141,13 +151,19 @@ async function runViewport(browser, width, height) {
     assert.match(alphaSimpleMeta, /最終 \d{1,4}\/\d{1,2}/, `${width}px: simple last-used`);
     await page.evaluate(() => document.getElementById('promptRichViewBtn').click());
 
-    const dormant = page.locator('.prompt-dormant-button');
+    const dormant = page.locator('.prompt-reuse-dormant .prompt-rediscovery');
     assert.equal(await dormant.count(), 1, `${width}px: dormant count`);
-    const firstDormantId = await dormant.getAttribute('data-copy-prompt-id');
+    const firstDormantId = await dormant.getAttribute('data-rediscovery-id');
     const firstDormantText = (await dormant.innerText()).trim();
     assert.match(firstDormantText, /(日|か月|年)ぶり.*以前[\d,]+回使用/s, `${width}px: dormant facts`);
+
     await page.reload({ waitUntil: 'domcontentloaded' });
-    assert.equal(await page.locator('.prompt-dormant-button').getAttribute('data-copy-prompt-id'), firstDormantId, `${width}px: dormant is stable during the day`);
+    await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
+    assert.equal(
+      await page.locator('.prompt-reuse-dormant .prompt-rediscovery').getAttribute('data-rediscovery-id'),
+      firstDormantId,
+      `${width}px: dormant is stable during the day`,
+    );
 
     const bounds = await recent.evaluateAll(elements => elements.map(element => {
       const rect = element.getBoundingClientRect();
@@ -163,27 +179,30 @@ async function runViewport(browser, width, height) {
     assert.ok(Date.parse(alpha.lastCopiedAt) > Date.now() - 10_000, `${width}px: reuse timestamp`);
 
     await page.locator('#globalSearch').fill('Alpha');
-    assert.equal(await page.locator('.prompt-reuse').count(), 0, `${width}px: hidden during search`);
+    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: hidden during search`);
     await page.locator('#clearSearchBtn').click();
     await page.locator('[data-prompt-category="保管"]').click();
-    assert.equal(await page.locator('.prompt-reuse').count(), 0, `${width}px: hidden during category filter`);
+    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: hidden during category filter`);
     await page.locator('[data-prompt-category="ALL"]').click();
 
     const deltaCard = page.locator('[data-id="prompt-d"]');
     await deltaCard.getByRole('button', { name: 'コピー' }).click();
     assert.deepEqual((await reuseTitles(page)).slice(0, 3), ['Delta', 'Alpha', 'Bravo'], `${width}px: normal copy updates recent`);
 
-    const dormantBeforeCopy = page.locator('.prompt-dormant-button');
-    const dormantId = await dormantBeforeCopy.getAttribute('data-copy-prompt-id');
+    const dormantBeforeCopy = page.locator('.prompt-reuse-dormant .prompt-rediscovery');
+    const dormantId = await dormantBeforeCopy.getAttribute('data-rediscovery-id');
     const storedBeforeDormantCopy = await readStored(page);
     const dormantMemoBefore = storedBeforeDormantCopy.promptMemos.find(item => item.id === dormantId);
-    await dormantBeforeCopy.click();
+    await dormantBeforeCopy.getByRole('button', { name: 'コピー', exact: true }).click();
+    await waitForPromptCopy(page, dormantId, dormantMemoBefore.copyCount);
+
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), dormantMemoBefore.body, `${width}px: dormant clipboard`);
     const storedAfterDormantCopy = await readStored(page);
     const dormantMemoAfter = storedAfterDormantCopy.promptMemos.find(item => item.id === dormantId);
     assert.equal(dormantMemoAfter.copyCount, dormantMemoBefore.copyCount + 1, `${width}px: dormant count increment`);
     assert.ok(Date.parse(dormantMemoAfter.lastCopiedAt) > Date.now() - 10_000, `${width}px: dormant timestamp`);
     assert.equal((await reuseTitles(page))[0], dormantMemoBefore.title, `${width}px: dormant moves to recent`);
+
     const allowedPromptKeys = ['body', 'categoryName', 'copyCount', 'createdAt', 'id', 'lastCopiedAt', 'title', 'updatedAt'];
     storedAfterDormantCopy.promptMemos.forEach(item => {
       assert.deepEqual(Object.keys(item).sort(), allowedPromptKeys, `${width}px: no new stored fields`);
