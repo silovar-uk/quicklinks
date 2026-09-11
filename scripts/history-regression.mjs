@@ -88,6 +88,11 @@ async function seed(page) {
     value: fixture(),
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
+  const promptsTab = page.locator('[data-tab="prompts"]');
+  await promptsTab.waitFor({ state: 'visible' });
+  if (!(await promptsTab.evaluate(element => element.classList.contains('active')))) {
+    await promptsTab.click();
+  }
   await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
 }
 
@@ -158,6 +163,11 @@ async function runViewport(browser, width, height) {
     assert.match(firstDormantText, /(日|か月|年)ぶり.*以前[\d,]+回使用/s, `${width}px: dormant facts`);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
+    const promptsTabAfterReload = page.locator('[data-tab="prompts"]');
+    await promptsTabAfterReload.waitFor({ state: 'visible' });
+    if (!(await promptsTabAfterReload.evaluate(element => element.classList.contains('active')))) {
+      await promptsTabAfterReload.click();
+    }
     await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
     assert.equal(
       await page.locator('.prompt-reuse-dormant .prompt-rediscovery').getAttribute('data-rediscovery-id'),
