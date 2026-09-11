@@ -11,6 +11,37 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+
+      #nowContext.random-context { background:#252724; color:#fff; padding:16px; border-radius:12px; margin-bottom:18px; }
+      .random-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .random-title { margin:0; font-size:11px; letter-spacing:.1em; color:#fff; }
+      .random-head p { margin:4px 0 0; font-size:11px; color:#c9cdc6; }
+      .random-controls { display:flex; gap:6px; flex-shrink:0; }
+      #nowContext.random-context .btn { min-height:44px; color:#fff; background:transparent; border-color:#7d8478; }
+      #nowContext.random-context .btn.primary { background:#fff; border-color:#fff; color:#252724; }
+      #nowContext.random-context .btn:disabled { opacity:.4; cursor:default; }
+      #nowContext.random-context .card, #nowContext.random-context .simple-row { background:transparent; border:0; }
+      #nowContext.random-context .card-inner { padding-bottom:0; }
+      #nowContext.random-context .card-title, #nowContext.random-context .simple-title { color:#fff; overflow-wrap:anywhere; }
+      #nowContext.random-context .card-note, #nowContext.random-context .card-url,
+      #nowContext.random-context .meta, #nowContext.random-context .simple-sub,
+      #nowContext.random-context .simple-url { color:#c9cdc6; overflow-wrap:anywhere; }
+      #nowContext.random-context .star-btn, #nowContext.random-context .simple-star { min-width:44px; min-height:44px; color:#c9cdc6; }
+      #nowContext.random-context .star-btn.on, #nowContext.random-context .simple-star.on { color:#ffe197; }
+      #nowContext.random-context button:focus-visible { outline:2px solid #ffe197; outline-offset:3px; }
+      #nowContext.random-context .card-actions { display:flex; }
+      #nowContext.random-context .card-actions .btn { flex:1; }
+      .random-status { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+      @media (hover:hover) { #nowContext.random-context .btn:not(:disabled):hover { background:#42483f; color:#fff; } }
+      @media (max-width:719px) {
+        #nowContext.random-context { padding:12px; }
+        .random-head { flex-wrap:wrap; gap:8px; }
+        .random-controls { margin-left:auto; }
+        #nowContext.random-context .simple-row { flex-wrap:wrap; }
+        #nowContext.random-context .simple-actions { width:100%; display:flex; }
+        #nowContext.random-context .simple-actions .btn { flex:1; }
+      }
+
       .now-context {
         margin: 0 0 18px;
         padding: 10px 0 16px;
@@ -352,10 +383,100 @@
     });
   }
 
+
+  // Random state belongs to the session, never to a render pass.
+  const RANDOM_KEY = 'quicklinks.random.v1';
+  let randomState = { current: null, remaining: [], seen: [], history: [] };
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(RANDOM_KEY));
+    if (saved && ['remaining', 'seen', 'history'].every(k => Array.isArray(saved[k]))) randomState = saved;
+  } catch (_) {}
+  function persistRandom() {
+    try { sessionStorage.setItem(RANDOM_KEY, JSON.stringify(randomState)); } catch (_) {}
+  }
+  function shuffled(ids) {
+    const result = [...ids];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+  function syncRandom() {
+    const ids = state.items.filter(item => !item.archived).map(item => item.id);
+    const valid = new Set(ids);
+    for (const key of ['remaining', 'seen', 'history']) randomState[key] = randomState[key].filter(id => valid.has(id));
+    if (!valid.has(randomState.current)) randomState.current = null;
+    const known = new Set([...randomState.remaining, ...randomState.seen]);
+    const added = ids.filter(id => !known.has(id));
+    if (added.length) randomState.remaining = shuffled([...randomState.remaining, ...added]);
+    if (!ids.length) randomState = { current: null, remaining: [], seen: [], history: [] };
+    if (!randomState.current && ids.length) advanceRandom(ids, false);
+    persistRandom();
+    return ids;
+  }
+  function advanceRandom(ids, remember = true) {
+    const previous = randomState.current;
+    if (remember && previous) randomState.history.push(previous);
+    if (!randomState.remaining.length) {
+      randomState.remaining = shuffled(ids);
+      randomState.seen = [];
+    }
+    if (randomState.remaining.length > 1 && randomState.remaining[0] === previous) {
+      const j = 1 + Math.floor(Math.random() * (randomState.remaining.length - 1));
+      [randomState.remaining[0], randomState.remaining[j]] = [randomState.remaining[j], randomState.remaining[0]];
+    }
+    randomState.current = randomState.remaining.shift() || previous;
+    if (!randomState.seen.includes(randomState.current)) randomState.seen.push(randomState.current);
+    persistRandom();
+  }
+  function renderRandom(context) {
+    const ids = syncRandom();
+    const visible = shouldShow('link') && ids.length > 0 &&
+      state.currentProject === 'ALL' && !state.onlyFavorites && !state.linkSelectMode;
+    context.hidden = !visible;
+    context.classList.add('random-context');
+    context.setAttribute('aria-label', '保存したリンクからランダムに1件');
+    if (!visible) return;
+    const item = state.items.find(item => item.id === randomState.current);
+    const focused = context.contains(document.activeElement) ? document.activeElement : null;
+    const focusSelector = focused?.dataset.randomAction ? `[data-random-action="${focused.dataset.randomAction}"]` :
+      focused?.dataset.action ? `[data-action="${focused.dataset.action}"]` : null;
+    const markup = `<div class="random-head"><div><h2 class="random-title">RANDOM</h2><p>保存したリンクから1件</p></div>
+      <div class="random-controls"><button type="button" class="btn ghost" data-random-action="back" ${randomState.history.length ? '' : 'disabled'}>1つ戻す</button>
+      <button type="button" class="btn ghost" data-random-action="next" ${ids.length > 1 ? '' : 'disabled'}>別のリンク</button></div></div>
+      <div class="random-card">${state.viewMode === 'simple' ? renderLinkSimpleRow(item) : renderLinkCard(item)}</div>
+      <span class="random-status" role="status" aria-live="polite"></span>`;
+    // Unrelated renders must not remove focus or copy feedback.
+    if (context._randomMarkup === markup) return;
+    context._randomMarkup = markup;
+    context.innerHTML = markup;
+    context.querySelectorAll('[data-random-action]').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.randomAction === 'back') randomState.current = randomState.history.pop() || randomState.current;
+      else advanceRandom(ids);
+      persistRandom();
+      renderRandom(context);
+      context.querySelector('.random-status').textContent = `${state.items.find(i => i.id === randomState.current)?.title || 'リンク'}を表示しました`;
+    }));
+    context.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', event => {
+      event.preventDefault();
+      handleLinkAction(item.id, button.dataset.action);
+    }));
+    if (focusSelector) context.querySelector(focusSelector)?.focus({ preventScroll: true });
+  }
+
   function renderNow() {
     const context = ensureContext();
     if (!context) return;
     const kind = activeKind();
+    if (kind === 'link') {
+      document.body.classList.remove('now-context-active');
+      renderRandom(context);
+      return;
+    }
+    context.classList.remove('random-context');
+    context._randomMarkup = null;
+    context.setAttribute('aria-label', '今使いやすい項目');
     const candidates = getCandidates(kind);
     const visible = shouldShow(kind) && candidates.length > 0;
     document.body.classList.toggle('now-context-active', visible && kind === 'prompt');
@@ -396,7 +517,7 @@
 
   ensureStyles();
   window.QuickLinksNowUI = {
-    hasItems: () => getCandidates().length > 0,
+    hasItems: () => activeKind() === 'link' ? state.items.some(item => !item.archived) : getCandidates().length > 0,
     render: renderNow
   };
 
@@ -408,3 +529,4 @@
 
   renderNow();
 })();
+
