@@ -81,6 +81,19 @@ function fixture() {
   };
 }
 
+async function showPromptHistory(page) {
+  await page.evaluate(() => {
+    state.activeTab = 'prompts';
+    state.query = '';
+    state.currentPromptCategory = 'ALL';
+    state.promptPage = 1;
+    state.promptSelectMode = false;
+    render();
+  });
+  await page.locator('#promptsPanel.active').waitFor({ state: 'visible' });
+  await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
+}
+
 async function seed(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
@@ -88,12 +101,8 @@ async function seed(page) {
     value: fixture(),
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  const promptsTab = page.locator('[data-tab="prompts"]');
-  await promptsTab.waitFor({ state: 'visible' });
-  if (!(await promptsTab.evaluate(element => element.classList.contains('active')))) {
-    await promptsTab.click();
-  }
-  await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
+  await page.locator('[data-tab="prompts"]').waitFor({ state: 'attached' });
+  await showPromptHistory(page);
 }
 
 async function readStored(page) {
@@ -163,12 +172,8 @@ async function runViewport(browser, width, height) {
     assert.match(firstDormantText, /(日|か月|年)ぶり.*以前[\d,]+回使用/s, `${width}px: dormant facts`);
 
     await page.reload({ waitUntil: 'domcontentloaded' });
-    const promptsTabAfterReload = page.locator('[data-tab="prompts"]');
-    await promptsTabAfterReload.waitFor({ state: 'visible' });
-    if (!(await promptsTabAfterReload.evaluate(element => element.classList.contains('active')))) {
-      await promptsTabAfterReload.click();
-    }
-    await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'visible' });
+    await page.locator('[data-tab="prompts"]').waitFor({ state: 'attached' });
+    await showPromptHistory(page);
     assert.equal(
       await page.locator('.prompt-reuse-dormant .prompt-rediscovery').getAttribute('data-rediscovery-id'),
       firstDormantId,
