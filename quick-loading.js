@@ -5,6 +5,7 @@
   const originalFetch = window.fetch.bind(window);
   const activeMetadataControllers = new Set();
   let suppressNextMetadataEditor = false;
+  let quickRequestCancelled = false;
 
   function statusElement() {
     return document.getElementById(STATUS_ID);
@@ -49,6 +50,9 @@
 
   window.fetch = async function quickLoadingFetch(input, init = {}) {
     if (!shouldManageMetadataRequest(input)) return originalFetch(input, init);
+    if (quickRequestCancelled) {
+      throw new DOMException('Quick add metadata request cancelled', 'AbortError');
+    }
 
     const requestUrl = getRequestUrl(input);
     const controller = new AbortController();
@@ -97,6 +101,7 @@
 
     const loading = status.classList.contains('loading');
     status.setAttribute('aria-busy', String(loading));
+    if (!loading) quickRequestCancelled = false;
 
     if (!loading || status.querySelector('.loading-spinner')) return;
 
@@ -114,6 +119,7 @@
 
   function markUserCancellation() {
     if (!isQuickLoading()) return;
+    quickRequestCancelled = true;
     suppressNextMetadataEditor = true;
     abortMetadataRequests();
   }
