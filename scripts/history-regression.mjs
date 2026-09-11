@@ -140,6 +140,12 @@ async function waitForPromptCopy(page, id, previousCount) {
   }, { key: STORAGE_KEY, promptId: id, count: previousCount });
 }
 
+async function waitForRecentFirst(page, id) {
+  await page.waitForFunction(promptId => {
+    return document.querySelector('.prompt-reuse-recent .prompt-reuse-button')?.dataset.copyPromptId === promptId;
+  }, id);
+}
+
 async function runViewport(browser, width, height) {
   const context = await browser.newContext({ viewport: { width, height }, permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
@@ -222,6 +228,7 @@ async function runViewport(browser, width, height) {
     const dormantMemoBefore = storedBeforeDormantCopy.promptMemos.find(item => item.id === dormantId);
     await dormantBeforeCopy.getByRole('button', { name: 'コピー', exact: true }).click();
     await waitForPromptCopy(page, dormantId, dormantMemoBefore.copyCount);
+    await waitForRecentFirst(page, dormantId);
 
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), dormantMemoBefore.body, `${width}px: dormant clipboard`);
     const storedAfterDormantCopy = await readStored(page);
