@@ -287,7 +287,7 @@ async function runCoreRegression(browser) {
     const addedPrompt = stored.promptMemos.find(item => item.title === 'Regression Prompt');
     assert.ok(addedPrompt, 'prompt add');
 
-    await page.locator('#globalSearch').fill('Regression Prompt');
+    await setPromptPerPage(page, 'all');
     const addedPromptRow = page.locator(`[data-id="${addedPrompt.id}"]`);
     await addedPromptRow.getByRole('button', { name: '編集' }).click();
     await page.locator('#promptTitle').fill('Regression Prompt Edited');
@@ -299,7 +299,7 @@ async function runCoreRegression(browser) {
     page.once('dialog', dialog => dialog.accept());
     await page.locator('#precisionActionMenu').getByRole('button', { name: '削除' }).click();
     assert.equal((await readStored(page)).promptMemos.some(item => item.id === addedPrompt.id), false, 'prompt delete');
-    await page.locator('#clearSearchBtn').click();
+    await setPromptPerPage(page, '10');
 
     await page.getByRole('button', { name: 'リンク', exact: true }).click();
     await page.evaluate(() => openLinkModal(null, { skipClipboardAutofill: true }));
