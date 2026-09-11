@@ -418,6 +418,9 @@
   function advanceRandom(ids, remember = true) {
     const previous = randomState.current;
     if (remember && previous) randomState.history.push(previous);
+    if (ids.length > 1 && randomState.remaining.length === 1 && randomState.remaining[0] === previous) {
+      randomState.remaining = [];
+    }
     if (!randomState.remaining.length) {
       randomState.remaining = shuffled(ids);
       randomState.seen = [];
