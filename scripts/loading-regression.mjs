@@ -36,7 +36,7 @@ async function testDirectSuccess(browser) {
   const page = await context.newPage();
   let directRequests = 0;
 
-  await page.route('https://qa-success.test/**', async route => {
+  await page.route('https://qa-success.test/page', async route => {
     directRequests += 1;
     await sleep(550);
     await route.fulfill({
@@ -83,7 +83,7 @@ async function testReducedMotion(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
 
-  await page.route('https://qa-reduced.test/**', async route => {
+  await page.route('https://qa-reduced.test/page', async route => {
     await sleep(450);
     await route.fulfill({
       status: 200,
@@ -122,7 +122,9 @@ async function testMicrolinkFallback(browser) {
   let directRequests = 0;
   let microlinkRequests = 0;
 
-  await page.route('https://qa-fallback.test/**', route => {
+  // Count only the metadata document request. Asset requests must not be
+  // mistaken for duplicate direct metadata fetches.
+  await page.route('https://qa-fallback.test/page', route => {
     directRequests += 1;
     return route.abort('failed');
   });
@@ -142,8 +144,6 @@ async function testMicrolinkFallback(browser) {
           title: 'Microlink Fallback',
           publisher: 'QA',
           description: 'Fallback metadata',
-          logo: { url: 'https://qa-fallback.test/favicon.ico' },
-          image: { url: 'https://qa-fallback.test/image.jpg' },
           function: { isFulfilled: true, value: 'Fallback body' },
         },
       }),
@@ -173,7 +173,7 @@ async function testCancellation(browser) {
   let directRequests = 0;
   let microlinkRequests = 0;
 
-  await page.route('https://qa-cancel.test/**', async route => {
+  await page.route('https://qa-cancel.test/page', async route => {
     directRequests += 1;
     await sleep(1200);
     try {
@@ -222,7 +222,7 @@ async function testTimeout(browser) {
   const page = await context.newPage();
   let microlinkRequests = 0;
 
-  await page.route('https://qa-timeout.test/**', route => route.abort('failed'));
+  await page.route('https://qa-timeout.test/page', route => route.abort('failed'));
   await page.route('https://api.microlink.io/**', async route => {
     microlinkRequests += 1;
     await sleep(10_500);
