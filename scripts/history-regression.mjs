@@ -319,7 +319,7 @@ async function runCoreRegression(browser) {
     assert.equal((await readStored(page)).items.find(item => item.id === addedLink.id)?.title, 'Regression Link Edited', 'link edit');
 
     const initialClickCount = (await readStored(page)).items.find(item => item.id === 'link-a').clickCount;
-    await page.locator('[data-id="link-a"]').getByRole('button', { name: '開く' }).click();
+    await page.locator('#linksList [data-id="link-a"]').getByRole('button', { name: '開く' }).click();
     stored = await readStored(page);
     const clickedLink = stored.items.find(item => item.id === 'link-a');
     assert.equal(clickedLink.clickCount, initialClickCount + 1, 'link click count');
