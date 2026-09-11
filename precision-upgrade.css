@@ -445,13 +445,6 @@ select:focus-visible,
   backdrop-filter: none;
 }
 
-/* Loading feedback: functional motion should not be accidentally disabled. */
-.fetch-status.loading::before {
-  transform-origin: 50% 50%;
-  will-change: transform;
-  animation: quickAddSpin .72s linear infinite !important;
-}
-
 @media (max-width: 719px) {
   .app { padding-bottom: calc(118px + var(--safe-bottom)); }
 
@@ -484,11 +477,6 @@ select:focus-visible,
   .top { padding-top: calc(7px + var(--safe-top)); }
 }
 
-@keyframes quickAddReducedPulse {
-  0%, 100% { opacity: .35; }
-  50% { opacity: 1; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html:focus-within { scroll-behavior: auto; }
 
@@ -499,11 +487,5 @@ select:focus-visible,
   .tab-btn,
   .seg-btn {
     transition: none !important;
-  }
-
-  .fetch-status.loading::before {
-    animation: quickAddReducedPulse 1.2s ease-in-out infinite !important;
-    transform: none !important;
-    will-change: opacity;
   }
 }
