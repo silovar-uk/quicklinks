@@ -28,3 +28,15 @@ R2 bucket は公開せず、Worker binding 経由だけでアクセスしてく�
 - 新規作成は `If-None-Match: *`
 - 更新は `If-Match: <ETag>`
 - payload 上限 5 MiB
+
+
+## GitHub Actions
+
+`.github/workflows/deploy-sync-worker.yml` を追加しています。
+
+Repository secrets に次の2つを登録後、Actions の **Deploy Quick Links Sync Worker** を手動実行できます。
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+API token はリポジトリへ直接書かないでください。
