@@ -488,9 +488,17 @@
     if (!meta.enabled) {
       c.innerHTML = '<div class="quick-sync-head"><div><h2 class="settings-title">端末間同期</h2><p class="settings-lead">普段はこの端末だけに保存。必要なときだけ、別端末と全件を同期します。</p></div><span class="quick-sync-badge">端末保存</span></div><button class="btn primary quick-sync-main" id="syncStartBtn">同期をはじめる</button><div class="quick-sync-note">ログイン不要。同期ボタンを押したときだけ通信します。</div>';
       document.getElementById('syncStartBtn').addEventListener('click', async () => {
+        const setupBackup = clone(meta);
         enableNew(); renderSyncUi();
-        try { const r = await syncNow(); showResult(r.result); toast('端末間同期を設定しました'); }
-        catch (e) { handleError(e); }
+        try {
+          const r = await syncNow();
+          showResult(r.result);
+          toast('端末間同期を設定しました');
+        } catch (e) {
+          meta = setupBackup;
+          saveMeta();
+          handleError(e);
+        }
         renderSyncUi();
       });
       return;
