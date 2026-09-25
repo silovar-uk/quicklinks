@@ -563,11 +563,17 @@
   if (meta.enabled && !meta.observed) { meta.observed = payload(); saveMeta(); }
   try {
     if (location.hash.includes('pair=')) {
+      const pairBackup = clone(meta);
       if (consumePair()) {
         openSyncModal('この端末を連携',
           '<p class="settings-lead">この端末のQuick Linksと共有データを統合します。同期が成功するまで現在のデータは変更しません。</p><div class="modal-actions"><button class="btn ghost" id="syncJoinCancel">やめる</button><button class="btn primary" id="syncJoinConfirm">連携して同期</button></div>'
         );
-        document.getElementById('syncJoinCancel').addEventListener('click', () => { closeSyncModal(); });
+        document.getElementById('syncJoinCancel').addEventListener('click', () => {
+          meta = pairBackup;
+          saveMeta();
+          closeSyncModal();
+          renderSyncUi();
+        });
         document.getElementById('syncJoinConfirm').addEventListener('click', async () => { closeSyncModal(); await runSync(); });
       }
     }
