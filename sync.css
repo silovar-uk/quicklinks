@@ -1,0 +1,28 @@
+.quick-sync-top[hidden]{display:none!important}
+.quick-sync-top{position:relative}
+.quick-sync-top.is-dirty::after{content:"";position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:999px;background:#b4232c;border:2px solid var(--surface,#fff)}
+.quick-sync-top.is-error{color:#b4232c}
+.quick-sync-top.is-syncing{animation:quickSyncSpin .9s linear infinite}
+@keyframes quickSyncSpin{to{transform:rotate(360deg)}}
+.quick-sync-card{border-color:rgba(180,35,44,.14)}
+.quick-sync-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.quick-sync-head .settings-title{margin-bottom:5px}
+.quick-sync-badge{display:grid;place-items:center;min-width:30px;height:30px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:13px;font-weight:900}
+.quick-sync-badge.ok{background:#ecfdf3;color:#18794e}
+.quick-sync-badge.dirty{background:#fff7ed;color:#b45309}
+.quick-sync-badge.bad{background:#fef2f2;color:#b4232c}
+.quick-sync-main{width:100%;margin-top:12px}
+.quick-sync-actions{margin-top:8px}
+.quick-sync-note{margin-top:9px;color:#85857f;font-size:11px;line-height:1.55}
+.quick-sync-error{margin-top:8px;padding:9px 10px;border-radius:10px;background:#fef2f2;color:#991b1b;font-size:11px;font-weight:650}
+.quick-sync-sheet{max-width:620px}
+.quick-sync-pair{min-height:112px;font-size:11px;word-break:break-all}
+.quick-sync-conflicts{display:grid;gap:10px;max-height:min(52vh,460px);overflow:auto;margin:12px 0}
+.quick-sync-conflict{display:grid;gap:8px;padding:12px;border:1px solid var(--line,#e5e7eb);border-radius:14px;background:#fff}
+.quick-sync-conflict strong{font-size:12px}
+.quick-sync-conflict label{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:10px;background:#f8fafc;font-size:11px;line-height:1.5;word-break:break-word}
+.quick-sync-result{position:fixed;left:50%;bottom:calc(82px + var(--safe-bottom,0px));z-index:160;width:min(520px,calc(100% - 24px));display:grid;gap:4px;padding:12px 14px;border:1px solid rgba(255,255,255,.14);border-radius:15px;background:#242421;color:#fff;box-shadow:0 16px 42px rgba(0,0,0,.2);opacity:0;pointer-events:none;transform:translate(-50%,10px);transition:.18s ease;font-size:11px;line-height:1.5}
+.quick-sync-result strong{font-size:12px}
+.quick-sync-result.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:720px){.quick-sync-result{bottom:24px}}
+@media(prefers-reduced-motion:reduce){.quick-sync-top.is-syncing{animation:none}.quick-sync-result{transition:none}}
