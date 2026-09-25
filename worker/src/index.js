@@ -124,12 +124,12 @@ export default {
         const bytes = await readJsonBytes(request);
         const stamp = new Date().toISOString();
 
-        const onlyIf = existing
-          ? { etagMatches: ifMatch }
-          : { etagDoesNotMatch: "*" };
+        const conditions = new Headers();
+        if (existing) conditions.set("If-Match", ifMatch);
+        else conditions.set("If-None-Match", "*");
 
         const put = await env.SYNC_BUCKET.put(key, bytes, {
-          onlyIf,
+          onlyIf: conditions,
           httpMetadata: {
             contentType: "application/json; charset=utf-8",
             cacheControl: "no-store"
