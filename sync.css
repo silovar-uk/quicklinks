@@ -30,10 +30,8 @@
 .quick-sync-desktop{display:none}
 @media(min-width:720px){
   .quick-sync-desktop{
-    position:fixed;
-    top:12px;
-    right:max(16px,calc((100vw - 920px)/2 + 16px));
-    z-index:130;
+    position:relative;
+    z-index:1;
     display:inline-flex;
     align-items:center;
     gap:7px;
@@ -48,6 +46,8 @@
     font-weight:750;
     line-height:1;
     cursor:pointer;
+    flex:0 0 auto;
+    margin-left:auto;
     -webkit-backdrop-filter:blur(8px);
     backdrop-filter:blur(8px);
   }
