@@ -16,11 +16,6 @@ body {
   color: var(--ink);
   background: var(--bg);
 }
-
-.app {
-  padding-bottom: calc(78px + var(--safe-bottom));
-}
-
 /* Header: solid, quiet, functional */
 .top {
   padding: calc(10px + var(--safe-top)) 14px 11px;
@@ -89,9 +84,6 @@ body {
 
 /* Navigation: no floating capsule */
 .tabs {
-  left: 0;
-  right: 0;
-  bottom: 0;
   gap: 0;
   padding: 4px 8px calc(5px + var(--safe-bottom));
   border: 0;
