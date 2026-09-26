@@ -49,7 +49,7 @@
 
     .app {
       min-height: 100%;
-      padding-bottom: calc(82px + var(--safe-bottom));
+      padding-bottom: 0;
     }
 
     .top {
@@ -156,10 +156,7 @@
     .clear-btn.show { display: inline-flex; align-items: center; justify-content: center; }
 
     .tabs {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      position: relative;
       z-index: 40;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
