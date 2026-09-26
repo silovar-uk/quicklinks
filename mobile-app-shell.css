@@ -1,0 +1,112 @@
+:root{
+  --quick-shell-height:100dvh;
+  --quick-bottom-nav-size:60px;
+  --quick-floating-gap:12px;
+}
+
+@media (max-width:719px){
+  html,
+  body{
+    width:100%;
+    height:100%;
+    min-height:0;
+    overflow:hidden;
+    overscroll-behavior:none;
+  }
+
+  body{
+    position:relative;
+  }
+
+  .app{
+    position:relative;
+    width:100%;
+    height:var(--quick-shell-height,100dvh);
+    min-height:0;
+    max-height:var(--quick-shell-height,100dvh);
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr) auto;
+    grid-template-areas:
+      "header"
+      "main"
+      "nav";
+    padding-bottom:0;
+    overflow:hidden;
+    isolation:isolate;
+  }
+
+  .top{
+    grid-area:header;
+    position:relative;
+    top:auto;
+    min-width:0;
+    z-index:30;
+  }
+
+  main{
+    grid-area:main;
+    width:min(920px,100%);
+    min-width:0;
+    min-height:0;
+    height:auto;
+    margin:0 auto;
+    padding-bottom:16px;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    scroll-padding-bottom:18px;
+  }
+
+  .tabs{
+    grid-area:nav;
+    position:relative;
+    inset:auto;
+    width:100%;
+    min-width:0;
+    margin:0;
+    z-index:40;
+    padding-bottom:calc(5px + var(--safe-bottom));
+    contain:layout paint;
+  }
+
+  .fab{
+    position:absolute;
+    right:16px;
+    bottom:calc(var(--quick-bottom-nav-size,60px) + var(--quick-floating-gap));
+    z-index:45;
+  }
+
+  html.quick-mobile-shell .toast,
+  html.quick-mobile-shell .quick-sync-result,
+  html.quick-mobile-shell .category-organizer-snackbar,
+  html.quick-mobile-shell .quick-undo-snackbar{
+    bottom:calc(var(--quick-bottom-nav-size,60px) + var(--quick-floating-gap));
+  }
+
+  html.quick-mobile-shell.quick-keyboard-open .fab{
+    opacity:0;
+    pointer-events:none;
+    transform:translateY(8px);
+  }
+}
+
+@media (min-width:720px){
+  html,
+  body{
+    overflow:auto;
+  }
+
+  .app{
+    height:auto;
+    max-height:none;
+    display:block;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  html.quick-mobile-shell.quick-keyboard-open .fab{
+    transition:none;
+  }
+}
