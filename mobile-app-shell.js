@@ -7,6 +7,8 @@
   let frame = 0;
   let baselineHeight = 0;
   let navObserver = null;
+  const tabScroll = { links: 0, prompts: 0, settings: 0 };
+  let lastTab = typeof state !== 'undefined' ? state.activeTab : 'links';
 
   function viewportHeight() {
     const visualHeight = window.visualViewport?.height;
@@ -86,6 +88,21 @@
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleShellMetrics, { passive: true });
   }
+
+  document.addEventListener('click', event => {
+    if (!mobileQuery.matches) return;
+    const tab = event.target.closest?.('.tab-btn[data-tab]');
+    if (!tab) return;
+    const main = document.querySelector('main');
+    if (!main) return;
+    const nextTab = tab.dataset.tab || 'links';
+    if (lastTab && lastTab !== nextTab) tabScroll[lastTab] = main.scrollTop;
+    lastTab = nextTab;
+    requestAnimationFrame(() => {
+      const currentMain = document.querySelector('main');
+      if (currentMain) currentMain.scrollTop = tabScroll[nextTab] || 0;
+    });
+  });
 
   observeNavigation();
   scheduleShellMetrics();
