@@ -28,7 +28,7 @@ function response(body, status, origin, extra = {}) {
     status,
     headers: {
       ...cors(origin),
-      "Cache-Control": "no-store",
+      "Cache-Control": "no-store, no-transform",
       ...extra
     }
   });
