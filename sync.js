@@ -431,10 +431,23 @@
     saveMeta();
   }
 
+  let autoSyncTimer = null;
+  function scheduleAutoSync() {
+    clearTimeout(autoSyncTimer);
+    autoSyncTimer = setTimeout(() => {
+      if (meta.enabled && meta.dirty && !meta.syncing) runSync();
+    }, 140);
+  }
+
   const rawSave = save;
   save = function(...args) {
     const r = rawSave.apply(this, args);
-    try { observe(); } catch (e) { console.warn('sync observe failed', e); }
+    try {
+      observe();
+      if (meta.enabled && meta.dirty) scheduleAutoSync();
+    } catch (e) {
+      console.warn('sync observe failed', e);
+    }
     return r;
   };
 
@@ -599,27 +612,9 @@
     renderSyncUi();
   }
 
-  function bindAutoSyncOnSave() {
-    [
-      ['saveLinkBtn', 'linkModal'],
-      ['savePromptBtn', 'promptModal']
-    ].forEach(([buttonId, modalId]) => {
-      const button = document.getElementById(buttonId);
-      if (!button || button.dataset.autoSyncBound === '1') return;
-      button.dataset.autoSyncBound = '1';
-      button.addEventListener('click', () => {
-        setTimeout(() => {
-          const modal = document.getElementById(modalId);
-          const saveSucceeded = !modal || !modal.classList.contains('open');
-          if (saveSucceeded && meta.enabled && meta.dirty && !meta.syncing) runSync();
-        }, 0);
-      });
-    });
-  }
-
+  window.addEventListener('quicklinks-content-changed', scheduleAutoSync);
   window.addEventListener('quicklinks-sync-meta', renderSyncUi);
   addUi();
-  bindAutoSyncOnSave();
   if (meta.enabled && !meta.observed) { meta.observed = payload(); saveMeta(); }
   try {
     if (location.hash.includes('pair=')) {
