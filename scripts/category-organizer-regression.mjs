@@ -57,8 +57,13 @@ function row(page, kind, name) {
 
 async function openOrganizer(page, kind) {
   const chipsId = kind === 'links' ? '#linkChips' : '#promptChips';
+  const active = page.locator(chipsId + '.category-organizer-active');
+  if (await active.count()) {
+    await active.waitFor({ state:'visible' });
+    return;
+  }
   await page.locator(chipsId + ' [data-category-organizer-toggle="' + kind + '"]').click();
-  await page.locator(chipsId + '.category-organizer-active').waitFor({ state:'visible' });
+  await active.waitFor({ state:'visible' });
 }
 
 async function testDesktop(browser) {
