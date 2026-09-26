@@ -456,7 +456,9 @@
       b.type = 'button';
       b.title = '端末間同期';
       b.innerHTML = '<span class="quick-sync-desktop-icon" aria-hidden="true">↻</span><span class="quick-sync-desktop-label">同期</span>';
-      document.body.appendChild(b);
+      const topRow = document.querySelector('.top-row');
+      if (topRow) topRow.appendChild(b);
+      else document.body.appendChild(b);
       b.addEventListener('click', () => {
         if (meta.enabled) {
           runSync();
