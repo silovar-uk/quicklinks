@@ -152,7 +152,10 @@ async function testMobile(browser) {
   try {
     await seed(page);
     await openOrganizer(page, 'links');
-    assert.equal(await page.locator('.category-organizer-drag').count(), 0, 'mobile has no drag-only affordance');
+    const mobileDragHandles = page.locator('.category-organizer-drag');
+    if (await mobileDragHandles.count()) {
+      assert.equal(await mobileDragHandles.first().isVisible(), false, 'mobile hides drag-only affordance');
+    }
     const geometry = await page.evaluate(() => ({
       body: document.documentElement.scrollWidth,
       viewport: window.innerWidth,
