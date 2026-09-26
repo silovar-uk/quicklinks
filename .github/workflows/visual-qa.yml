@@ -29,7 +29,7 @@ jobs:
       - name: Install Playwright
         run: |
           npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
 
       - name: Start local server
         run: |
@@ -67,6 +67,11 @@ jobs:
         env:
           LOCAL_URL: http://127.0.0.1:4173/
         run: node scripts/category-organizer-regression.mjs
+
+      - name: Run mobile app shell regression QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+        run: node scripts/mobile-shell-regression.mjs
 
       - name: Collect server log
         if: always()
