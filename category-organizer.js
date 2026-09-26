@@ -286,7 +286,7 @@
       : '';
 
     openOrganizerModal(
-      esc(name),
+      name,
       '<div class="category-organizer-action-summary">' +
         '<span class="badge" style="' + esc(c.style(name)) + '">' + esc(name) + '</span>' +
         '<span>' + count.toLocaleString() + '件</span>' +
