@@ -63,6 +63,11 @@ jobs:
           LOCAL_URL: http://127.0.0.1:4173/
         run: node scripts/loading-regression.mjs
 
+      - name: Run category organizer regression QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+        run: node scripts/category-organizer-regression.mjs
+
       - name: Collect server log
         if: always()
         run: cp /tmp/quicklinks-server.log visual-qa/server.log || true
