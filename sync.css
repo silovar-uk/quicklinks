@@ -26,3 +26,39 @@
 .quick-sync-result.show{opacity:1;transform:translate(-50%,0)}
 @media(min-width:720px){.quick-sync-result{bottom:24px}}
 @media(prefers-reduced-motion:reduce){.quick-sync-top.is-syncing{animation:none}.quick-sync-result{transition:none}}
+
+.quick-sync-desktop{display:none}
+@media(min-width:720px){
+  .quick-sync-desktop{
+    position:fixed;
+    top:12px;
+    right:max(16px,calc((100vw - 920px)/2 + 16px));
+    z-index:130;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    min-height:36px;
+    padding:7px 11px;
+    border:1px solid var(--line,#e5e5e1);
+    border-radius:999px;
+    color:#3f3f3b;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 4px 14px rgba(20,20,20,.08);
+    font-size:11px;
+    font-weight:750;
+    line-height:1;
+    cursor:pointer;
+    -webkit-backdrop-filter:blur(8px);
+    backdrop-filter:blur(8px);
+  }
+  .quick-sync-desktop:hover{border-color:#c9c9c3;background:#fff}
+  .quick-sync-desktop:disabled{cursor:wait;opacity:.78}
+  .quick-sync-desktop-icon{display:inline-grid;place-items:center;width:16px;height:16px;font-size:15px;line-height:1}
+  .quick-sync-desktop.is-dirty{border-color:#e8c68f;background:#fffaf0;color:#8a5400}
+  .quick-sync-desktop.is-error{border-color:#efb0b0;background:#fff6f6;color:#a12020}
+  .quick-sync-desktop.is-disabled{color:#72726d}
+  .quick-sync-desktop.is-syncing .quick-sync-desktop-icon{animation:quickSyncSpin .9s linear infinite}
+}
+@media(prefers-reduced-motion:reduce){
+  .quick-sync-desktop.is-syncing .quick-sync-desktop-icon{animation:none}
+}
