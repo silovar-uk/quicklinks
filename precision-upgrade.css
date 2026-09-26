@@ -446,8 +446,6 @@ select:focus-visible,
 }
 
 @media (max-width: 719px) {
-  .app { padding-bottom: calc(118px + var(--safe-bottom)); }
-
   #linkPagerTop,
   #promptPagerTop { display: none !important; }
 
