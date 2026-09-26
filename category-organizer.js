@@ -54,6 +54,34 @@
     window.dispatchEvent(new CustomEvent('quicklinks-content-changed', { detail: { reason } }));
   }
 
+  function replaceName(list, oldName, newName) {
+    const out = [];
+    (Array.isArray(list) ? list : []).forEach(value => {
+      const name = value === oldName ? newName : value;
+      if (!out.includes(name)) out.push(name);
+    });
+    if (!out.includes(newName)) out.push(newName);
+    return out.length ? out : ['未分類'];
+  }
+
+  function mergeName(list, fromName, toName) {
+    const out = [];
+    (Array.isArray(list) ? list : []).forEach(value => {
+      if (value === fromName) return;
+      if (!out.includes(value)) out.push(value);
+    });
+    if (!out.includes(toName)) out.push(toName);
+    return out.length ? out : ['未分類'];
+  }
+
+  function restoreName(list, name, index) {
+    const out = [...new Set(Array.isArray(list) ? list : [])];
+    if (out.includes(name)) return out;
+    const at = Number.isInteger(index) && index >= 0 ? Math.min(index, out.length) : out.length;
+    out.splice(at, 0, name);
+    return out.length ? out : ['未分類'];
+  }
+
   function ensureUi() {
     if (!document.getElementById('categoryOrganizerModal')) {
       const modal = document.createElement('div');
@@ -358,14 +386,14 @@
       }
       if (state.projectColors) delete state.projectColors[oldName];
       if (state.currentProject === oldName) state.currentProject = newName;
-      state.projects = normalizeProjects(state.projects, state.items);
+      state.projects = replaceName(state.projects, oldName, newName);
       state.linkPage = 1;
     } else {
       state.promptMemos.forEach(memo => {
         if ((memo.categoryName || '未分類') === oldName) memo.categoryName = newName;
       });
       if (state.currentPromptCategory === oldName) state.currentPromptCategory = newName;
-      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptCategories = replaceName(state.promptCategories, oldName, newName);
       state.promptPage = 1;
     }
     save();
@@ -453,7 +481,10 @@
       affectedIds: [],
       previousCurrent: c.current(),
       hadFromColor: false,
-      fromColor: null
+      fromColor: null,
+      sourceIndex: kind === 'links'
+        ? (state.projects || []).indexOf(fromName)
+        : (state.promptCategories || []).indexOf(fromName)
     };
 
     if (kind === 'links') {
@@ -469,7 +500,7 @@
       });
       if (state.projectColors) delete state.projectColors[fromName];
       if (state.currentProject === fromName) state.currentProject = toName;
-      state.projects = normalizeProjects(state.projects, state.items);
+      state.projects = mergeName(state.projects, fromName, toName);
       state.linkPage = 1;
     } else {
       snapshot.affectedIds = state.promptMemos
@@ -480,7 +511,7 @@
         if (ids.has(memo.id)) memo.categoryName = toName;
       });
       if (state.currentPromptCategory === fromName) state.currentPromptCategory = toName;
-      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptCategories = mergeName(state.promptCategories, fromName, toName);
       state.promptPage = 1;
     }
 
@@ -511,7 +542,7 @@
       if (snapshot.previousCurrent === snapshot.fromName && state.currentProject === snapshot.toName) {
         state.currentProject = snapshot.fromName;
       }
-      state.projects = normalizeProjects(state.projects, state.items);
+      state.projects = restoreName(state.projects, snapshot.fromName, snapshot.sourceIndex);
       state.linkPage = 1;
     } else {
       state.promptMemos.forEach(memo => {
@@ -522,7 +553,7 @@
       if (snapshot.previousCurrent === snapshot.fromName && state.currentPromptCategory === snapshot.toName) {
         state.currentPromptCategory = snapshot.fromName;
       }
-      state.promptCategories = normalizePromptCategories(state.promptCategories, state.promptMemos);
+      state.promptCategories = restoreName(state.promptCategories, snapshot.fromName, snapshot.sourceIndex);
       state.promptPage = 1;
     }
 
