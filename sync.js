@@ -449,6 +449,24 @@
       actions.insertBefore(b, actions.firstChild);
       b.addEventListener('click', () => runSync());
     }
+    if (!document.getElementById('syncDesktopBtn')) {
+      const b = document.createElement('button');
+      b.id = 'syncDesktopBtn';
+      b.className = 'quick-sync-desktop';
+      b.type = 'button';
+      b.title = '端末間同期';
+      b.innerHTML = '<span class="quick-sync-desktop-icon" aria-hidden="true">↻</span><span class="quick-sync-desktop-label">同期</span>';
+      document.body.appendChild(b);
+      b.addEventListener('click', () => {
+        if (meta.enabled) {
+          runSync();
+          return;
+        }
+        const settingsTab = document.querySelector('.tab-btn[data-tab="settings"]');
+        if (settingsTab) settingsTab.click();
+        setTimeout(() => document.getElementById('syncCard')?.scrollIntoView({ behavior:'smooth', block:'start' }), 0);
+      });
+    }
     const panel = document.getElementById('settingsPanel');
     if (panel && !document.getElementById('syncCard')) {
       const c = document.createElement('div'); c.id = 'syncCard'; c.className = 'settings-card quick-sync-card';
@@ -482,6 +500,19 @@
       b.classList.toggle('is-dirty', !!meta.dirty);
       b.classList.toggle('is-error', !!meta.lastError);
       b.classList.toggle('is-syncing', !!meta.syncing);
+    }
+    const desktop = document.getElementById('syncDesktopBtn');
+    if (desktop) {
+      const label = desktop.querySelector('.quick-sync-desktop-label');
+      desktop.disabled = !!(meta.enabled && meta.syncing);
+      desktop.classList.toggle('is-dirty', !!(meta.enabled && meta.dirty));
+      desktop.classList.toggle('is-error', !!(meta.enabled && meta.lastError));
+      desktop.classList.toggle('is-syncing', !!(meta.enabled && meta.syncing));
+      desktop.classList.toggle('is-disabled', !meta.enabled);
+      const text = !meta.enabled ? '同期設定' : meta.syncing ? '同期中…' : meta.lastError ? '再同期' : meta.dirty ? '同期する' : '同期済み';
+      if (label) label.textContent = text;
+      desktop.title = !meta.enabled ? '端末間同期を設定' : meta.lastError ? '同期でエラーが発生しました。クリックして再同期' : meta.dirty ? '未同期の変更があります。クリックして同期' : '端末間同期';
+      desktop.setAttribute('aria-label', desktop.title);
     }
     const c = document.getElementById('syncCard');
     if (!c) return;
@@ -566,8 +597,27 @@
     renderSyncUi();
   }
 
+  function bindAutoSyncOnSave() {
+    [
+      ['saveLinkBtn', 'linkModal'],
+      ['savePromptBtn', 'promptModal']
+    ].forEach(([buttonId, modalId]) => {
+      const button = document.getElementById(buttonId);
+      if (!button || button.dataset.autoSyncBound === '1') return;
+      button.dataset.autoSyncBound = '1';
+      button.addEventListener('click', () => {
+        setTimeout(() => {
+          const modal = document.getElementById(modalId);
+          const saveSucceeded = !modal || !modal.classList.contains('open');
+          if (saveSucceeded && meta.enabled && meta.dirty && !meta.syncing) runSync();
+        }, 0);
+      });
+    });
+  }
+
   window.addEventListener('quicklinks-sync-meta', renderSyncUi);
   addUi();
+  bindAutoSyncOnSave();
   if (meta.enabled && !meta.observed) { meta.observed = payload(); saveMeta(); }
   try {
     if (location.hash.includes('pair=')) {
