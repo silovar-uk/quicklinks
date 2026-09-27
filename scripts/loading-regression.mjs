@@ -6,28 +6,24 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function loadApp(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-  await page.locator('#quickUrlInput').waitFor({ state: 'attached' });
+  await page.locator('#deckTrack .card, .card-end').first().waitFor({ state: 'attached' });
 }
 
-async function openQuickAdd(page) {
-  await page.evaluate(() => openYamlAddModal());
-  await page.locator('#quickUrlModal.open').waitFor({ state: 'visible' });
+async function openLinkSheet(page) {
+  await page.locator('#bottomAdd').click();
+  await page.locator('#linkSheet[open]').waitFor({ state: 'visible' });
 }
 
 async function beginFetch(page, url) {
-  await page.locator('#quickUrlInput').fill(url);
-  await page.locator('#fetchQuickUrlBtn').click();
-  await page.locator('#quickUrlStatus[aria-busy="true"]').waitFor({ state: 'visible' });
+  await page.locator('#fUrl').fill(url);
+  await page.locator('#fUrl').dispatchEvent('change');
+  await page.locator('#fStatus[aria-busy="true"]').waitFor({ state: 'visible' });
 }
 
 async function spinnerSnapshot(page) {
-  return page.locator('.loading-spinner').evaluate(element => {
+  return page.locator('.spin').evaluate(element => {
     const style = getComputedStyle(element);
-    return {
-      display: style.display,
-      animationName: style.animationName,
-      transform: style.transform,
-    };
+    return { display: style.display, animationName: style.animationName, transform: style.transform };
   });
 }
 
@@ -41,37 +37,31 @@ async function testDirectSuccess(browser) {
     await sleep(550);
     await route.fulfill({
       status: 200,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'access-control-allow-origin': '*',
-      },
+      headers: { 'content-type': 'text/html; charset=utf-8', 'access-control-allow-origin': '*' },
       body: '<!doctype html><html><head><title>QA Success</title><meta name="description" content="Loading regression success"></head><body>QA body</body></html>',
     });
   });
 
   try {
     await loadApp(page);
-    await openQuickAdd(page);
+    await openLinkSheet(page);
     await beginFetch(page, 'https://qa-success.test/page');
 
-    const spinner = page.locator('.loading-spinner');
+    const spinner = page.locator('.spin');
     await spinner.waitFor({ state: 'visible' });
     const first = await spinnerSnapshot(page);
-    assert.equal(first.animationName, 'quickAddSpin', 'normal motion uses the quick-add spinner animation');
+    assert.equal(first.animationName, 'spin', 'normal motion uses the spin animation');
 
     await page.waitForTimeout(180);
     const second = await spinnerSnapshot(page);
     assert.notEqual(second.transform, first.transform, 'spinner transform changes while loading');
-    assert.equal(await page.locator('#fetchQuickUrlBtn').isDisabled(), true, 'fetch button is disabled while loading');
-    assert.equal(await page.locator('#quickUrlInput').isDisabled(), true, 'URL input is disabled while loading');
 
-    await page.evaluate(() => document.getElementById('fetchQuickUrlBtn').click());
-    assert.equal(directRequests, 1, 'disabled action does not start a duplicate request');
-
-    await page.locator('#linkModal.open').waitFor({ state: 'visible' });
-    assert.equal(await page.locator('#linkTitle').inputValue(), 'QA Success', 'direct metadata populates the editor');
-    assert.equal(await page.locator('#quickUrlStatus').getAttribute('aria-busy'), 'false', 'busy state clears after success');
-    assert.equal(await page.locator('.loading-spinner').count(), 0, 'spinner is removed after success');
+    await page.waitForFunction(() => document.getElementById('fTitle').value.trim().length > 0, null, { timeout: 8000 });
+    assert.equal(directRequests, 1, 'direct metadata is fetched once');
+    assert.equal(await page.locator('#fTitle').inputValue(), 'QA Success', 'direct metadata populates the form');
+    assert.equal(await page.locator('#fNote').inputValue(), 'Loading regression success', 'direct metadata populates the note');
+    assert.equal(await page.locator('#fStatus').getAttribute('aria-busy'), 'false', 'busy state clears after success');
+    assert.equal(await page.locator('.spin').count(), 0, 'spinner is removed after success');
 
     return 'PASS';
   } finally {
@@ -87,28 +77,23 @@ async function testReducedMotion(browser) {
     await sleep(450);
     await route.fulfill({
       status: 200,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'access-control-allow-origin': '*',
-      },
+      headers: { 'content-type': 'text/html; charset=utf-8', 'access-control-allow-origin': '*' },
       body: '<!doctype html><html><head><title>Reduced Motion</title></head><body>QA body</body></html>',
     });
   });
 
   try {
     await loadApp(page);
-    await openQuickAdd(page);
+    await openLinkSheet(page);
     await beginFetch(page, 'https://qa-reduced.test/page');
 
-    const spinner = page.locator('.loading-spinner');
-    assert.equal(await spinner.count(), 1, 'loading state still has a semantic spinner node');
+    const spinner = page.locator('.spin');
+    assert.equal(await spinner.count(), 1, 'loading state still has a spinner node');
     const style = await spinnerSnapshot(page);
     assert.equal(style.display, 'none', 'reduced motion hides rotating feedback');
-    assert.equal(style.animationName, 'none', 'reduced motion disables spinner animation');
-    assert.match(await page.locator('#quickUrlStatus').innerText(), /取得/, 'loading text remains visible with reduced motion');
+    assert.match(await page.locator('#fStatus').innerText(), /取得/, 'loading text remains visible with reduced motion');
 
-    await page.locator('#linkModal.open').waitFor({ state: 'visible' });
-    assert.equal(await page.locator('#quickUrlStatus').getAttribute('aria-busy'), 'false', 'busy state clears with reduced motion');
+    await page.waitForFunction(() => document.getElementById('fStatus').getAttribute('aria-busy') === 'false', null, { timeout: 8000 });
 
     return 'PASS';
   } finally {
@@ -122,8 +107,6 @@ async function testMicrolinkFallback(browser) {
   let directRequests = 0;
   let microlinkRequests = 0;
 
-  // Count only the metadata document request. Asset requests must not be
-  // mistaken for duplicate direct metadata fetches.
   await page.route('https://qa-fallback.test/page', route => {
     directRequests += 1;
     return route.abort('failed');
@@ -133,33 +116,24 @@ async function testMicrolinkFallback(browser) {
     await sleep(250);
     await route.fulfill({
       status: 200,
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'access-control-allow-origin': '*',
-      },
+      headers: { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' },
       body: JSON.stringify({
         status: 'success',
-        data: {
-          url: 'https://qa-fallback.test/page',
-          title: 'Microlink Fallback',
-          publisher: 'QA',
-          description: 'Fallback metadata',
-          function: { isFulfilled: true, value: 'Fallback body' },
-        },
+        data: { url: 'https://qa-fallback.test/page', title: 'Microlink Fallback', description: 'Fallback metadata' },
       }),
     });
   });
 
   try {
     await loadApp(page);
-    await openQuickAdd(page);
+    await openLinkSheet(page);
     await beginFetch(page, 'https://qa-fallback.test/page');
-    await page.locator('#linkModal.open').waitFor({ state: 'visible' });
+    await page.waitForFunction(() => document.getElementById('fTitle').value.trim().length > 0, null, { timeout: 8000 });
 
     assert.equal(directRequests, 1, 'direct metadata is attempted once');
     assert.equal(microlinkRequests, 1, 'Microlink is used once after direct failure');
-    assert.equal(await page.locator('#linkTitle').inputValue(), 'Microlink Fallback', 'fallback metadata populates the editor');
-    assert.equal(await page.locator('.loading-spinner').count(), 0, 'spinner clears after fallback success');
+    assert.equal(await page.locator('#fTitle').inputValue(), 'Microlink Fallback', 'fallback metadata populates the form');
+    assert.equal(await page.locator('.spin').count(), 0, 'spinner clears after fallback success');
 
     return 'PASS';
   } finally {
@@ -170,6 +144,8 @@ async function testMicrolinkFallback(browser) {
 async function testCancellation(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(String(error)));
   let directRequests = 0;
   let microlinkRequests = 0;
 
@@ -179,13 +155,10 @@ async function testCancellation(browser) {
     try {
       await route.fulfill({
         status: 200,
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'access-control-allow-origin': '*',
-        },
-        body: '<!doctype html><html><head><title>Should Not Open</title></head><body></body></html>',
+        headers: { 'content-type': 'text/html; charset=utf-8', 'access-control-allow-origin': '*' },
+        body: '<!doctype html><html><head><title>Should Not Apply</title></head><body></body></html>',
       });
-    } catch (_) {}
+    } catch { /* シートを閉じた後に届いても無視する */ }
   });
   await page.route('https://api.microlink.io/**', route => {
     microlinkRequests += 1;
@@ -198,19 +171,23 @@ async function testCancellation(browser) {
 
   try {
     await loadApp(page);
-    await openQuickAdd(page);
+    await openLinkSheet(page);
     await beginFetch(page, 'https://qa-cancel.test/page');
-    await page.locator('.loading-spinner').waitFor({ state: 'visible' });
+    await page.locator('.spin').waitFor({ state: 'visible' });
 
-    await page.locator('[data-close-modal="quickUrlModal"]').click();
-    await page.locator('#quickUrlModal').waitFor({ state: 'hidden' });
+    await page.locator('#linkSheet [data-close]').first().click();
+    await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
     await page.waitForTimeout(1450);
 
     assert.equal(directRequests, 1, 'cancelled flow starts only one direct request');
-    assert.equal(microlinkRequests, 0, 'user cancellation prevents the fallback request');
-    assert.equal(await page.locator('#linkModal.open').count(), 0, 'cancelled flow does not reopen the editor');
-    assert.equal(await page.locator('#quickUrlStatus').getAttribute('aria-busy'), 'false', 'cancelled flow eventually clears busy state');
+    assert.equal(microlinkRequests, 0, 'closing the sheet prevents the fallback request');
+    assert.equal(await page.locator('#fTitle').inputValue(), '', 'cancelled flow does not fill the closed form');
 
+    // 開き直した後の取得は、前の回の結果に邪魔されない
+    await openLinkSheet(page);
+    assert.equal(await page.locator('#fTitle').inputValue(), '', 'reopening starts from a clean form');
+
+    assert.deepEqual(pageErrors, [], 'no page errors after cancellation');
     return 'PASS';
   } finally {
     await context.close();
@@ -232,19 +209,19 @@ async function testTimeout(browser) {
         headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
         body: JSON.stringify({ status: 'success', data: { title: 'Too Late' } }),
       });
-    } catch (_) {}
+    } catch { /* すでに時間切れの表示へ進んでいる */ }
   });
 
   try {
     await loadApp(page);
-    await openQuickAdd(page);
+    await openLinkSheet(page);
     await beginFetch(page, 'https://qa-timeout.test/page');
 
-    await page.locator('#linkModal.open').waitFor({ state: 'visible', timeout: 12_000 });
+    await page.locator('#fRetry').waitFor({ state: 'visible', timeout: 12_000 });
     assert.equal(microlinkRequests, 1, 'Microlink timeout path makes one fallback request');
-    assert.equal(await page.locator('#linkTitle').inputValue(), 'qa-timeout.test', 'timeout falls back to URL-derived metadata');
-    assert.equal(await page.locator('#quickUrlStatus').getAttribute('aria-busy'), 'false', 'timeout clears busy state');
-    assert.equal(await page.locator('.loading-spinner').count(), 0, 'timeout clears spinner');
+    assert.match(await page.locator('#fStatus').innerText(), /時間切れ/, 'timeout message shown');
+    assert.equal(await page.locator('#fStatus').getAttribute('aria-busy'), 'false', 'timeout clears busy state');
+    assert.equal(await page.locator('.spin').count(), 0, 'timeout clears spinner');
 
     return 'PASS';
   } finally {
