@@ -255,6 +255,16 @@ function renderManage() {
       <div class="m-sec"><h3>ブックマークレット</h3><p>「Quick Linksに追加」をブックマークバーへドラッグしておくと、見ているページをその場で保存・更新できます。</p>
         <div class="m-row"><a class="btn" id="bookmarkletLink" href="#">Quick Linksに追加</a></div>
       </div>
+      <div class="m-sec"><h3>iPhoneの共有から保存</h3><p>ショートカットを作ると、Xのアプリなどで見ているページを共有シートからそのまま保存できます。</p>
+        <ol style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:13px;color:var(--ink2);line-height:1.7">
+          <li>ショートカットAppで新規作成し、名前を「Quick Linksに保存」にする</li>
+          <li>詳細で「共有シートに表示」をオンにし、受け付ける種類を「URL」にする</li>
+          <li>アクション「URLエンコード」を足し、入力を「ショートカットの入力」にする</li>
+          <li>アクション「テキスト」を足し、<code>https://silovar-uk.github.io/quicklinks/#save=</code> のすぐ後ろに、手順3の結果を差し込む</li>
+          <li>アクション「URLを開く」を足し、手順4のテキストを渡す</li>
+        </ol>
+        <p class="diff-note">使い方:共有したいページで共有→「Quick Linksに保存」→Safariで保存シートが開く→引き出しを選んで保存。</p>
+      </div>
       <div class="m-sec"><h3>重複の整理・リセット</h3><p>完全に同じ内容のリンク・プロンプトをまとめます。リセットはこの端末のデータを消します。</p>
         <div class="m-row"><button class="btn" type="button" id="dedupeBtn">完全重複を整理</button><button class="btn danger" type="button" id="resetAllBtn">この端末のデータをリセット</button></div>
       </div>`;
@@ -398,6 +408,24 @@ function handleAddHash() {
   clearAddHash();
   if (!payload) { toast('ブックマークレットのデータを読み取れませんでした'); return; }
   openLinkSheet({ bm: payload });
+}
+
+// iPhoneの共有シート(ショートカット)から #save=URL で開かれたとき。読み取ったらすぐハッシュを消し、
+// 保存は本人が押すまでしない(外から細工したリンクで勝手に保存されないように)
+function decodeSaveHash() {
+  if (!location.hash.startsWith('#save=')) return null;
+  const raw = location.hash.slice('#save='.length);
+  if (!raw) return null;
+  let url = '';
+  try { url = decodeURIComponent(raw); } catch { return null; }
+  return /^https?:\/\//i.test(url) ? url : null;
+}
+function handleSaveHash() {
+  if (!location.hash.startsWith('#save=')) return;
+  const url = decodeSaveHash();
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!url) { toast('共有されたURLを読み取れませんでした'); return; }
+  openLinkSheet({ url });
 }
 
 /* ============ 知らせ(トースト) ============ */
@@ -735,6 +763,8 @@ function deletePromptNow(id) {
   save(); render();
   toast('削除しました');
 }
+// コピーの次へ:4秒以内にもう一度Enterで、よく使うAIツールを開く(スマホでは案内しない)
+const NEXT = { id: null, until: 0 };
 async function copyPrompt(id, btn) {
   const p = find('prompt', id);
   if (!p) return;
@@ -744,7 +774,14 @@ async function copyPrompt(id, btn) {
   p.lastCopiedAt = new Date().toISOString();
   save(); render();
   flashCopied(btn);
-  toast(`コピーしました：${p.title}`);
+  const ai = !hand() ? bestAiLink() : null;
+  if (ai) {
+    NEXT.id = ai.id; NEXT.until = Date.now() + 4000;
+    const aiTitle = view(ai).title.slice(0, 20);
+    toast(`コピーしました：${p.title}`, { hint: `もう一度 Enter で ${aiTitle} を開きます`, action: { label: `${aiTitle}を開く`, fn: () => openLink(ai.id) }, ms: 4000 });
+  } else {
+    toast(`コピーしました：${p.title}`);
+  }
 }
 
 /* ============ 引き出しの整理(画面) ============ */
@@ -1012,6 +1049,16 @@ $('searchInput').addEventListener('input', e => { U.query = e.target.value; U.ac
 $('searchInput').addEventListener('keydown', e => {
   if (e.isComposing) return;
   if (e.key === 'Escape') { e.preventDefault(); if (U.query) { U.query = ''; e.target.value = ''; U.active = -1; render(); } else e.target.blur(); return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const { combined } = searchResultList();
+    if (!combined.length) return;
+    U.active = Math.max(0, Math.min(combined.length - 1, U.active + (e.key === 'ArrowDown' ? 1 : -1)));
+    renderLib();
+    const r = combined[U.active];
+    $(`${r.kind === 'link' ? 'item' : 'row'}-${r.item.id}`)?.scrollIntoView({ block: 'nearest' });
+    return;
+  }
   if (e.key === 'Enter') {
     e.preventDefault();
     const { combined } = searchResultList();
@@ -1059,6 +1106,70 @@ $('promptForm').addEventListener('submit', e => e.preventDefault());
 
 $$('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) closeSheet(d); }));
 
+/* ============ キー操作(PC。計画書4.9) ============ */
+document.addEventListener('keydown', e => {
+  if (e.defaultPrevented || $$('dialog[open]').length) return;
+  if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+  if (hand()) return; // スマホでは効かせない
+  const k = e.key;
+  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'k' || k === '/') { e.preventDefault(); $('searchInput').focus(); $('searchInput').select(); return; }
+  if (k === 'Enter' && NEXT.id && Date.now() < NEXT.until && !e.target.closest('a')) { e.preventDefault(); const id = NEXT.id; NEXT.id = null; $('toast').hidden = true; openLink(id); return; }
+  if (U.view === 'links' && !U.query.trim() && (k === 'ArrowRight' || k === 'ArrowLeft')) {
+    e.preventDefault();
+    const mk = deck(U.drawer, U.kind);
+    setPos(mk.pos + (k === 'ArrowRight' ? 1 : -1));
+    return;
+  }
+  if (U.view === 'links' && !U.query.trim() && k === 'Enter' && !e.target.closest('a, button')) {
+    e.preventDefault();
+    const mk = deck(U.drawer, U.kind);
+    const id = mk.order[mk.pos];
+    if (id) openLink(id);
+    return;
+  }
+  if (U.view === 'prompts' && k === 'Enter' && e.target.closest('.row-main')) {
+    e.preventDefault();
+    const row = e.target.closest('.row');
+    copyPrompt(row.dataset.id, row.querySelector('.row-copy'));
+    return;
+  }
+  // 文字キー(入力欄の外)で検索に入る。preventDefaultはしない(この文字を検索欄へ入れるため)
+  if (!e.ctrlKey && !e.metaKey && !e.altKey && (k.length === 1 || k === 'Process')) $('searchInput').focus();
+});
+
+/* ============ どこでも貼り付け・落とす(計画書4.9) ============ */
+document.addEventListener('paste', e => {
+  if (e.target.closest('input, textarea') || $$('dialog[open]').length) return;
+  const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+  const url = extractFirstUrl(text);
+  if (url) { e.preventDefault(); openLinkSheet({ url }); }
+  else if (text.trim().length >= 20) { e.preventDefault(); openPromptSheet({ mode: 'add' }); $('pBody').value = text.trim(); }
+});
+let dragDepth = 0;
+const dragOk = e => [...(e.dataTransfer?.types || [])].some(x => x === 'text/uri-list' || x === 'text/plain');
+function ensureDropZone() {
+  let el = $('dropZone');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'dropZone';
+  el.hidden = true;
+  el.textContent = 'ここに落とすとリンクを保存します';
+  document.body.appendChild(el);
+  return el;
+}
+window.addEventListener('dragenter', e => { if (!dragOk(e)) return; dragDepth++; ensureDropZone().hidden = false; });
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; const el = $('dropZone'); if (el) el.hidden = true; } });
+window.addEventListener('dragover', e => { if (dragOk(e)) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  dragDepth = 0;
+  const el = $('dropZone'); if (el) el.hidden = true;
+  if (!dragOk(e)) return;
+  e.preventDefault();
+  const uri = (e.dataTransfer.getData('text/uri-list') || '').split(/\r?\n/).find(x => x && !x.startsWith('#')) || e.dataTransfer.getData('text/plain');
+  const url = extractFirstUrl(uri);
+  if (url) openLinkSheet({ url });
+});
+
 /* ============ スマホの外枠(mobile-app-shell.js の考え方をここへ) ============ */
 const rootEl = document.documentElement;
 function shellMetrics() {
@@ -1085,4 +1196,5 @@ document.addEventListener('focusout', () => setTimeout(scheduleShell, 0));
 render();
 shellMetrics();
 handleAddHash();
-addEventListener('hashchange', handleAddHash);
+handleSaveHash();
+addEventListener('hashchange', () => { handleAddHash(); handleSaveHash(); });

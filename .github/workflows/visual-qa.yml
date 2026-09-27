@@ -76,7 +76,7 @@ jobs:
       - name: Run mekuru acceptance QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/
-          QA_PHASES: P1,P2,P3
+          QA_PHASES: P1,P2,P3,P4
         run: node scripts/mekuru-qa.mjs
 
       - name: Collect server log
