@@ -87,8 +87,8 @@ function renderChips() {
 }
 
 /* ============ めくる束 ============ */
-function cardHtml(item, i, cur) {
-  const v = view(item), r = reasonOf(item);
+function cardHtml(item, i, cur, mem) {
+  const v = view(item), r = reasonOf(item, mem);
   return `<article class="card${i === cur ? ' is-current' : ''}" data-id="${escapeHtml(item.id)}" data-index="${i}" aria-label="${i + 1}枚目">
     <div class="card-meta"><span class="src">${escapeHtml(v.src)}</span><span class="mood">${dot(item.projectName)}${escapeHtml(item.projectName || '未分類')}</span></div>
     <span class="card-reason${r.hot ? ' hot' : ''}">${escapeHtml(r.text)}</span>
@@ -108,7 +108,7 @@ function renderDeck() {
   $$('.kinds [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === U.kind)));
   const track = $('deckTrack');
   track.innerHTML = n
-    ? mk.order.map((id, i) => cardHtml(find('link', id), i, pos)).join('') + `<div class="card-end">今日の束はここまで。<br>明日はまた違う順番で並びます。</div>`
+    ? mk.order.map((id, i) => cardHtml(find('link', id), i, pos, mk.mem)).join('') + `<div class="card-end">今日の束はここまで。<br>明日はまた違う順番で並びます。</div>`
     : `<div class="card-end">この条件の束はありません。</div>`;
   const card = track.children[pos];
   if (card) track.scrollLeft = card.offsetLeft - 16;
@@ -441,33 +441,21 @@ function openLink(id) {
   save();
   render();
 }
-function removeLink(id) {
-  const idx = state.items.findIndex(i => i.id === id);
-  if (idx < 0) return null;
-  const [item] = state.items.splice(idx, 1);
-  state.projects = normalizeProjects(state.projects, state.items);
-  save();
-  return { item, index: idx };
-}
-function restoreLink(snapshot) {
-  if (!snapshot) return;
-  const index = Math.min(Math.max(snapshot.index, 0), state.items.length);
-  state.items.splice(index, 0, snapshot.item);
-  state.projects = normalizeProjects(state.projects, state.items);
-  save();
-}
+// 束は組み直さず、その1枚だけを抜く(いま選んでいる引き出し・見る長さの束の位置を保つ)
 function letGo(id) {
   const item = find('link', id);
   if (!item) return;
   const title = view(item).title.slice(0, 24);
-  const snapshot = removeLink(id);
+  const deckKey = `${U.drawer}|${U.kind}`;
+  const snapshot = letGoLink(id, deckKey);
   render();
-  toast(`手放しました：${title}`, { action: { label: '元に戻す', fn: () => { restoreLink(snapshot); render(); toast('元に戻しました'); } }, ms: 5000 });
+  toast(`手放しました：${title}`, { action: { label: '元に戻す', fn: () => { restoreLetGo(snapshot); render(); toast('元に戻しました'); } }, ms: 5000 });
 }
 
 /* ============ 詳細シート ============ */
+function currentDeckMem() { return deck(U.drawer, U.kind).mem || {}; }
 function linkDetail(item) {
-  const v = view(item), r = reasonOf(item), c = Number(item.clickCount || 0);
+  const v = view(item), r = reasonOf(item, currentDeckMem()), c = Number(item.clickCount || 0);
   return `<div class="d"><div class="d-top"><span class="d-cat">${escapeHtml(v.src)}・${dot(item.projectName)}${escapeHtml(item.projectName || '未分類')}${isFavorite(item) ? '・★' : ''}</span><h2>${escapeHtml(v.title)}</h2>${v.by ? `<div class="d-facts"><span>${escapeHtml(v.by)}</span></div>` : ''}<div class="d-facts"><span>${escapeHtml(formatDate(item.addedAt))}に保存(${escapeHtml(r.text)})</span><span>${c ? `${c}回開いた` : 'まだ開いていない'}</span></div></div>
     <div class="d-actions"><a class="btn primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-open>開く</a><button class="btn" type="button" data-act="copyurl">URLをコピー</button><button class="btn" type="button" data-act="edit">編集</button><button class="btn" type="button" data-act="refetch">ページ情報を取り直す</button><button class="btn quiet" type="button" data-act="letgo">手放す</button></div>
     <div class="d-sec"><h3>説明</h3><p class="d-note ${item.note ? '' : 'none'}">${escapeHtml(item.note || '') || 'まだありません。「ページ情報を取り直す」で入れられます。'}</p></div>
