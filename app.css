@@ -133,6 +133,10 @@ mark{background:#fbe3a4;color:inherit;border-radius:2px;padding:0 1px}
 .item-meta .src{font-weight:700;color:var(--ink2)}
 .item-meta .mood{display:inline-flex;align-items:center;gap:5px}
 .item-title{font-size:14px;font-weight:650;line-height:1.5}
+.item-url{display:block;min-width:0;font:11px/1.35 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.68;transition:opacity .12s ease}
+.item-url-host{font-weight:600;opacity:.92}
+.item-url-path{opacity:.78}
+.item:hover .item-url,.item:focus-within .item-url{opacity:.92}
 .item-desc{font-size:13px;line-height:1.65;color:var(--ink2)}
 .item-foot{display:flex;align-items:center;gap:8px;padding:0 6px 6px 14px;min-height:34px}
 .item-foot .by{flex:1;min-width:0;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
