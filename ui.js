@@ -160,12 +160,37 @@ function libList() {
   };
   return list.sort(by[state.linkSort] || by.recent);
 }
+function urlPreview(url) {
+  try {
+    const u = new URL(String(url || ''));
+    const host = u.hostname.replace(/^www\./i, '');
+    const parts = u.pathname.split('/').filter(Boolean);
+    const shown = parts.slice(0, 2).map(seg => {
+      let value = seg;
+      try { value = decodeURIComponent(seg); } catch {}
+      return value.length > 28 ? `${value.slice(0, 27)}…` : value;
+    });
+    return {
+      host,
+      path: [...shown, ...(parts.length > 2 ? ['…'] : [])].join(' › ')
+    };
+  } catch {
+    const plain = String(url || '')
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .split(/[?#]/)[0];
+    const [host = '', ...rest] = plain.split('/').filter(Boolean);
+    const shown = rest.slice(0, 2);
+    return { host, path: [...shown, ...(rest.length > 2 ? ['…'] : [])].join(' › ') };
+  }
+}
 function itemHtml(item, q = '', idx = null) {
-  const v = view(item), c = Number(item.clickCount || 0);
+  const v = view(item), c = Number(item.clickCount || 0), up = urlPreview(item.url);
   return `<article class="item${idx !== null && idx === U.active ? ' is-active' : ''}" data-id="${escapeHtml(item.id)}" id="item-${escapeHtml(item.id)}">
     <a class="item-main" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">
       <span class="item-meta"><span class="src">${escapeHtml(v.src)}</span><span class="mood">${dot(item.projectName)}${escapeHtml(item.projectName || '未分類')}</span><span>${escapeHtml(agoText(ageDays(item)))}</span>${c ? `<span>${c}回開いた</span>` : ''}${isFavorite(item) ? '<span aria-label="お気に入り">★</span>' : ''}</span>
       <span class="item-title clamp2">${highlight(v.title, q)}</span>
+      <span class="item-url" aria-hidden="true"><span class="item-url-host">${escapeHtml(up.host)}</span>${up.path ? `<span class="item-url-path"> › ${escapeHtml(up.path)}</span>` : ''}</span>
       ${v.desc ? `<span class="item-desc clamp3">${highlight(v.desc, q)}</span>` : ''}
     </a>
     <div class="item-foot"><span class="by">${escapeHtml(v.by)}</span><button class="item-more" type="button" aria-label="${escapeHtml(v.title.slice(0, 20))}の詳細と操作">${ICON.more}</button></div>
