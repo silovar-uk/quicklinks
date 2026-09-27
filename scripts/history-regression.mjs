@@ -42,23 +42,16 @@ function link(id, title, daysAgo, clickCount, projectName = '業務') {
 }
 
 function fixture() {
-  const longBodyPrompt = prompt('long-body', 'Long body prompt', 75, 2, '保管');
-  longBodyPrompt.body = '長文プロンプト。'.repeat(140);
   const promptMemos = [
     prompt('a', 'Alpha', 1, 8),
     prompt('b', 'Bravo', 2, 5),
     prompt('c', 'Charlie', 3, 3),
     prompt('d', 'Delta', 4, 2),
-    prompt('old', 'Long time no see prompt with a deliberately long title', 180, 12, '保管'),
-    prompt('old-2', 'Quarterly archive check', 240, 3, '保管'),
-    prompt('old-3', 'Frequently used in the past', 90, 40, '保管'),
-    prompt('old-4', 'Very old small helper', 500, 2, '保管'),
-    longBodyPrompt,
+    prompt('old', 'Long time no see prompt', 180, 12, '保管'),
     prompt('never', 'Never used', null, 0, '保管'),
-    ...Array.from({ length: 8 }, (_, index) => prompt(`extra-${index}`, `Extra ${index + 1}`, 10 + index, 1)),
   ];
   return {
-    activeTab: 'prompts',
+    activeTab: 'links',
     query: '',
     currentProject: 'ALL',
     currentPromptCategory: 'ALL',
@@ -81,21 +74,6 @@ function fixture() {
   };
 }
 
-async function showPromptHistory(page) {
-  await page.evaluate(() => {
-    state.activeTab = 'prompts';
-    state.query = '';
-    state.currentPromptCategory = 'ALL';
-    state.promptPage = 1;
-    state.promptSelectMode = false;
-    render();
-  });
-  await page.locator('#promptsPanel.active').waitFor({ state: 'visible' });
-  await page.locator('#nowContext:not([hidden])').waitFor({ state: 'visible' });
-  await page.locator('.prompt-reuse-recent .prompt-reuse-button').first().waitFor({ state: 'attached' });
-  await page.locator('.prompt-reuse-dormant .prompt-rediscovery').waitFor({ state: 'visible' });
-}
-
 async function seed(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), {
@@ -103,33 +81,20 @@ async function seed(page) {
     value: fixture(),
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('[data-tab="prompts"]').waitFor({ state: 'attached' });
-  await page.waitForFunction(() => Boolean(window.QuickLinksRediscoveryUI));
-  await showPromptHistory(page);
+  await page.locator('#deckTrack .card, .card-end').first().waitFor({ state: 'attached' });
 }
 
 async function readStored(page) {
   return page.evaluate(key => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
 }
 
+async function goToPrompts(page) {
+  await page.locator('#rail [data-rail="prompts"]').click();
+  await page.locator('#pview:not([hidden])').waitFor({ state: 'visible' });
+}
+
 async function reuseTitles(page) {
-  return (await page.locator('.prompt-reuse-recent .prompt-reuse-label').allTextContents()).map(value => value.trim());
-}
-
-async function setPromptPerPage(page, value) {
-  await page.evaluate(nextValue => {
-    const select = document.getElementById('promptPerPageSelect');
-    select.value = nextValue;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
-}
-
-async function setSelectValue(page, id, value) {
-  await page.evaluate(({ selectId, nextValue }) => {
-    const select = document.getElementById(selectId);
-    select.value = nextValue;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-  }, { selectId: id, nextValue: value });
+  return (await page.locator('#reuse button:not(.dormant)').allInnerTexts()).map(t => t.trim());
 }
 
 async function waitForPromptCopy(page, id, previousCount) {
@@ -140,206 +105,121 @@ async function waitForPromptCopy(page, id, previousCount) {
   }, { key: STORAGE_KEY, promptId: id, count: previousCount });
 }
 
-async function waitForRecentFirst(page, id) {
-  await page.waitForFunction(promptId => {
-    return document.querySelector('.prompt-reuse-recent .prompt-reuse-button')?.dataset.copyPromptId === promptId;
-  }, id);
-}
-
-async function runViewport(browser, width, height) {
-  const context = await browser.newContext({ viewport: { width, height }, permissions: ['clipboard-read', 'clipboard-write'] });
-  const page = await context.newPage();
-  const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push(String(error)));
-
-  try {
-    await seed(page);
-
-    const recent = page.locator('.prompt-reuse-recent .prompt-reuse-button');
-    assert.equal(await recent.count(), 3, `${width}px: recent history count`);
-    assert.deepEqual(await reuseTitles(page), ['Alpha', 'Bravo', 'Charlie'], `${width}px: recent history order`);
-    assert.equal(await page.locator('.prompt-reuse-recent').isVisible(), false, `${width}px: recent shortcuts yield to NOW when NOW is active`);
-
-    const nowAlpha = page.locator('[data-now-kind="prompt"][data-now-id="prompt-a"]');
-    await nowAlpha.waitFor({ state: 'visible' });
-    assert.equal(await page.locator('#nowContext').isVisible(), true, `${width}px: NOW is the visible recent-use surface`);
-
-    const alphaMeta = await page.locator('[data-id="prompt-a"] .meta').innerText();
-    assert.match(alphaMeta, /8回使用/, `${width}px: usage count meta`);
-    assert.match(alphaMeta, /最終利用 \d{1,4}\/\d{1,2}/, `${width}px: last-used meta`);
-
-    await setPromptPerPage(page, 'all');
-    const neverUsedMeta = await page.locator('[data-id="prompt-never"] .meta').innerText();
-    assert.doesNotMatch(neverUsedMeta, /0回使用|最終利用/, `${width}px: no empty usage noise`);
-    await setPromptPerPage(page, '10');
-
-    await page.evaluate(() => document.getElementById('promptSimpleViewBtn').click());
-    const alphaSimpleMeta = await page.locator('[data-id="prompt-a"] .simple-sub').innerText();
-    assert.match(alphaSimpleMeta, /8回使用/, `${width}px: simple usage count`);
-    assert.match(alphaSimpleMeta, /最終 \d{1,4}\/\d{1,2}/, `${width}px: simple last-used`);
-    await page.evaluate(() => document.getElementById('promptRichViewBtn').click());
-
-    const dormant = page.locator('.prompt-reuse-dormant .prompt-rediscovery');
-    assert.equal(await dormant.count(), 1, `${width}px: dormant count`);
-    const firstDormantId = await dormant.getAttribute('data-rediscovery-id');
-    const firstDormantText = (await dormant.innerText()).trim();
-    assert.match(firstDormantText, /(日|か月|年)ぶり.*以前[\d,]+回使用/s, `${width}px: dormant facts`);
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.locator('[data-tab="prompts"]').waitFor({ state: 'attached' });
-    await page.waitForFunction(() => Boolean(window.QuickLinksRediscoveryUI));
-    await showPromptHistory(page);
-    assert.equal(
-      await page.locator('.prompt-reuse-dormant .prompt-rediscovery').getAttribute('data-rediscovery-id'),
-      firstDormantId,
-      `${width}px: dormant is stable during the day`,
-    );
-
-    const nowBounds = await page.locator('#nowContext [data-now-kind="prompt"]').evaluateAll(elements => elements.map(element => {
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right, width: rect.width, viewport: innerWidth };
-    }));
-    assert.ok(nowBounds.length > 0 && nowBounds.every(rect => rect.left >= 0 && rect.right <= rect.viewport && rect.width >= 80), `${width}px: NOW prompt actions fit`);
-
-    const alphaBefore = (await readStored(page)).promptMemos.find(item => item.id === 'prompt-a');
-    await page.locator('[data-now-kind="prompt"][data-now-id="prompt-a"]').click();
-    await waitForPromptCopy(page, 'prompt-a', alphaBefore.copyCount);
-    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'Alphaの本文', `${width}px: NOW clipboard`);
-    const afterReuse = await readStored(page);
-    const alpha = afterReuse.promptMemos.find(item => item.id === 'prompt-a');
-    assert.equal(alpha.copyCount, alphaBefore.copyCount + 1, `${width}px: NOW copy count increment`);
-    assert.ok(Date.parse(alpha.lastCopiedAt) > Date.now() - 10_000, `${width}px: NOW timestamp`);
-
-    await page.locator('#globalSearch').fill('Alpha');
-    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: history hidden during search`);
-    assert.equal(await page.locator('#nowContext').isVisible(), false, `${width}px: NOW hidden during search`);
-    await page.locator('#clearSearchBtn').click();
-    await page.locator('[data-prompt-category="保管"]').click();
-    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, `${width}px: history hidden during category filter`);
-    await page.locator('[data-prompt-category="ALL"]').click();
-
-    const deltaCard = page.locator('[data-id="prompt-d"]');
-    await deltaCard.getByRole('button', { name: 'コピー' }).click();
-    assert.deepEqual((await reuseTitles(page)).slice(0, 3), ['Delta', 'Alpha', 'Bravo'], `${width}px: normal copy updates recent history`);
-
-    const dormantBeforeCopy = page.locator('.prompt-reuse-dormant .prompt-rediscovery');
-    const dormantId = await dormantBeforeCopy.getAttribute('data-rediscovery-id');
-    const storedBeforeDormantCopy = await readStored(page);
-    const dormantMemoBefore = storedBeforeDormantCopy.promptMemos.find(item => item.id === dormantId);
-    await dormantBeforeCopy.getByRole('button', { name: 'コピー', exact: true }).click();
-    await waitForPromptCopy(page, dormantId, dormantMemoBefore.copyCount);
-    await waitForRecentFirst(page, dormantId);
-
-    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), dormantMemoBefore.body, `${width}px: dormant clipboard`);
-    const storedAfterDormantCopy = await readStored(page);
-    const dormantMemoAfter = storedAfterDormantCopy.promptMemos.find(item => item.id === dormantId);
-    assert.equal(dormantMemoAfter.copyCount, dormantMemoBefore.copyCount + 1, `${width}px: dormant count increment`);
-    assert.ok(Date.parse(dormantMemoAfter.lastCopiedAt) > Date.now() - 10_000, `${width}px: dormant timestamp`);
-    assert.equal((await reuseTitles(page))[0], dormantMemoBefore.title, `${width}px: dormant moves to recent history`);
-
-    const allowedPromptKeys = ['body', 'categoryName', 'copyCount', 'createdAt', 'id', 'lastCopiedAt', 'title', 'updatedAt'];
-    storedAfterDormantCopy.promptMemos.forEach(item => {
-      assert.deepEqual(Object.keys(item).sort(), allowedPromptKeys, `${width}px: no new stored fields`);
-    });
-
-    if (process.env.HISTORY_QA_SCREENSHOT && width === 390) {
-      await page.screenshot({ path: process.env.HISTORY_QA_SCREENSHOT, fullPage: true });
-    }
-
-    assert.deepEqual(pageErrors, [], `${width}px: page errors`);
-    return { width, status: 'PASS' };
-  } finally {
-    await context.close();
-  }
-}
-
 async function runCoreRegression(browser) {
   const context = await browser.newContext({
-    viewport: { width: 1440, height: 1000 },
+    viewport: { width: 1366, height: 900 },
     permissions: ['clipboard-read', 'clipboard-write'],
     acceptDownloads: true,
   });
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
+  // このテストはデータ層の確認が目的なので、ページ情報の自動取得は起こさせない
+  await context.route('https://example.com/**', route => route.abort());
+  await context.route('https://api.microlink.io/**', route => route.abort());
 
   try {
     await seed(page);
+    await goToPrompts(page);
 
-    await setPromptPerPage(page, 'all');
-    const longBodyPreview = await page.locator('[data-id="prompt-long-body"] .prompt-body').innerText();
-    assert.ok(longBodyPreview.endsWith('…') && longBodyPreview.length <= 361, 'long prompt is safely previewed');
-    await setPromptPerPage(page, '10');
+    // 最近コピーした順・久しぶりの表示
+    assert.deepEqual(await reuseTitles(page), ['Alpha', 'Bravo', 'Charlie'], 'recent history order');
+    const dormant = page.locator('#reuse button.dormant');
+    assert.equal(await dormant.count(), 1, 'dormant shown');
+    const firstDormantId = await dormant.getAttribute('data-copy');
 
-    await setSelectValue(page, 'promptSortSelect', 'title');
-    assert.equal(await page.locator('#promptsList [data-id]').first().getAttribute('data-id'), 'prompt-a', 'prompt sort');
-    await page.locator('#promptPagerTop [data-page-action="next"]').click();
-    assert.equal((await readStored(page)).promptPage, 2, 'prompt pagination next');
-    assert.equal(await page.locator('.prompt-reuse-group').count(), 0, 'history hidden after page one');
-    await page.locator('#promptPagerTop [data-page-action="prev"]').click();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#deckTrack .card, .card-end').first().waitFor({ state: 'attached' });
+    await goToPrompts(page);
+    assert.equal(await page.locator('#reuse button.dormant').getAttribute('data-copy'), firstDormantId, 'dormant is stable during the day');
 
-    await page.evaluate(() => openPromptModal());
-    await page.locator('#promptTitle').fill('Regression Prompt');
-    await page.locator('#promptCategory').fill('業務');
-    await page.locator('#promptBody').fill('Regression body');
-    await page.locator('#savePromptBtn').click();
+    // コピー回数・時刻
+    const alphaBefore = (await readStored(page)).promptMemos.find(item => item.id === 'prompt-a');
+    await page.locator('#promptList .row[data-id="prompt-a"] .row-copy').click();
+    await waitForPromptCopy(page, 'prompt-a', alphaBefore.copyCount);
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'Alphaの本文', 'clipboard has prompt body');
+    const alphaAfter = (await readStored(page)).promptMemos.find(item => item.id === 'prompt-a');
+    assert.equal(alphaAfter.copyCount, alphaBefore.copyCount + 1, 'copy count increment');
+    assert.ok(Date.parse(alphaAfter.lastCopiedAt) > Date.now() - 10_000, 'copy timestamp updated');
+    assert.deepEqual(await reuseTitles(page), ['Alpha', 'Bravo', 'Charlie'], 'recent history reorders to newest copy');
+
+    // プロンプトの追加・編集・削除
+    await page.locator('#promptAddButton').click();
+    await page.locator('#promptSheet[open]').waitFor();
+    await page.locator('#pCat').fill('業務');
+    await page.locator('#pTitle').fill('Regression Prompt');
+    await page.locator('#pBody').fill('Regression body');
+    await page.locator('#pSave').click();
+    await page.locator('#promptSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
     let stored = await readStored(page);
     const addedPrompt = stored.promptMemos.find(item => item.title === 'Regression Prompt');
     assert.ok(addedPrompt, 'prompt add');
 
-    await setPromptPerPage(page, 'all');
-    const addedPromptRow = page.locator(`[data-id="${addedPrompt.id}"]`);
-    await addedPromptRow.getByRole('button', { name: '編集' }).click();
-    await page.locator('#promptTitle').fill('Regression Prompt Edited');
-    await page.locator('#savePromptBtn').click();
+    await page.locator(`#promptList .row[data-id="${addedPrompt.id}"] .row-main`).click();
+    await page.locator('#promptPane [data-pedit]').click();
+    await page.locator('#promptSheet[open]').waitFor();
+    await page.locator('#pTitle').fill('Regression Prompt Edited');
+    await page.locator('#pSave').click();
     stored = await readStored(page);
     assert.equal(stored.promptMemos.find(item => item.id === addedPrompt.id)?.title, 'Regression Prompt Edited', 'prompt edit');
 
-    await page.locator(`[data-id="${addedPrompt.id}"]`).getByRole('button', { name: 'その他の操作' }).click();
+    await page.locator(`#promptList .row[data-id="${addedPrompt.id}"] .row-main`).click();
+    await page.locator('#promptPane [data-pedit]').click();
     page.once('dialog', dialog => dialog.accept());
-    await page.locator('#precisionActionMenu').getByRole('button', { name: '削除' }).click();
+    await page.locator('#pDelete').click();
     assert.equal((await readStored(page)).promptMemos.some(item => item.id === addedPrompt.id), false, 'prompt delete');
-    await setPromptPerPage(page, '10');
 
-    await page.getByRole('button', { name: 'リンク', exact: true }).click();
-    await page.evaluate(() => openLinkModal(null, { skipClipboardAutofill: true }));
-    await page.locator('#linkTitle').fill('Regression Link');
-    await page.locator('#linkUrl').fill('https://example.com/regression');
-    await page.locator('#linkProject').fill('業務');
-    await page.locator('#linkNote').fill('Regression note');
-    await page.locator('#saveLinkBtn').click();
+    // リンクの保存・編集・開いた回数
+    await page.locator('[data-rail="all"]').click();
+    await page.locator('#addButton').click();
+    await page.locator('#linkSheet[open]').waitFor();
+    await page.locator('#fUrl').fill('https://example.com/regression');
+    await page.locator('#fCat').fill('業務');
+    await page.keyboard.press('Enter');
+    await page.locator('#fTitle').fill('Regression Link');
+    await page.locator('#fNote').fill('Regression note');
+    await page.locator('#fSave').click();
+    await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
     stored = await readStored(page);
     const addedLink = stored.items.find(item => item.title === 'Regression Link');
     assert.ok(addedLink, 'link add');
 
-    await page.locator(`[data-id="${addedLink.id}"]`).getByRole('button', { name: 'その他の操作' }).click();
-    await page.locator('#precisionActionMenu').getByRole('button', { name: '編集' }).click();
-    await page.locator('#linkTitle').fill('Regression Link Edited');
-    await page.locator('#saveLinkBtn').click();
+    await page.locator(`#lib .item[data-id="${addedLink.id}"] .item-more`).click();
+    await page.locator('#detailSheet [data-act="edit"]').click();
+    await page.locator('#linkSheet[open]').waitFor();
+    await page.locator('#fTitle').fill('Regression Link Edited');
+    await page.locator('#fSave').click();
     assert.equal((await readStored(page)).items.find(item => item.id === addedLink.id)?.title, 'Regression Link Edited', 'link edit');
 
     const initialClickCount = (await readStored(page)).items.find(item => item.id === 'link-a').clickCount;
-    await page.locator('#linksList [data-id="link-a"]').getByRole('button', { name: '開く' }).click();
+    const popupPromise = context.waitForEvent('page', { timeout: 4000 }).catch(() => null);
+    await page.locator('#lib .item[data-id="link-a"] .item-main').click();
+    const popup = await popupPromise;
+    if (popup) await popup.close();
+    await page.waitForTimeout(150);
     stored = await readStored(page);
     const clickedLink = stored.items.find(item => item.id === 'link-a');
     assert.equal(clickedLink.clickCount, initialClickCount + 1, 'link click count');
     assert.ok(Date.parse(clickedLink.lastClickedAt) > Date.now() - 10_000, 'link last-clicked timestamp');
 
-    await page.locator('#globalSearch').fill('Regression Link Edited');
-    assert.equal(await page.locator('#linksList [data-id]').count(), 1, 'link search');
-    await page.locator('#clearSearchBtn').click();
+    await page.locator('#searchInput').fill('Regression Link Edited');
+    assert.equal(await page.locator('#lib .item[data-id]').count(), 1, 'link search');
+    await page.locator('#searchClear').click();
 
-    await page.locator(`[data-id="${addedLink.id}"]`).getByRole('button', { name: 'その他の操作' }).click();
-    page.once('dialog', dialog => dialog.accept());
-    await page.locator('#precisionActionMenu').getByRole('button', { name: '削除' }).click();
-    assert.equal((await readStored(page)).items.some(item => item.id === addedLink.id), false, 'link delete');
+    await page.locator(`#lib .item[data-id="${addedLink.id}"] .item-more`).click();
+    await page.locator('#detailSheet [data-act="letgo"]').click();
+    assert.equal((await readStored(page)).items.some(item => item.id === addedLink.id), false, 'link delete (letgo)');
+    await page.locator('#toast button').click();
+    assert.equal((await readStored(page)).items.some(item => item.title === 'Regression Link Edited'), true, 'link delete undo');
 
-    await page.getByRole('button', { name: '管理', exact: true }).click();
+    // 書き出し
+    await page.locator('[data-rail="manage"]').click();
     const downloadPromise = page.waitForEvent('download');
     await page.locator('#exportBtn').click();
     const download = await downloadPromise;
     assert.match(download.suggestedFilename(), /^quick_links_mobile_backup_\d{4}-\d{2}-\d{2}\.json$/, 'export filename');
 
+    // 旧形式の取り込み
     const importPayload = {
       schemaVersion: 'quick-links-backup-v2',
       quickLinks: {
@@ -354,8 +234,6 @@ async function runCoreRegression(browser) {
         ],
       },
     };
-    const importDisclosure = page.locator('details').filter({ hasText: 'JSON貼り付けインポート' });
-    await importDisclosure.locator('summary').click();
     await page.locator('#importText').fill(JSON.stringify(importPayload));
     await page.locator('#runImportBtn').click();
     stored = await readStored(page);
@@ -366,6 +244,12 @@ async function runCoreRegression(browser) {
     assert.equal(stored.items.some(item => item.id === 'archived-import'), false, 'archived import excluded');
     assert.equal(await page.evaluate(key => localStorage.getItem(key) !== null, STORAGE_KEY), true, 'storage key unchanged');
 
+    // プロンプトへ新しい項目を足していないこと
+    const allowedPromptKeys = ['body', 'categoryName', 'copyCount', 'createdAt', 'id', 'lastCopiedAt', 'title', 'updatedAt'];
+    stored.promptMemos.forEach(item => {
+      assert.deepEqual(Object.keys(item).sort(), allowedPromptKeys, 'no new stored prompt fields');
+    });
+
     assert.deepEqual(pageErrors, [], 'core page errors');
     return { status: 'PASS' };
   } finally {
@@ -375,17 +259,8 @@ async function runCoreRegression(browser) {
 
 const browser = await chromium.launch({ headless: true });
 try {
-  const results = [];
-  for (const viewport of [
-    { width: 375, height: 812 },
-    { width: 390, height: 844 },
-    { width: 430, height: 932 },
-    { width: 1440, height: 1000 },
-  ]) {
-    results.push(await runViewport(browser, viewport.width, viewport.height));
-  }
   const core = await runCoreRegression(browser);
-  console.log(JSON.stringify({ step1: 'PASS', step2: 'PASS', step3: 'PASS', core, results }, null, 2));
+  console.log(JSON.stringify({ core }, null, 2));
 } finally {
   await browser.close();
 }

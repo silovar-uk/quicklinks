@@ -1,132 +1,150 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#b4232c" />
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <link rel="icon" type="image/png" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
-  <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814" />
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <title>Quick Links</title>
-  <style>
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      display: grid;
-      place-items: center;
-      color: #64748b;
-      background: #f7f7f5;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 13px;
-      font-weight: 800;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#b4232c">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
+<link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Quick Links</title>
+<link rel="stylesheet" href="./app.css?v=20261001-mekuru-p1">
 </head>
 <body>
-  <div id="loader">Quick Linksを読み込んでいます…</div>
-  <script>
-    (async () => {
-      const loader = document.getElementById('loader');
-      try {
-        const response = await fetch('./app.html?v=20260927-mobile-shell', { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        let html = await response.text();
-        const quickUrlModal = `
-  <div class="modal" id="quickUrlModal" aria-hidden="true">
-    <div class="modal-sheet">
-      <div class="modal-head">
-        <h2 class="modal-title">リンクを追加</h2>
-        <button class="modal-close" data-close-modal="quickUrlModal">×</button>
-      </div>
-      <div class="hint" style="margin-bottom:12px;">URLを貼るだけでページ情報を取得し、保存前に内容を確認できます。</div>
-      <div class="form-row">
-        <label for="quickUrlInput">URL</label>
-        <div class="quick-url-actions">
-          <input id="quickUrlInput" class="input" inputmode="url" autocomplete="url" placeholder="https://..." />
-          <button class="btn ghost compact" id="pasteQuickUrlBtn" type="button">貼る</button>
-        </div>
-        <div class="duplicate-warning" id="quickUrlDuplicate"></div>
-      </div>
-      <div class="form-row">
-        <label for="quickUrlProject">分類 <span style="color:#94a3b8;font-weight:700;">（あとから変更可）</span></label>
-        <div class="quick-project-search-shell">
-          <div class="quick-project-search">
-            <input id="quickProjectSearch" class="input" type="search" autocomplete="off" placeholder="分類を検索" aria-label="分類を検索" />
-            <button id="quickProjectSearchClear" class="quick-project-search-clear" type="button" aria-label="分類検索をクリア" hidden>×</button>
-          </div>
-          <div id="quickProjectSearchMeta" class="quick-project-search-meta" aria-live="polite" hidden></div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-1px 0 8px;">
-          <span style="color:#85857f;font-size:10px;font-weight:600;white-space:nowrap;">並び順</span>
-          <select id="quickProjectSort" class="select" aria-label="分類の並び順" style="width:auto;min-width:138px;height:34px;padding-top:0;padding-bottom:0;font-size:11px;font-weight:500;">
-            <option value="recent">最近使った順</option>
-            <option value="count">使用数が多い順</option>
-            <option value="name">名前順</option>
-            <option value="default">現在の並び順</option>
-          </select>
-        </div>
-        <div id="quickProjectRecents" hidden style="margin:0 0 9px;padding:8px 0 9px;border-bottom:1px solid var(--line);">
-          <div style="display:flex;align-items:flex-start;gap:8px;">
-            <span style="color:#85857f;font-size:10px;font-weight:600;white-space:nowrap;padding-top:7px;">最近</span>
-            <div id="quickProjectRecentButtons" style="display:flex;flex-wrap:wrap;gap:6px;min-width:0;"></div>
-          </div>
-        </div>
-        <div class="category-input-grid">
-          <input id="quickUrlProject" class="input" list="quickUrlProjectList" placeholder="未分類（必要なら新しい分類名を入力）" />
-          <select id="quickUrlProjectSelect" class="select" aria-label="既存分類から選ぶ"><option value="">既存分類から選ぶ</option></select>
-        </div>
-        <datalist id="quickUrlProjectList"></datalist>
-      </div>
-      <div class="fetch-status" id="quickUrlStatus" role="status" aria-live="polite" aria-atomic="true" aria-busy="false">URLを貼るとページ情報を取得し、保存前に内容を確認できます。</div>
-      <div class="quick-url-privacy">ページ情報を取得できない場合は、取得のため外部サービスを使用します。AIによる分類・文章生成は行いません。</div>
-      <div class="modal-actions">
-        <button class="btn ghost" id="manualQuickUrlBtn" type="button">情報取得せず入力</button>
-        <button class="btn primary" id="fetchQuickUrlBtn" type="button">URLから追加</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin:15px 0 9px;color:#94949c;font-size:10px;font-weight:720;"><span style="height:1px;background:var(--line);flex:1;"></span><span>まとめて追加</span><span style="height:1px;background:var(--line);flex:1;"></span></div>
-      <button class="btn ghost" id="openJsonImportBtn" type="button" aria-expanded="false" style="width:100%;min-height:44px;">JSONからまとめて追加</button>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.4 13.6a4 4 0 0 0 5.7.1l2-2a4 4 0 1 0-5.7-5.7l-1.2 1.2M13.6 10.4a4 4 0 0 0-5.7-.1l-2 2a4 4 0 1 0 5.7 5.7l1.2-1.2"/></svg><span>Quick Links</span></div>
+    <div class="seg" id="seg" role="group" aria-label="種類">
+      <button type="button" data-seg="links" aria-pressed="true">リンク<span class="n" id="segLinks"></span></button>
+      <button type="button" data-seg="prompts" aria-pressed="false">プロンプト<span class="n" id="segPrompts"></span></button>
     </div>
-  </div>`;
+    <div class="search" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+      <input id="searchInput" type="search" placeholder="打てば探せます(ひらがなでも)" autocomplete="off" spellcheck="false" aria-label="リンクとプロンプトを探す" aria-controls="lib" aria-autocomplete="list">
+      <span class="search-keys" id="searchKeys"><span class="kbd">/</span><span class="kbd">Ctrl K</span></span>
+      <button class="search-clear" id="searchClear" type="button" aria-label="検索を消す" hidden><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button>
+    </div>
+    <div class="top-actions">
+      <button id="syncButton" class="pill" type="button" data-state="ok" aria-label="同期"><span class="sync-dot" aria-hidden="true"></span><span id="syncLabel">同期</span></button>
+      <button id="addButton" class="btn primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>保存</button>
+      <button id="manageButton" class="icon-btn" type="button" aria-label="管理"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></button>
+    </div>
+  </header>
 
-        const metadataPreview = `<div class="metadata-preview" id="linkMetadataPreview" hidden></div>`;
+  <div class="desk" id="desk">
+    <nav id="rail" aria-label="引き出し"></nav>
+    <main id="center">
+      <div class="chips" id="chips" role="group" aria-label="引き出し"></div>
+      <section id="deck" class="deck" aria-labelledby="deckTitle">
+        <div class="deck-head">
+          <h2 id="deckTitle">めくる</h2>
+          <span class="deck-count" id="deckCount" aria-live="polite"></span>
+          <div class="kinds" role="group" aria-label="見る長さ">
+            <button type="button" data-kind="all" aria-pressed="true">ぜんぶ</button>
+            <button type="button" data-kind="quick" aria-pressed="false">さっと</button>
+            <button type="button" data-kind="deep" aria-pressed="false">じっくり</button>
+          </div>
+          <div class="deck-nav"><button class="btn" type="button" id="deckPrev" aria-label="1枚戻す">← 戻す</button><button class="btn" type="button" id="deckNext" aria-label="次の1枚">次へ →</button></div>
+        </div>
+        <div class="track" id="deckTrack" tabindex="-1" aria-label="めくる束"></div>
+      </section>
+      <div class="lib-head" id="libHead">
+        <h2 id="libTitle">ぜんぶ</h2><span class="n" id="libCount"></span>
+        <select id="sortSelect" aria-label="並び順"></select>
+      </div>
+      <section id="lib" class="lib" aria-label="保存したリンク"></section>
+      <section id="pview" class="pview" hidden>
+        <div class="pview-list">
+          <div class="reuse" id="reuse"></div>
+          <div style="display:flex;gap:12px;padding:8px 16px;border-bottom:1px solid var(--line)"><button class="btn quiet" type="button" id="promptAddButton" style="padding:0">＋ プロンプトを保存</button><button class="btn quiet" type="button" id="promptOrganizeButton" style="padding:0;margin-left:auto">カテゴリを整理</button></div>
+          <div id="promptList" role="list"></div>
+        </div>
+        <aside id="promptPane" aria-label="プロンプトの本文" aria-live="polite"></aside>
+      </section>
+      <section id="manage" hidden></section>
+    </main>
+  </div>
 
-        if (!html.includes('</head>') || !html.includes('</body>')) throw new Error('app shell is incomplete');
-        html = html.replace('<title>Quick Links Mobile</title>', '<title>Quick Links</title>');
-        html = html.replace('<h1 class="brand-title">Quick Links Mobile</h1>', '<h1 class="brand-title">Quick Links</h1>');
-        html = html.replace('placeholder="タイトル・URL・備考・プロンプトを検索"', 'placeholder="リンク・プロンプトを検索"');
-        html = html.replace('</head>', `  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />\n  <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814" />\n  <link rel="manifest" href="./manifest.webmanifest" />\n  <link rel="stylesheet" href="./quick-add.css?v=20260911-loading-state" />\n  <link rel="stylesheet" href="./prompt-add.css?v=20260831-prompt-modal" />\n  <link rel="stylesheet" href="./quick-project-search.css?v=20260824-mobile-search" />\n  <link rel="stylesheet" href="./layered-minimal.css?v=20260831-history-reuse" />\n  <link rel="stylesheet" href="./precision-upgrade.css?v=20260911-loading-cleanup" />\n  <link rel="stylesheet" href="./sync.css?v=20260926-auto-save-sync-r3" />\n  <link rel="stylesheet" href="./category-organizer.css?v=20260926-merge-ux-r3" />\n  <link rel="stylesheet" href="./mobile-app-shell.css?v=20260927-v1" />\n</head>`);
-        html = html.replace('  <div class="modal" id="yamlAddModal"', `${quickUrlModal}\n  <div class="modal" id="yamlAddModal"`);
-        html = html.replace('      <div class="form-row">\n        <label for="linkNote">備考</label>', `      ${metadataPreview}\n      <div class="form-row">\n        <label for="linkNote">備考</label>`);
-        html = html.replace('このHTMLは1ファイルで動きます。', 'このページはブラウザ内で動きます。');
-        const scripts = [
-          '  <scr' + 'ipt src="./quick-add.js?v=20260823-projectsort"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./quick-loading.js?v=20260911-loading-cancel-r2"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./precision-data.js?v=20260811-precision"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./precision-ui.js?v=20260813-iconsystem"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./precision-a11y.js?v=20260831-uncategorized-placeholder"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./rediscovery-ui.js?v=20260831-copy-result-feedback"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./search-shift.js?v=20260831-render-cleanup"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./now-ui.js?v=20260911-random-link"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./interaction-feedback.js?v=20260831-save-feedback"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./recovery-ui.js?v=20260831-single-delete-undo-r2"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./quick-project-search.js?v=20260824-mobile-search"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./bookmarklet-add.js?v=20260904-direct-add-r2"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./sync.js?v=20260926-auto-save-sync-r3"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./category-organizer.js?v=20260926-merge-ux-r3"></scr' + 'ipt>',
-          '  <scr' + 'ipt src="./mobile-app-shell.js?v=20260927-v2"></scr' + 'ipt>'
-        ].join('\n') + '\n';
-        html = html.replace('</body>', scripts + '</body>');
+  <nav id="bottomBar" aria-label="探す・保存">
+    <button id="searchOpen" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>探す</button>
+    <button id="bottomAdd" type="button" aria-label="リンクを保存"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  </nav>
+</div>
 
-        document.open();
-        document.write(html);
-        document.close();
-      } catch (error) {
-        console.error(error);
-        loader.textContent = '読み込みに失敗しました。ページを再読み込みしてください。';
-      }
-    })();
-  </script>
+<dialog id="linkSheet" class="bottom" aria-labelledby="linkSheetTitle">
+  <div class="sheet-head"><h2 id="linkSheetTitle">リンクを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <form class="sheet-body" id="linkForm" novalidate>
+    <div id="fPage" class="page-card" hidden></div>
+    <div class="field">
+      <label class="lab" for="fUrl">URL</label>
+      <div class="url-row"><input id="fUrl" class="inp" inputmode="url" autocomplete="off" placeholder="https://…"><button class="btn" type="button" id="fPaste">貼る</button></div>
+    </div>
+    <div id="fStatus" class="status" role="status" aria-live="polite" aria-busy="false" hidden></div>
+    <div id="fDup" class="dup" hidden></div>
+    <div id="fDiff" class="diff" hidden></div>
+    <div class="field">
+      <label class="lab" for="fCat">引き出し <span class="aside">選ばなければ未分類</span></label>
+      <div class="recent" id="fRecent" aria-label="最近入れた引き出し"></div>
+      <div class="combo">
+        <input id="fCat" class="inp" role="combobox" aria-expanded="false" aria-controls="fCatList" aria-autocomplete="list" autocomplete="off" placeholder="引き出しを選ぶか、新しい名前を入れる">
+        <div id="fCatList" class="combo-list" role="listbox" aria-label="引き出しの候補" hidden></div>
+      </div>
+    </div>
+    <div class="field">
+      <label class="lab" for="fTitle">タイトル <button class="btn quiet" type="button" id="fRefetch" hidden style="margin-left:auto;height:28px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>ページ情報を取り直す</button></label>
+      <input id="fTitle" class="inp" autocomplete="off">
+    </div>
+    <div class="field">
+      <label class="lab" for="fNote">備考 <span class="aside">ページの説明が入ります</span></label>
+      <textarea id="fNote" class="inp"></textarea>
+    </div>
+    <label class="switch"><input type="checkbox" id="fFav"> お気に入り</label>
+  </form>
+  <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="fSave">未分類で保存</button></div>
+</dialog>
+
+<dialog id="promptSheet" class="bottom" aria-labelledby="promptSheetTitle">
+  <div class="sheet-head"><h2 id="promptSheetTitle">プロンプトを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <form class="sheet-body" id="promptForm" novalidate>
+    <div class="field">
+      <label class="lab" for="pCat">カテゴリ <span class="aside">選ばなければ未分類</span></label>
+      <div class="recent" id="pRecent" aria-label="最近入れたカテゴリ"></div>
+      <div class="combo">
+        <input id="pCat" class="inp" role="combobox" aria-expanded="false" aria-controls="pCatList" aria-autocomplete="list" autocomplete="off" placeholder="カテゴリを選ぶか、新しい名前を入れる">
+        <div id="pCatList" class="combo-list" role="listbox" aria-label="カテゴリの候補" hidden></div>
+      </div>
+    </div>
+    <div class="field"><label class="lab" for="pTitle">タイトル</label><input id="pTitle" class="inp" autocomplete="off"></div>
+    <div class="field"><label class="lab" for="pBody">本文</label><textarea id="pBody" class="inp" style="min-height:160px"></textarea></div>
+  </form>
+  <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn danger" type="button" id="pDelete" hidden>削除</button><button class="btn primary" type="button" id="pSave">保存</button></div>
+</dialog>
+
+<dialog id="detailSheet" class="side" aria-labelledby="detailSheetTitle">
+  <div class="sheet-head"><h2 id="detailSheetTitle">詳細</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-body" id="detailSheetBody" style="padding:0"></div>
+</dialog>
+
+<dialog id="actionSheet" class="bottom" aria-labelledby="actionTitle">
+  <div class="sheet-head"><h2 id="actionTitle">操作</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="menu" id="actionMenu"></div>
+</dialog>
+
+<dialog id="searchSheet" class="full search-sheet" aria-label="探す">
+  <div class="sheet-head"><button class="x" type="button" data-close aria-label="戻る" style="margin:0"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><input id="mSearchInput" type="search" placeholder="探す(ひらがなでも)" autocomplete="off" aria-label="リンクとプロンプトを探す"></div>
+  <div id="mResults" class="list1"></div>
+</dialog>
+
+<dialog id="catSheet" class="bottom" aria-labelledby="catSheetTitle">
+  <div class="sheet-head"><h2 id="catSheetTitle">引き出しと並び順</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="menu" id="catMenu"></div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="./core.js?v=20261001-mekuru-p1"></script>
+<script src="./ui.js?v=20261001-mekuru-p1"></script>
+<script src="./sync.js?v=20261001-mekuru-p1"></script>
 </body>
 </html>

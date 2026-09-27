@@ -73,6 +73,12 @@ jobs:
           LOCAL_URL: http://127.0.0.1:4173/
         run: node scripts/mobile-shell-regression.mjs
 
+      - name: Run mekuru acceptance QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+          QA_PHASES: P1
+        run: node scripts/mekuru-qa.mjs
+
       - name: Collect server log
         if: always()
         run: cp /tmp/quicklinks-server.log visual-qa/server.log || true

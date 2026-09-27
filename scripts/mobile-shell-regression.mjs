@@ -47,39 +47,33 @@ async function seed(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
   await page.evaluate(({ key, value }) => {
     localStorage.setItem(key, JSON.stringify(value));
-    localStorage.removeItem('quick-links-sync-v1');
   }, { key: STORAGE_KEY, value: fixture() });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => Boolean(window.QuickLinksMobileShell));
+  await page.locator('#deckTrack .card, .card-end').first().waitFor({ state: 'attached' });
 }
 
-async function snapshot(page) {
+async function snapshotMobile(page) {
   return page.evaluate(() => {
-    const main = document.querySelector('main');
-    const nav = document.querySelector('.tabs');
-    const fab = document.querySelector('.fab');
-    const app = document.querySelector('.app');
-    const navRect = nav.getBoundingClientRect();
-    const fabRect = fab.getBoundingClientRect();
+    const center = document.querySelector('#center');
+    const bar = document.querySelector('#bottomBar').getBoundingClientRect();
+    const app = document.querySelector('#app');
     return {
       innerWidth: window.innerWidth,
       innerHeight: window.innerHeight,
       shellHeight: app.getBoundingClientRect().height,
       bodyScroll: document.body.scrollTop,
       docScroll: document.documentElement.scrollTop,
-      mainScroll: main.scrollTop,
-      mainScrollHeight: main.scrollHeight,
-      mainClientHeight: main.clientHeight,
+      centerScroll: center.scrollTop,
+      centerScrollHeight: center.scrollHeight,
+      centerClientHeight: center.clientHeight,
       docWidth: document.documentElement.scrollWidth,
       bodyOverflow: getComputedStyle(document.body).overflow,
       appDisplay: getComputedStyle(app).display,
-      mainOverflowY: getComputedStyle(main).overflowY,
-      navPosition: getComputedStyle(nav).position,
-      navTop: navRect.top,
-      navBottom: navRect.bottom,
-      navHeight: navRect.height,
-      fabBottom: fabRect.bottom,
-      shellClass: document.documentElement.classList.contains('quick-mobile-shell'),
+      centerOverflowY: getComputedStyle(center).overflowY,
+      barPosition: getComputedStyle(document.querySelector('#bottomBar')).position,
+      barTop: bar.top,
+      barBottom: bar.bottom,
+      shellClass: document.documentElement.classList.contains('keyboard-open'),
     };
   });
 }
@@ -93,50 +87,40 @@ async function testMobile(engineName, browserType, width) {
 
   try {
     await seed(page);
-    let before = await snapshot(page);
+    let before = await snapshotMobile(page);
 
-    assert.equal(before.shellClass, true, engineName + ' shell class is active');
     assert.equal(before.bodyOverflow, 'hidden', engineName + ' body does not scroll');
     assert.equal(before.appDisplay, 'grid', engineName + ' app uses grid shell');
-    assert.equal(before.mainOverflowY, 'auto', engineName + ' main owns vertical scrolling');
-    assert.equal(before.navPosition, 'relative', engineName + ' bottom nav is not fixed');
-    assert.ok(before.mainScrollHeight > before.mainClientHeight, engineName + ' fixture is scrollable');
-    assert.ok(Math.abs(before.navBottom - before.innerHeight) <= 2, engineName + ' nav sits at visible bottom');
+    assert.equal(before.centerOverflowY, 'auto', engineName + ' #center owns vertical scrolling');
+    assert.notEqual(before.barPosition, 'fixed', engineName + ' bottom bar is not fixed');
+    assert.ok(before.centerScrollHeight > before.centerClientHeight, engineName + ' fixture is scrollable');
+    assert.ok(Math.abs(before.barBottom - before.innerHeight) <= 2, engineName + ' bar sits at visible bottom');
     assert.ok(before.docWidth <= before.innerWidth, engineName + ' has no horizontal page overflow');
-    assert.ok(before.fabBottom <= before.navTop - 6, engineName + ' FAB stays above bottom nav');
 
-    await page.locator('main').evaluate(node => { node.scrollTop = 1200; });
+    await page.locator('#center').evaluate(node => { node.scrollTop = 1200; });
     await page.waitForTimeout(80);
-    let afterScroll = await snapshot(page);
+    let afterScroll = await snapshotMobile(page);
 
-    assert.ok(afterScroll.mainScroll > 500, engineName + ' main scrolls deeply');
+    assert.ok(afterScroll.centerScroll > 500, engineName + ' #center scrolls deeply');
     assert.equal(afterScroll.bodyScroll, 0, engineName + ' body scroll remains zero');
     assert.equal(afterScroll.docScroll, 0, engineName + ' document scroll remains zero');
-    assert.ok(Math.abs(afterScroll.navTop - before.navTop) <= 1, engineName + ' nav top is stable while main scrolls');
-    assert.ok(Math.abs(afterScroll.navBottom - before.navBottom) <= 1, engineName + ' nav bottom is stable while main scrolls');
+    assert.ok(Math.abs(afterScroll.barTop - before.barTop) <= 1, engineName + ' bar top is stable while #center scrolls');
 
     await page.setViewportSize({ width, height: 760 });
-    await page.waitForTimeout(120);
-    const shrunk = await snapshot(page);
-    assert.ok(Math.abs(shrunk.navBottom - shrunk.innerHeight) <= 2, engineName + ' nav follows smaller viewport');
+    await page.waitForTimeout(150);
+    const shrunk = await snapshotMobile(page);
+    assert.ok(Math.abs(shrunk.barBottom - shrunk.innerHeight) <= 2, engineName + ' bar follows smaller viewport');
     assert.equal(shrunk.bodyScroll, 0, engineName + ' body remains fixed after viewport shrink');
-    assert.ok(shrunk.fabBottom <= shrunk.navTop - 6, engineName + ' FAB remains above nav after shrink');
 
     await page.setViewportSize({ width, height: 844 });
-    await page.waitForTimeout(120);
-    const restored = await snapshot(page);
-    assert.ok(Math.abs(restored.navBottom - restored.innerHeight) <= 2, engineName + ' nav follows restored viewport');
+    await page.waitForTimeout(150);
+    const restored = await snapshotMobile(page);
+    assert.ok(Math.abs(restored.barBottom - restored.innerHeight) <= 2, engineName + ' bar follows restored viewport');
     assert.equal(restored.bodyScroll, 0, engineName + ' body remains fixed after restore');
     assert.ok(restored.docWidth <= restored.innerWidth, engineName + ' restored viewport has no horizontal overflow');
 
     assert.deepEqual(pageErrors, [], engineName + ' has no page errors');
-    return {
-      engine: engineName,
-      width,
-      status: 'PASS',
-      navHeight: restored.navHeight,
-      shellHeight: restored.shellHeight,
-    };
+    return { engine: engineName, width, status: 'PASS', shellHeight: restored.shellHeight };
   } finally {
     await context.close();
     await browser.close();
@@ -151,16 +135,18 @@ async function testDesktop() {
   try {
     await seed(page);
     const data = await page.evaluate(() => ({
-      shellClass: document.documentElement.classList.contains('quick-mobile-shell'),
       bodyOverflow: getComputedStyle(document.body).overflow,
-      appDisplay: getComputedStyle(document.querySelector('.app')).display,
-      navPosition: getComputedStyle(document.querySelector('.tabs')).position,
+      appDisplay: getComputedStyle(document.querySelector('#app')).display,
+      railOverflowY: getComputedStyle(document.querySelector('#rail')).overflowY,
+      centerOverflowY: getComputedStyle(document.querySelector('#center')).overflowY,
+      docScrollsFully: document.documentElement.scrollHeight <= window.innerHeight + 2,
     }));
 
-    assert.equal(data.shellClass, false, 'desktop does not use mobile shell');
-    assert.notEqual(data.bodyOverflow, 'hidden', 'desktop keeps document scrolling available');
-    assert.equal(data.appDisplay, 'block', 'desktop keeps normal document layout');
-    assert.equal(data.navPosition, 'sticky', 'desktop navigation remains sticky');
+    assert.notEqual(data.bodyOverflow, 'hidden', 'desktop keeps the page from being clipped');
+    assert.equal(data.appDisplay, 'grid', 'desktop keeps the header/desk grid shell');
+    assert.equal(data.railOverflowY, 'auto', 'desktop rail scrolls on its own');
+    assert.equal(data.centerOverflowY, 'auto', 'desktop center scrolls on its own');
+    assert.equal(data.docScrollsFully, true, 'desktop page itself does not need to scroll (rail/center do)');
     return { desktop: 'PASS' };
   } finally {
     await context.close();

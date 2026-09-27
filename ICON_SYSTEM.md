@@ -37,8 +37,8 @@ Quick Linksでは、機能アイコンを「文字」ではなく「UI形状」�
 
 ## Implementation rule
 
-- 機能アイコンの正典：`precision-ui.js` の `ICONS`
-- サイズ・タップ領域・配置：`precision-upgrade.css`
+- 機能アイコンの正典：`ui.js` の `ICON`
+- サイズ・タップ領域・配置：`app.css`
 - 単純な開閉記号：CSS geometryを許可
 - テキストとして意味がある記号や絵文字：コンテンツ内では使用可
 

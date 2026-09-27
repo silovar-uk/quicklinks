@@ -454,38 +454,16 @@
   function esc(v) {
     return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   }
+  // 画面の差し込み先だけを新しいDOM(#syncButton・#manageSync)に変える。ほかは今のまま
   function addUi() {
-    const actions = document.querySelector('.top-actions');
-    if (actions && !document.getElementById('syncTopBtn')) {
-      const b = document.createElement('button');
-      b.id = 'syncTopBtn'; b.className = 'icon-btn quick-sync-top'; b.type = 'button'; b.textContent = '↻'; b.title = '端末間同期';
-      actions.insertBefore(b, actions.firstChild);
-      b.addEventListener('click', () => runSync());
-    }
-    if (!document.getElementById('syncDesktopBtn')) {
-      const b = document.createElement('button');
-      b.id = 'syncDesktopBtn';
-      b.className = 'quick-sync-desktop';
-      b.type = 'button';
-      b.title = '端末間同期';
-      b.innerHTML = '<span class="quick-sync-desktop-icon" aria-hidden="true">↻</span><span class="quick-sync-desktop-label">同期</span>';
-      const topRow = document.querySelector('.top-row');
-      if (topRow) topRow.appendChild(b);
-      else document.body.appendChild(b);
+    const b = document.getElementById('syncButton');
+    if (b && !b.dataset.syncBound) {
+      b.dataset.syncBound = '1';
       b.addEventListener('click', () => {
-        if (meta.enabled) {
-          runSync();
-          return;
-        }
-        const settingsTab = document.querySelector('.tab-btn[data-tab="settings"]');
-        if (settingsTab) settingsTab.click();
-        setTimeout(() => document.getElementById('syncCard')?.scrollIntoView({ behavior:'smooth', block:'start' }), 0);
+        if (meta.enabled) { runSync(); return; }
+        document.getElementById('manageButton')?.click();
+        setTimeout(() => document.getElementById('manageSync')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
       });
-    }
-    const panel = document.getElementById('settingsPanel');
-    if (panel && !document.getElementById('syncCard')) {
-      const c = document.createElement('div'); c.id = 'syncCard'; c.className = 'settings-card quick-sync-card';
-      panel.insertBefore(c, panel.firstChild);
     }
     if (!document.getElementById('syncModal')) {
       const m = document.createElement('div'); m.id='syncModal'; m.className='modal'; m.setAttribute('aria-hidden','true');
@@ -508,28 +486,17 @@
   }
   function renderSyncUi() {
     addUi();
-    const b = document.getElementById('syncTopBtn');
+    const b = document.getElementById('syncButton');
     if (b) {
-      b.hidden = !meta.enabled;
-      b.disabled = meta.syncing;
-      b.classList.toggle('is-dirty', !!meta.dirty);
-      b.classList.toggle('is-error', !!meta.lastError);
-      b.classList.toggle('is-syncing', !!meta.syncing);
-    }
-    const desktop = document.getElementById('syncDesktopBtn');
-    if (desktop) {
-      const label = desktop.querySelector('.quick-sync-desktop-label');
-      desktop.disabled = !!(meta.enabled && meta.syncing);
-      desktop.classList.toggle('is-dirty', !!(meta.enabled && meta.dirty));
-      desktop.classList.toggle('is-error', !!(meta.enabled && meta.lastError));
-      desktop.classList.toggle('is-syncing', !!(meta.enabled && meta.syncing));
-      desktop.classList.toggle('is-disabled', !meta.enabled);
+      const label = document.getElementById('syncLabel');
+      const state = !meta.enabled ? 'off' : meta.syncing ? 'syncing' : meta.lastError ? 'error' : meta.dirty ? 'dirty' : 'ok';
+      b.dataset.state = state;
       const text = !meta.enabled ? '同期設定' : meta.syncing ? '同期中…' : meta.lastError ? '再同期' : meta.dirty ? '同期する' : '同期済み';
       if (label) label.textContent = text;
-      desktop.title = !meta.enabled ? '端末間同期を設定' : meta.lastError ? '同期でエラーが発生しました。クリックして再同期' : meta.dirty ? '未同期の変更があります。クリックして同期' : '端末間同期';
-      desktop.setAttribute('aria-label', desktop.title);
+      b.title = !meta.enabled ? '端末間同期を設定' : meta.lastError ? '同期でエラーが発生しました。クリックして再同期' : meta.dirty ? '未同期の変更があります。クリックして同期' : '端末間同期';
+      b.setAttribute('aria-label', b.title);
     }
-    const c = document.getElementById('syncCard');
+    const c = document.getElementById('manageSync');
     if (!c) return;
     if (!meta.enabled) {
       c.innerHTML = '<div class="quick-sync-head"><div><h2 class="settings-title">端末間同期</h2><p class="settings-lead">普段はこの端末だけに保存。必要なときだけ、別端末と全件を同期します。</p></div><span class="quick-sync-badge">端末保存</span></div><button class="btn primary quick-sync-main" id="syncStartBtn">同期をはじめる</button><div class="quick-sync-note">ログイン不要。同期ボタンを押したときだけ通信します。</div>';

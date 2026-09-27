@@ -15,17 +15,15 @@ const results = {
 };
 
 async function waitForApp(page) {
-  await page.waitForSelector('.brand-title', { state: 'visible', timeout: 15000 });
-  await page.waitForSelector('#fabBtn', { state: 'visible', timeout: 15000 });
+  await page.waitForSelector('#deckTrack .card, .card-end', { state: 'attached', timeout: 15000 });
 }
 
 async function openAddModal(page) {
-  await page.locator('#fabBtn').click();
-  await page.waitForSelector('#quickUrlModal.open', { state: 'visible', timeout: 8000 });
-  await page.waitForSelector('#quickUrlInput', { state: 'visible', timeout: 5000 });
-  await page.waitForSelector('#quickUrlProjectSelect', { state: 'visible', timeout: 5000 });
-  await page.waitForSelector('#quickProjectSort', { state: 'visible', timeout: 5000 });
-  await page.waitForTimeout(350);
+  const isMobile = await page.evaluate(() => matchMedia('(max-width: 899px)').matches);
+  await page.locator(isMobile ? '#bottomAdd' : '#addButton').click();
+  await page.waitForSelector('#linkSheet[open]', { state: 'visible', timeout: 8000 });
+  await page.waitForSelector('#fUrl', { state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(200);
 }
 
 async function runViewport(browser, baseUrl, prefix, viewport, reducedMotion = 'no-preference') {
@@ -52,16 +50,13 @@ async function runViewport(browser, baseUrl, prefix, viewport, reducedMotion = '
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForApp(page);
 
-    bucket.checks.brand = await page.locator('.brand-title').innerText();
-    bucket.checks.search = await page.locator('#globalSearch').count() === 1;
-    bucket.checks.fab = await page.locator('#fabBtn').count() === 1;
+    bucket.checks.deckTrack = await page.locator('#deckTrack').count() === 1;
+    bucket.checks.searchInputOrBar = await page.locator('#searchInput, #searchOpen').count() >= 1;
 
     await page.screenshot({ path: `${OUT_DIR}/${prefix}-home.png`, fullPage: true });
 
     await openAddModal(page);
     bucket.checks.addModal = true;
-    bucket.checks.projectSort = await page.locator('#quickProjectSort').count() === 1;
-    bucket.checks.projectSortOptions = await page.locator('#quickProjectSort option').allTextContents();
     await page.screenshot({ path: `${OUT_DIR}/${prefix}-add-link.png`, fullPage: true });
 
     bucket.status = bucket.pageErrors.length ? 'failed' : 'passed';
@@ -92,6 +87,7 @@ async function runProduction(browser) {
 const browser = await chromium.launch({ headless: true });
 try {
   results.local.desktop = await runViewport(browser, LOCAL_URL, 'local-desktop', { width: 1440, height: 1000 });
+  results.local.deskPc = await runViewport(browser, LOCAL_URL, 'local-pc-1366', { width: 1366, height: 633 });
   results.local.mobile = await runViewport(browser, LOCAL_URL, 'local-mobile', { width: 390, height: 844 });
   results.local.mobileReducedMotion = await runViewport(
     browser,
