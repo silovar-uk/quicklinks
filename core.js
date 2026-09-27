@@ -413,12 +413,15 @@ function agoText(days) {
 
 function ageDays(item) { return Math.max(0, Math.floor((Date.now() - timeValue(item.addedAt)) / DAY)); }
 
-function reasonOf(item) {
+// memは束のmem対応表({id: 何か月前か})。渡されなければ「ちょうど◯か月前の今日」は出さない
+function reasonOf(item, mem) {
+  const k = mem && mem[item.id];
+  if (k) return { text: k === 12 ? 'ちょうど1年前の今日に保存' : `ちょうど${k}か月前の今日に保存`, hot: true };
   const c = Number(item.clickCount || 0);
   return { text: `${agoText(ageDays(item))}に保存・${c ? `${c}回開いた` : 'まだ開いていない'}`, hot: false };
 }
 
-/* ============ めくる束(計画書5章。P1は「◯か月前の今日」を除く) ============ */
+/* ============ めくる束(計画書5章) ============ */
 
 function dayKey(t = Date.now()) {
   const d = new Date(t);
@@ -481,6 +484,24 @@ function deckWeight(item, t) {
   return (1 + Math.min(age, 180) / 45) * (opened ? 0.6 : 1.6) * (shownRecently ? 0.25 : 1) * (tool ? 0.3 : 1);
 }
 
+// 「ちょうど◯か月前の今日」:1・2・3・6・12か月前の同じ日付に保存したものを、各月1枚・合わせて3枚まで。
+// 同じ日に複数あれば、日付から作った乱数で1枚選ぶ(束の並びとは別の固定シード)
+function memoriesOf(pool, t) {
+  const out = [];
+  for (const k of [1, 2, 3, 6, 12]) {
+    if (out.length >= 3) break;
+    const d = new Date(t);
+    d.setMonth(d.getMonth() - k);
+    const dKey = dayKey(d.getTime());
+    const hits = pool.filter(item => dayKey(timeValue(item.addedAt)) === dKey);
+    if (hits.length) {
+      const idx = Math.floor(rngFromSeed(hashStr(dayKey(t) + '|' + k))() * hits.length);
+      out.push([hits[idx], k]);
+    }
+  }
+  return out;
+}
+
 // 今日の束の並び・位置を返す。すでにあれば持っている並びをそのまま使い、
 // 消えた項目(手放した・削除された)だけを間引く。今日新しく保存したものは、
 // この並びに新規追加しない(=明日の束から入る)
@@ -494,19 +515,23 @@ function deck(drawer, kind) {
     if (filtered.length !== entry.order.length) {
       entry.order = filtered;
       entry.pos = Math.min(entry.pos, Math.max(0, filtered.length - 1));
+      Object.keys(entry.mem || {}).forEach(id => { if (!poolIds.has(id)) delete entry.mem[id]; });
       saveMK();
     }
   } else {
     const pool = state.items.filter(item => poolIds.has(item.id));
-    const order = pool
+    const mem = memoriesOf(pool, t);
+    const memIds = new Set(mem.map(([item]) => item.id));
+    const rest = pool.filter(item => !memIds.has(item.id))
       .map(item => ({ id: item.id, k: Math.pow(rngFromSeed(hashStr(dayKey(t) + '|' + key + '|' + item.id))(), 1 / deckWeight(item, t)) }))
       .sort((a, b) => b.k - a.k)
       .map(x => x.id);
-    entry = { order, pos: 0 };
+    const order = [...mem.map(([item]) => item.id), ...rest];
+    entry = { order, pos: 0, mem: Object.fromEntries(mem.map(([item, k]) => [item.id, k])) };
     MK.decks[key] = entry;
     saveMK();
   }
-  return { key, order: entry.order, pos: entry.pos };
+  return { key, order: entry.order, pos: entry.pos, mem: entry.mem || {} };
 }
 
 function deckSetPos(key, pos) {
@@ -519,6 +544,45 @@ function deckSetPos(key, pos) {
 function markShown(id) {
   if (!id) return;
   MK.shown[id] = Date.now();
+  saveMK();
+}
+
+// 手放す:束は組み直さず、その1枚だけを抜く(位置を保つ)。deckKeyの束にidがあれば一緒に間引く
+function letGoLink(id, deckKey) {
+  const idx = state.items.findIndex(item => item.id === id);
+  if (idx < 0) return null;
+  const [item] = state.items.splice(idx, 1);
+  state.projects = normalizeProjects(state.projects, state.items);
+  let deckSnapshot = null;
+  const entry = MK.decks[deckKey];
+  if (entry) {
+    const at = entry.order.indexOf(id);
+    if (at >= 0) {
+      entry.order.splice(at, 1);
+      const prevPos = entry.pos;
+      entry.pos = Math.min(entry.pos, Math.max(0, entry.order.length - 1));
+      deckSnapshot = { deckKey, at, prevPos };
+    }
+  }
+  save();
+  saveMK();
+  return { item, index: idx, deck: deckSnapshot };
+}
+
+// letGoLink()の巻き戻し。同じ場所・同じ束の位置へ戻す
+function restoreLetGo(snapshot) {
+  if (!snapshot) return;
+  const index = Math.min(Math.max(snapshot.index, 0), state.items.length);
+  state.items.splice(index, 0, snapshot.item);
+  state.projects = normalizeProjects(state.projects, state.items);
+  if (snapshot.deck) {
+    const entry = MK.decks[snapshot.deck.deckKey];
+    if (entry) {
+      entry.order.splice(Math.min(snapshot.deck.at, entry.order.length), 0, snapshot.item.id);
+      entry.pos = snapshot.deck.prevPos;
+    }
+  }
+  save();
   saveMK();
 }
 

@@ -20,7 +20,9 @@ const CLOCK = new Date('2026-10-15T12:00:00+09:00').getTime();
 function fixture(now) {
   const iso = t => new Date(t).toISOString();
   const at = age => now - age * DAY;
-  const monthsAgo = k => { const d = new Date(now); d.setMonth(d.getMonth() - k); d.setHours(21, 30, 0, 0); return d.getTime(); };
+  // CIの実行環境(協定世界時)でも本番(日本時間)でも同じ日付になるよう、Node側のローカルタイムゾーンに
+  // 依存しないUTC明示のsetterで日付だけをずらす(正午UTC=21時JSTで、どちらの側から見ても同じ暦日になる)
+  const monthsAgo = k => { const d = new Date(now); d.setUTCMonth(d.getUTCMonth() - k); d.setUTCHours(12, 0, 0, 0); return d.getTime(); };
   const link = (id, title, url, projectName, note, time, clicks = 0) => ({
     id, title, url, projectName, note, addedAt: iso(time), updatedAt: iso(time),
     lastClickedAt: clicks ? iso(now - 3 * DAY) : null, clickCount: clicks, clickHistory: clicks ? [iso(now - 3 * DAY)] : [],
