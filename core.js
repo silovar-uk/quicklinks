@@ -372,6 +372,12 @@ function looksSuspicious(data) {
 }
 
 const AI_HOSTS = ['chatgpt.com', 'chat.openai.com', 'claude.ai', 'gemini.google.com', 'aistudio.google.com', 'notebooklm.google.com', 'perplexity.ai'];
+// コピーの次へ:保存済みリンクのうち、AI系ホストで最も多く開いた1件
+function bestAiLink() {
+  return state.items
+    .filter(item => !item.archived && AI_HOSTS.includes(hostOf(item.url)))
+    .sort((a, b) => Number(b.clickCount || 0) - Number(a.clickCount || 0))[0] || null;
+}
 
 const GENERIC_DESC = [/^作成した動画を友だち、家族、世界中の人たちと共有/, /^Enjoy the videos and music you love/i, /^Discover and share/i];
 
