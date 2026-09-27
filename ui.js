@@ -242,49 +242,133 @@ function renderPrompts() {
 /* ============ 管理 ============ */
 function renderManage() {
   const el = $('manage');
-  if (el.dataset.built === '1') return; // 内容は静的。#manageSyncはsync.jsが自分で描く
-  el.dataset.built = '1';
-  el.innerHTML = `<h2>管理</h2>
-    <div class="m-sec" id="manageSync"></div>
-    <div class="m-sec"><h3>データ</h3><p>JSONで書き出し・読み込みができます。形式はこれまでと同じです。</p>
-      <div class="m-row"><button class="btn" type="button" id="exportBtn">JSONを書き出す</button></div>
-      <div class="m-row"><textarea id="importText" class="textarea" placeholder="ここにJSONを貼り付け"></textarea></div>
-      <div class="m-row"><label class="switch"><input type="radio" name="importMode" id="importModeMerge" value="merge" checked>統合</label><label class="switch"><input type="radio" name="importMode" id="importModeReplace" value="replace">置き換え</label><button class="btn primary" type="button" id="runImportBtn">取り込む</button></div>
-    </div>
-    <div class="m-sec"><h3>ブックマークレット</h3><p>「Quick Linksに追加」をブックマークバーへドラッグしておくと、見ているページをその場で保存・更新できます。</p>
-      <div class="m-row"><a class="btn" id="bookmarkletLink" href="#">Quick Linksに追加</a></div>
-    </div>
-    <div class="m-sec"><h3>重複の整理・リセット</h3><p>完全に同じ内容のリンク・プロンプトをまとめます。リセットはこの端末のデータを消します。</p>
-      <div class="m-row"><button class="btn" type="button" id="dedupeBtn">完全重複を整理</button><button class="btn danger" type="button" id="resetAllBtn">この端末のデータをリセット</button></div>
-    </div>`;
-  $('exportBtn').addEventListener('click', () => { exportData(); toast('JSONを書き出しました'); });
-  $('runImportBtn').addEventListener('click', () => {
-    const mode = $('importModeReplace').checked ? 'replace' : 'merge';
-    const text = $('importText').value.trim();
-    if (!text) { toast('JSONを入力してください'); return; }
-    try {
-      const r = importFromText(text, mode);
-      if (r.empty) { toast('取り込めるデータが見つかりません'); return; }
-      $('importText').value = '';
+  if (el.dataset.built !== '1') {
+    el.dataset.built = '1';
+    el.innerHTML = `<h2>管理</h2>
+      <div class="m-sec" id="manageSync"></div>
+      <div class="m-sec" id="care"></div>
+      <div class="m-sec"><h3>データ</h3><p>JSONで書き出し・読み込みができます。形式はこれまでと同じです。</p>
+        <div class="m-row"><button class="btn" type="button" id="exportBtn">JSONを書き出す</button></div>
+        <div class="m-row"><textarea id="importText" class="textarea" placeholder="ここにJSONを貼り付け"></textarea></div>
+        <div class="m-row"><label class="switch"><input type="radio" name="importMode" id="importModeMerge" value="merge" checked>統合</label><label class="switch"><input type="radio" name="importMode" id="importModeReplace" value="replace">置き換え</label><button class="btn primary" type="button" id="runImportBtn">取り込む</button></div>
+      </div>
+      <div class="m-sec"><h3>ブックマークレット</h3><p>「Quick Linksに追加」をブックマークバーへドラッグしておくと、見ているページをその場で保存・更新できます。</p>
+        <div class="m-row"><a class="btn" id="bookmarkletLink" href="#">Quick Linksに追加</a></div>
+      </div>
+      <div class="m-sec"><h3>重複の整理・リセット</h3><p>完全に同じ内容のリンク・プロンプトをまとめます。リセットはこの端末のデータを消します。</p>
+        <div class="m-row"><button class="btn" type="button" id="dedupeBtn">完全重複を整理</button><button class="btn danger" type="button" id="resetAllBtn">この端末のデータをリセット</button></div>
+      </div>`;
+    $('exportBtn').addEventListener('click', () => { exportData(); toast('JSONを書き出しました'); });
+    $('runImportBtn').addEventListener('click', () => {
+      const mode = $('importModeReplace').checked ? 'replace' : 'merge';
+      const text = $('importText').value.trim();
+      if (!text) { toast('JSONを入力してください'); return; }
+      try {
+        const r = importFromText(text, mode);
+        if (r.empty) { toast('取り込めるデータが見つかりません'); return; }
+        $('importText').value = '';
+        render();
+        toast(r.replaced ? `置き換えました：リンク${r.linkAdd}件 / プロンプト${r.promptAdd}件` : `統合しました：リンク追加${r.linkAdd}件 / プロンプト追加${r.promptAdd}件`);
+      } catch (error) {
+        toast('JSONの形式を確認してください');
+      }
+    });
+    $('bookmarkletLink').setAttribute('href', createDirectBookmarkletCode());
+    $('dedupeBtn').addEventListener('click', () => {
+      const r = dedupe();
+      toast(r.removedLinks || r.removedPrompts ? '重複を整理しました' : '完全重複はありませんでした');
+      if (r.removedLinks || r.removedPrompts) render();
+    });
+    $('resetAllBtn').addEventListener('click', () => {
+      if (!confirm('このブラウザ内のデータをすべて削除しますか？')) return;
+      resetAll();
       render();
-      toast(r.replaced ? `置き換えました：リンク${r.linkAdd}件 / プロンプト${r.promptAdd}件` : `統合しました：リンク追加${r.linkAdd}件 / プロンプト追加${r.promptAdd}件`);
-    } catch (error) {
-      toast('JSONの形式を確認してください');
-    }
-  });
-  $('bookmarkletLink').setAttribute('href', createDirectBookmarkletCode());
-  $('dedupeBtn').addEventListener('click', () => {
-    const r = dedupe();
-    toast(r.removedLinks || r.removedPrompts ? '重複を整理しました' : '完全重複はありませんでした');
-    if (r.removedLinks || r.removedPrompts) render();
-  });
-  $('resetAllBtn').addEventListener('click', () => {
-    if (!confirm('このブラウザ内のデータをすべて削除しますか？')) return;
-    resetAll();
-    render();
-    toast('リセットしました');
-  });
+      toast('リセットしました');
+    });
+  }
+  renderCare();
   window.dispatchEvent(new CustomEvent('quicklinks-sync-meta'));
+}
+
+/* ============ 情報の手入れ(管理の#care。計画書7章) ============ */
+const CARE = { running: false, log: [] };
+function fetchFailureText(reason) {
+  if (reason === 'login') return 'ログインが必要なページのようです。外からは中身を読めないため、取得しません。そのページを開いてブックマークレットを押すと、表示中のタイトルと説明で保存・更新できます。';
+  if (reason === 'rate') return '今日の取得枠を使い切りました。URLだけでも保存できます。取得は明日また試せます。';
+  if (reason === 'suspicious') return 'ログイン画面やエラー画面のようです。URLだけでも保存できます。';
+  if (reason === 'network') return '取得できませんでした（通信エラー）。URLだけでも保存できます。';
+  return '取得できませんでした（時間切れ）。URLだけでも保存できます。';
+}
+function renderCare() {
+  const el = $('care');
+  if (!el || $('manage').hidden) return;
+  const c = careCandidates();
+  const queued = RF.queue.length > 0;
+  const paused = !CARE.running && queued && RF.pos < RF.queue.length;
+  const finishedJustNow = !CARE.running && queued && RF.pos >= RF.queue.length && CARE.log.length > 0;
+  const total = queued ? RF.queue.length : c.fetchable.length;
+  const done = queued ? RF.pos : 0;
+  const label = CARE.running ? '取り直しています…' : paused ? '続きから取り直す' : `取り直す（${c.fetchable.length}件）`;
+  const canRun = !CARE.running && (paused || c.fetchable.length > 0);
+  el.innerHTML = `<h3>情報の手入れ</h3>
+    <div class="care-stats"><div class="care-stat"><b>${c.noNote}</b><span>説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
+    <p>空いているところだけ埋めます。書いた備考は上書きしません。取得に使う外部サービスの無料枠は1日25件です。枠がなくなったら止まり、翌日に続きから再開できます。</p>
+    <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo">${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
+    ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `取り直しています… ${done} / ${total}件` : paused ? `今日の取得枠を使い切りました。${done} / ${total}件まで終わりました。続きは明日の朝から再開できます。` : `終わりました。説明や題名を入れた${CARE.log.filter(x => x.ok).length}件・取得できなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice().reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
+    <p class="diff-note">外から読めないページ（Notion・Googleドキュメントなど）は、そのページを開いてブックマークレット「Quick Linksに追加」を押すと、表示中のタイトルと説明で更新できます。</p>`;
+}
+async function startCareRun() {
+  if (CARE.running) return;
+  if (!RF.queue.length || RF.pos >= RF.queue.length) {
+    const c = careCandidates();
+    if (!c.fetchable.length) return;
+    RF.queue = c.fetchable.map(item => item.id);
+    RF.pos = 0;
+    RF.batch = [];
+    CARE.log = [];
+    saveRF();
+  }
+  CARE.running = true;
+  renderCare();
+  let changed = false;
+  while (RF.pos < RF.queue.length) {
+    if (refetchBlocked() || RF.used >= REFETCH_DAILY_LIMIT) break;
+    const id = RF.queue[RF.pos];
+    const item = find('link', id);
+    RF.pos += 1;
+    if (!item) { saveRF(); continue; }
+    let r;
+    try { r = await fetchPageMetadata(item.url, { bulk: true }); }
+    catch { r = { ok: false, reason: 'network' }; }
+    if (!r.ok) {
+      markFetchFailed(id);
+      CARE.log.push({ ok: false, name: view(item).title.slice(0, 30), msg: r.reason === 'rate' ? '今日の取得枠が終わりました' : '取得できませんでした' });
+      saveRF();
+      renderCare();
+      if (r.reason === 'rate') break;
+      continue;
+    }
+    const before = { id: item.id, title: item.title, note: item.note };
+    let changedTitle = false, changedNote = false;
+    if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changedTitle = true; }
+    if (!item.note && r.data.description) { item.note = r.data.description; changedNote = true; }
+    if (changedTitle || changedNote) { RF.batch.push(before); changed = true; }
+    CARE.log.push({ ok: changedTitle || changedNote, name: view(item).title.slice(0, 30), msg: changedTitle || changedNote ? [changedTitle && 'タイトル', changedNote && '説明'].filter(Boolean).join('と') + 'を入れました' : '変更なし' });
+    saveRF();
+    renderCare();
+  }
+  CARE.running = false;
+  if (RF.pos >= RF.queue.length) { RF.queue = []; RF.pos = 0; saveRF(); }
+  if (changed) { save(); render(); } else renderCare();
+}
+function undoCare() {
+  if (!RF.batch || !RF.batch.length) return;
+  RF.batch.forEach(b => { const item = find('link', b.id); if (item) { item.title = b.title; item.note = b.note; item.updatedAt = new Date().toISOString(); } });
+  RF.batch = [];
+  saveRF();
+  CARE.log = [];
+  save(); render();
+  toast('手入れの前に戻しました');
 }
 
 /* ============ ブックマークレット(#add=) ============ */
@@ -399,25 +483,24 @@ function openDetail(kind, id) {
   $('detailSheetBody').innerHTML = kind === 'link' ? linkDetail(it) : promptDetail(it);
   showSheet($('detailSheet'));
 }
+// 束のカードの「説明がありません。ページ情報を取り直す」用。空いている所だけ静かに埋める(差分は出さない)
 async function refetchQuiet(item) {
-  const controller = new AbortController();
-  try {
-    const r = await fetchPageMetadata(item.url, { signal: controller.signal });
-    if (r.ok) {
-      let changed = false;
-      if (!item.note && r.data.description) { item.note = r.data.description; changed = true; }
-      if ((!item.title || item.title === hostOf(item.url)) && r.data.title) { item.title = r.data.title; changed = true; }
-      if (changed) { item.updatedAt = new Date().toISOString(); save(); render(); toast('ページ情報を取り直しました'); }
-      else toast('新しく入れる内容はありませんでした');
-    } else toast('取り直せませんでした(時間切れ)');
-  } catch { toast('取り直せませんでした'); }
+  let r;
+  try { r = await fetchPageMetadata(item.url, {}); }
+  catch { toast('取り直せませんでした'); return; }
+  if (!r.ok) { if (r.reason !== 'login') markFetchFailed(item.id); toast(fetchFailureText(r.reason)); return; }
+  let changed = false;
+  if (!item.note && r.data.description) { item.note = r.data.description; changed = true; }
+  if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changed = true; }
+  if (changed) { item.updatedAt = new Date().toISOString(); save(); render(); toast('ページ情報を取り直しました'); }
+  else toast('新しく入れる内容はありませんでした');
 }
 function detailAction(name, kind, id) {
   const it = find(kind, id);
   if (!it) return;
   if (name === 'copyurl') return writeClip(it.url).then(ok => toast(ok ? 'URLをコピーしました' : 'コピーできませんでした'));
   if (name === 'edit') return openLinkSheet({ mode: 'edit', id });
-  if (name === 'refetch') return isLoginHost(it.url) ? toast('ログインが必要なページのため取り直せません') : refetchQuiet(it);
+  if (name === 'refetch') { openLinkSheet({ mode: 'edit', id }); refetchInSheet(); return; }
   if (name === 'letgo') return letGo(id);
 }
 
@@ -461,11 +544,6 @@ async function startFetch() {
   // 同じURLでの取り直しはここで止める(取得中に二重で始めない)
   if (url === F.lastUrl) return;
   F.lastUrl = url;
-  if (isLoginHost(url)) {
-    if (!$('fTitle').value) $('fTitle').value = hostOf(url);
-    setStatus('warn', `<span class="grow">ログインが必要なページのようです。外からは中身を読めないため、取得しません。そのページを開いてブックマークレットを押すと、表示中のタイトルと説明で保存・更新できます。</span>`);
-    return;
-  }
   abortFetchController();
   F.controller = new AbortController();
   const seq = ++F.seq;
@@ -474,10 +552,66 @@ async function startFetch() {
   try { r = await fetchPageMetadata(url, { signal: F.controller.signal }); }
   catch { return; } // 中止された(シートを閉じた・開き直した)
   if (seq !== F.seq || !$('linkSheet').open) return;
-  if (!r.ok) { setStatus('bad', `<span class="grow">取得できませんでした（時間切れ）。URLだけでも保存できます。</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`); return; }
+  if (!r.ok) {
+    if (r.reason === 'login') { if (!$('fTitle').value) $('fTitle').value = hostOf(url); setStatus('warn', `<span class="grow">${fetchFailureText('login')}</span>`); return; }
+    setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
+    return;
+  }
   if (!$('fTitle').value) $('fTitle').value = r.data.title;
   if (!$('fNote').value) $('fNote').value = r.data.description;
   setStatus('ok', `<span class="grow">タイトルと説明を入れました。確かめて保存してください。</span>`);
+}
+// 編集シート・詳細シートの「ページ情報を取り直す」。結果は差分で出し、フォームに反映してから保存で確定する
+async function refetchInSheet() {
+  const url = $('fUrl').value.trim();
+  if (!/^https?:\/\//.test(url)) return;
+  abortFetchController();
+  F.controller = new AbortController();
+  const seq = ++F.seq;
+  $('fDiff').hidden = true;
+  setStatus('busy', `<span class="spin" aria-hidden="true"></span><span class="grow">ページ情報を取り直しています…</span>`);
+  let r;
+  try { r = await fetchPageMetadata(url, { signal: F.controller.signal }); }
+  catch { return; }
+  if (seq !== F.seq || !$('linkSheet').open) return;
+  if (!r.ok) {
+    if (r.reason === 'login') { setStatus('warn', `<span class="grow">${fetchFailureText('login')}いまの内容はそのまま残します。</span>`); return; }
+    if (F.id) markFetchFailed(F.id);
+    setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度</button>`);
+    return;
+  }
+  $('fStatus').hidden = true;
+  const cur = { title: $('fTitle').value, note: $('fNote').value };
+  F.got = r.data;
+  showDiff({ heading: '取り直したページ情報', cur, got: r.data, titleDefault: looksPlaceholder(cur.title, url) });
+}
+function showDiff({ heading, cur, got, titleDefault }) {
+  const d = $('fDiff');
+  d.hidden = false;
+  d.innerHTML = diffHtml(cur, got, { heading, titleDefault });
+}
+function diffHtml(cur, got, { heading, titleDefault }) {
+  const t = got.title && got.title !== cur.title;
+  const n = got.description && got.description !== cur.note;
+  if (!t && !n) return `<h3>${escapeHtml(heading)}</h3><p class="diff-note">いまの内容と同じでした。</p>`;
+  return `<h3>${escapeHtml(heading)}</h3>` +
+    (t ? `<div class="diff-item"><label><input type="checkbox" id="dTitle" ${titleDefault ? 'checked' : ''}><span><b>タイトル</b>を「${escapeHtml(got.title)}」にする</span></label><span class="was">いま：<s>${escapeHtml(cur.title || '(空)')}</s></span></div>` : '') +
+    (n ? (cur.note
+      ? `<div class="diff-item"><b>説明</b><span class="was">取得：${escapeHtml(got.description)}</span><label><input type="radio" name="dNote" value="keep" checked>備考はそのまま</label><label><input type="radio" name="dNote" value="append">備考の後ろに足す</label><label><input type="radio" name="dNote" value="replace">取得した説明に置き換える</label></div>`
+      : `<div class="diff-item"><label><input type="checkbox" id="dNoteFill" checked><span><b>備考</b>に説明を入れる：「${escapeHtml(got.description)}」</span></label></div>`)
+      : '') +
+    `<div class="m-row"><button class="btn primary" type="button" id="dApply">フォームに反映</button><span class="diff-note">保存するまで確定しません</span></div>`;
+}
+function applyDiff() {
+  const g = F.got;
+  if (!g) return;
+  if ($('dTitle')?.checked) $('fTitle').value = g.title;
+  if ($('dNoteFill')?.checked) $('fNote').value = g.description;
+  const how = document.querySelector('input[name="dNote"]:checked')?.value;
+  if (how === 'append') $('fNote').value = `${$('fNote').value}\n${g.description}`;
+  if (how === 'replace') $('fNote').value = g.description;
+  $('fDiff').hidden = true;
+  toast('フォームに反映しました。保存すると確定します');
 }
 function handleBookmarklet(bm) {
   const dup = state.items.find(i => canonicalUrl(i.url) === canonicalUrl(bm.url));
@@ -489,6 +623,8 @@ function handleBookmarklet(bm) {
   F.mode = 'edit'; F.id = dup.id; $('fFav').checked = isFavorite(dup); setCat(dup.projectName);
   $('fTitle').value = dup.title; $('fNote').value = dup.note;
   setStatus('warn', `<span class="grow">保存済みのリンクです（${escapeHtml(dup.projectName || '未分類')}）。表示中のページから受け取った内容で更新できます。</span>`);
+  F.got = { title: bm.title, description: bm.description };
+  showDiff({ heading: 'このページの内容で更新', cur: { title: dup.title, note: dup.note }, got: F.got, titleDefault: looksPlaceholder(dup.title, dup.url) });
 }
 function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   Object.assign(F, { mode, id, bm, seq: F.seq + 1, lastUrl: '' });
@@ -850,10 +986,13 @@ document.addEventListener('click', e => {
 
   const rc = t.closest('#fRecent [data-cat]'); if (rc) { setCat(rc.dataset.cat); return; }
   const opt = t.closest('#fCatList .opt'); if (opt) { setCat(opt.dataset.cat); return; }
-  if (t.closest('#fRetry')) { startFetch(); return; }
-  if (t.closest('#fRefetch')) { const item = find('link', F.id); if (item) refetchQuiet(item); return; }
+  if (t.closest('#fRetry')) { F.lastUrl = ''; F.mode === 'edit' ? refetchInSheet() : startFetch(); return; }
+  if (t.closest('#fRefetch')) { refetchInSheet(); return; }
+  if (t.closest('#dApply')) { applyDiff(); return; }
   const dupOpen = t.closest('[data-dup-open]'); if (dupOpen) { closeSheet($('linkSheet')); openLink(dupOpen.dataset.dupOpen); return; }
   const dupEdit = t.closest('[data-dup-edit]'); if (dupEdit) { closeSheet($('linkSheet')); openLinkSheet({ mode: 'edit', id: dupEdit.dataset.dupEdit }); return; }
+  if (t.closest('#careRun')) { startCareRun(); return; }
+  if (t.closest('#careUndo')) { undoCare(); return; }
 
   const pRecent = t.closest('#pRecent [data-pcat]'); if (pRecent) { $('pCat').value = pRecent.dataset.pcat; return; }
   const pOpt = t.closest('#pCatList .opt'); if (pOpt) { $('pCat').value = pOpt.dataset.cat; $('pCatList').hidden = true; return; }

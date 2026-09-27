@@ -360,6 +360,17 @@ function isLoginHost(url) {
   return LOGIN_HOSTS.some(x => h === x || h.endsWith('.' + x));
 }
 
+// タイトルがURLのまま(=まだ情報を取得していない)かどうか
+function looksPlaceholder(title, url) {
+  const t = String(title || '').trim();
+  return !t || t === hostOf(url) || /^https?:\/\//i.test(t) || /^(ログイン|Sign in|Log in)$/i.test(t);
+}
+// 取得結果がログイン画面・エラー画面らしいか(差分に出さず失敗として扱う)
+const SUSPICIOUS_TITLE_RE = /^(ログイン|Sign in|Log in|Just a moment\.\.\.|403 Forbidden|404 Not Found|Access Denied|Attention Required)/i;
+function looksSuspicious(data) {
+  return SUSPICIOUS_TITLE_RE.test(String(data?.title || '').trim());
+}
+
 const AI_HOSTS = ['chatgpt.com', 'chat.openai.com', 'claude.ai', 'gemini.google.com', 'aistudio.google.com', 'notebooklm.google.com', 'perplexity.ai'];
 
 const GENERIC_DESC = [/^作成した動画を友だち、家族、世界中の人たちと共有/, /^Enjoy the videos and music you love/i, /^Discover and share/i];
@@ -560,7 +571,6 @@ function safeHttpUrl(value) {
 const DIRECT_FETCH_TIMEOUT = 6500;
 const MICROLINK_TIMEOUT = 9000;
 const METADATA_ENDPOINT = 'https://api.microlink.io/';
-const BODY_PREVIEW_LIMIT = 1600;
 
 function meta(doc, selectors) {
   for (const selector of selectors) {
@@ -574,11 +584,20 @@ function meta(doc, selectors) {
 // 取得の中止は、呼び出し側(ui.js)が持つ AbortController の signal をそのまま渡す。window.fetch は差し替えない
 async function withTimeoutSignal(ms, signal, run) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, ms);
   const onAbort = () => controller.abort();
   if (signal) { if (signal.aborted) controller.abort(); else signal.addEventListener('abort', onAbort); }
-  try { return await run(controller.signal); }
-  finally { clearTimeout(timer); signal?.removeEventListener('abort', onAbort); }
+  try {
+    return await run(controller.signal);
+  } catch (error) {
+    if (signal?.aborted) throw error; // シートを閉じた等、呼び出し側の中止はそのまま伝える
+    if (!error.code) error.code = timedOut ? 'timeout' : 'network';
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
 }
 
 async function fetchDirectMetadata(url, { signal } = {}) {
@@ -606,6 +625,17 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
     const endpoint = new URL(METADATA_ENDPOINT);
     endpoint.searchParams.set('url', url);
     const response = await fetch(endpoint.href, { method: 'GET', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Accept: 'application/json' }, signal: innerSignal });
+    if (response.status === 429) {
+      const resetHeader = response.headers.get('x-rate-limit-reset');
+      let resetAt = null;
+      if (resetHeader) {
+        const n = Number(resetHeader);
+        resetAt = Number.isFinite(n) ? (n > 1e12 ? n : n * 1000) : (Date.parse(resetHeader) || null);
+      }
+      const rateError = new Error('rate limited');
+      rateError.code = 'rate'; rateError.resetAt = resetAt;
+      throw rateError;
+    }
     if (!response.ok) throw new Error(`metadata HTTP ${response.status}`);
     const payload = await response.json();
     if (payload?.status !== 'success' || !payload?.data) throw new Error(payload?.message || 'ページ情報を取得できませんでした');
@@ -622,21 +652,77 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
   });
 }
 
-// {ok:true,data} か {ok:false,reason} を返す。signalがabortされたら例外をそのまま投げる(呼び出し側で無視させる)
-async function fetchPageMetadata(url, { signal } = {}) {
+/* ---------- ページ情報の取り直しの枠(quick-links-refetch-v1。同期しない) ---------- */
+const REFETCH_KEY = 'quick-links-refetch-v1';
+const REFETCH_DAILY_LIMIT = 20; // まとめて取り直すときはここで止める(手で保存する5件を残すため)
+
+function refetchDayKey(t = Date.now()) {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function loadRefetchState() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(REFETCH_KEY) || 'null'); } catch { /* 壊れていれば作り直す */ }
+  const failed = { ...(saved?.failed || {}) };
+  const cutoff = Date.now() - 7 * DAY; // 失敗したリンクは7日間まとめての対象から外す
+  Object.keys(failed).forEach(id => { if (timeValue(failed[id]) < cutoff) delete failed[id]; });
+  const today = refetchDayKey();
+  if (!saved || saved.day !== today) return { day: today, used: 0, blockedUntil: null, queue: [], pos: 0, batch: null, failed };
+  return {
+    day: saved.day,
+    used: Number(saved.used || 0),
+    blockedUntil: saved.blockedUntil || null,
+    queue: Array.isArray(saved.queue) ? saved.queue : [],
+    pos: Number(saved.pos || 0),
+    batch: Array.isArray(saved.batch) ? saved.batch : null,
+    failed
+  };
+}
+const RF = loadRefetchState();
+function saveRF() { try { localStorage.setItem(REFETCH_KEY, JSON.stringify(RF)); } catch { /* 保存できなくても手入れは動く */ } }
+function refetchBlocked() { return !!(RF.blockedUntil && Date.now() < timeValue(RF.blockedUntil)); }
+function markFetchFailed(id) { if (id) { RF.failed[id] = new Date().toISOString(); saveRF(); } }
+function endOfTodayIso() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString(); }
+
+// { ok:true, data } か { ok:false, reason:'timeout'|'rate'|'network'|'login'|'suspicious' } を返す。
+// signalがabortされたら例外をそのまま投げる(呼び出し側で無視させる)。bulk:trueはまとめて取り直すときの枠を守る
+async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
+  if (isLoginHost(url)) return { ok: false, reason: 'login' };
   try {
     const direct = await fetchDirectMetadata(url, { signal });
-    if (direct.title || direct.description) return { ok: true, data: direct };
+    if ((direct.title || direct.description) && !looksSuspicious(direct)) return { ok: true, data: direct };
   } catch (error) {
     if (signal?.aborted) throw error;
   }
+  if (refetchBlocked()) return { ok: false, reason: 'rate' };
+  if (bulk && RF.used >= REFETCH_DAILY_LIMIT) return { ok: false, reason: 'rate' };
   try {
     const data = await fetchMicrolinkMetadata(url, { signal });
+    RF.used += 1; saveRF();
+    if (looksSuspicious(data)) return { ok: false, reason: 'suspicious' };
     return { ok: true, data };
   } catch (error) {
     if (signal?.aborted) throw error;
-    return { ok: false, reason: 'timeout' };
+    if (error?.code === 'rate') {
+      RF.blockedUntil = error.resetAt ? new Date(error.resetAt).toISOString() : endOfTodayIso();
+      saveRF();
+      return { ok: false, reason: 'rate' };
+    }
+    return { ok: false, reason: error?.code === 'network' ? 'network' : 'timeout' };
   }
+}
+
+function careCandidates() {
+  const cutoff = Date.now() - 7 * DAY;
+  const excluded = new Set(Object.keys(RF.failed || {}).filter(id => timeValue(RF.failed[id]) >= cutoff));
+  const active = state.items.filter(item => !item.archived);
+  const need = active.filter(item => (!item.note || looksPlaceholder(item.title, item.url)) && !excluded.has(item.id));
+  return {
+    fetchable: need.filter(item => !isLoginHost(item.url)),
+    login: need.filter(item => isLoginHost(item.url)),
+    noNote: active.filter(item => !item.note).length,
+    placeholder: active.filter(item => looksPlaceholder(item.title, item.url)).length
+  };
 }
 
 /* ============ プロンプトの「最近・久しぶり」(app.html を移した) ============ */
