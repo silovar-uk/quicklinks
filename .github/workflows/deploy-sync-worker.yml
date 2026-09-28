@@ -1,6 +1,12 @@
 name: Deploy Quick Links Sync Worker
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-sync-worker.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,5 +25,28 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          preCommands: wrangler r2 bucket create quicklinks-sync || true
+          preCommands: |
+            wrangler r2 bucket create quicklinks-sync || true
+            if [ -n "$YOUTUBE_API_KEY" ]; then printf '%s' "$YOUTUBE_API_KEY" | wrangler secret put YOUTUBE_API_KEY; fi
           command: deploy
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+
+
+      - name: Smoke test metadata resolver
+        run: |
+          python3 - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+
+          target = "https://studio.persol-group.co.jp/rirekisyo/250107-1"
+          endpoint = "https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?url=" + urllib.parse.quote(target, safe="")
+          req = urllib.request.Request(endpoint, headers={"Origin": "https://silovar-uk.github.io", "Accept": "application/json"})
+          with urllib.request.urlopen(req, timeout=15) as res:
+              payload = json.load(res)
+          data = payload.get("data") or {}
+          if payload.get("status") != "success" or not data.get("title") or not data.get("description"):
+              raise SystemExit("metadata smoke test failed: " + json.dumps(payload, ensure_ascii=False))
+          print("metadata smoke test ok:", data["title"][:80], "/", data.get("descriptionSource"))
+          PY

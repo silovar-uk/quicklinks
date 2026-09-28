@@ -45,6 +45,9 @@ jobs:
           echo 'Local server did not become ready.' >&2
           exit 1
 
+      - name: Run metadata resolver regression QA
+        run: node --experimental-default-type=module scripts/metadata-worker-regression.mjs
+
       - name: Run browser visual QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/
