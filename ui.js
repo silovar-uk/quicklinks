@@ -688,6 +688,35 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   else if (url) { checkDup(); startFetch(); }
   if (mode === 'add' && !url && !bm) $('fUrl').focus(); else $('fCat').focus();
 }
+async function enrichSavedLink(id) {
+  const item = find('link', id);
+  if (!item || item.archived) return;
+  if (!looksPlaceholder(item.title, item.url) && item.note) return;
+
+  let r;
+  try { r = await fetchPageMetadata(item.url); }
+  catch { return; }
+  if (!r.ok) return;
+
+  const latest = find('link', id);
+  if (!latest || latest.archived || latest.url !== item.url) return;
+
+  let changed = false;
+  if (looksPlaceholder(latest.title, latest.url) && r.data.title && !looksSuspicious(r.data)) {
+    latest.title = r.data.title;
+    changed = true;
+  }
+  if (!latest.note && r.data.description) {
+    latest.note = r.data.description;
+    changed = true;
+  }
+  if (!changed) return;
+
+  latest.updatedAt = new Date().toISOString();
+  save();
+  render();
+}
+
 function saveLink() {
   const url = $('fUrl').value.trim();
   if (!/^https?:\/\//.test(url)) { setStatus('bad', '<span class="grow">http:// か https:// で始まるURLを入れてください。</span>'); $('fUrl').focus(); return; }
@@ -709,6 +738,9 @@ function saveLink() {
   U.view = 'links';
   if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
   save(); render();
+  if (F.mode !== 'edit' && (looksPlaceholder(item.title, item.url) || !item.note)) {
+    setTimeout(() => enrichSavedLink(item.id), 0);
+  }
   const el = $('item-' + item.id);
   if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
   toast(F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
