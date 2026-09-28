@@ -761,6 +761,19 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
   return withTimeoutSignal(MICROLINK_TIMEOUT, signal, async innerSignal => {
     const endpoint = new URL(MICROLINK_ENDPOINT);
     endpoint.searchParams.set('url', url);
+    endpoint.searchParams.set('meta.title', 'true');
+    endpoint.searchParams.set('meta.description', 'true');
+    // normalized description が空・定型文でも、同じ1リクエスト内で本文/microdataを保険として拾う。
+    // YouTube は itemprop=description、一般記事は article/main の先頭段落を優先する。
+    endpoint.searchParams.set('data.quickDescription.0.selector', 'meta[itemprop="description"]');
+    endpoint.searchParams.set('data.quickDescription.0.attr', 'content');
+    endpoint.searchParams.set('data.quickDescription.1.selector', '[itemprop="description"]');
+    endpoint.searchParams.set('data.quickDescription.1.attr', 'text');
+    endpoint.searchParams.set('data.quickDescription.2.selector', 'article p');
+    endpoint.searchParams.set('data.quickDescription.2.attr', 'text');
+    endpoint.searchParams.set('data.quickDescription.3.selector', 'main p');
+    endpoint.searchParams.set('data.quickDescription.3.attr', 'text');
+    endpoint.searchParams.set('filter', 'url,title,description,quickDescription');
     const response = await fetch(endpoint.href, { method: 'GET', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Accept: 'application/json' }, signal: innerSignal });
     if (response.status === 429) {
       const resetHeader = response.headers.get('x-rate-limit-reset');
@@ -779,12 +792,14 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
     const data = payload.data;
     const finalUrl = safeHttpUrl(data.url) || url;
     const domain = new URL(finalUrl).hostname.replace(/^www\./i, '');
+    const normalizedDescription = normalizeFetchedDescription(finalUrl, data.description);
+    const extractedDescription = normalizeFetchedDescription(finalUrl, data.quickDescription);
     return {
       url: finalUrl,
       title: cleanText(data.title, 240) || domain,
       domain,
-      description: normalizeFetchedDescription(finalUrl, data.description),
-      source: 'microlink'
+      description: normalizedDescription || extractedDescription,
+      source: extractedDescription && !normalizedDescription ? 'microlink-extract' : 'microlink'
     };
   });
 }

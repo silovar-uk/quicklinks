@@ -157,6 +157,59 @@ async function testMicrolinkFallback(browser) {
   }
 }
 
+async function testMicrolinkExtractedDescription(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let directRequests = 0;
+  let microlinkRequests = 0;
+
+  await routeResolverFailure(page);
+  await page.route('https://www.youtube.com/watch?v=qaVideo123', route => {
+    directRequests += 1;
+    return route.abort('failed');
+  });
+  await page.route('https://api.microlink.io/**', route => {
+    microlinkRequests += 1;
+    const requestUrl = new URL(route.request().url());
+    assert.equal(
+      requestUrl.searchParams.get('data.quickDescription.0.selector'),
+      'meta[itemprop="description"]',
+      'Microlink fallback asks for YouTube microdata description'
+    );
+    return route.fulfill({
+      status: 200,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' },
+      body: JSON.stringify({
+        status: 'success',
+        data: {
+          url: 'https://www.youtube.com/watch?v=qaVideo123',
+          title: 'QA Video - YouTube',
+          description: 'Enjoy the videos and music you love, upload original content, and share it all with friends, family, and the world on YouTube.',
+          quickDescription: 'This is the actual video description from microdata.',
+        },
+      }),
+    });
+  });
+
+  try {
+    await loadApp(page);
+    await openLinkSheet(page);
+    await beginFetch(page, 'https://www.youtube.com/watch?v=qaVideo123');
+    await page.waitForFunction(() => document.getElementById('fNote').value.trim().length > 0, null, { timeout: 8000 });
+
+    assert.equal(directRequests, 1, 'direct YouTube fetch is attempted after resolver failure');
+    assert.equal(microlinkRequests, 1, 'Microlink fallback is used once');
+    assert.equal(
+      await page.locator('#fNote').inputValue(),
+      'This is the actual video description from microdata.',
+      'generic YouTube description is replaced by extracted video description'
+    );
+    return 'PASS';
+  } finally {
+    await context.close();
+  }
+}
+
 async function testResolverSuccess(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -319,6 +372,7 @@ try {
     directSuccess: await testDirectSuccess(browser),
     reducedMotion: await testReducedMotion(browser),
     microlinkFallback: await testMicrolinkFallback(browser),
+    microlinkExtractedDescription: await testMicrolinkExtractedDescription(browser),
     resolverSuccess: await testResolverSuccess(browser),
     cancellation: await testCancellation(browser),
     timeout: await testTimeout(browser),
