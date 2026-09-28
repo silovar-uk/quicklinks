@@ -1,3 +1,5 @@
+import { resolveMetadata } from "./metadata/index.js";
+
 const MAX_BYTES = 5 * 1024 * 1024;
 const PROD_ORIGIN = "https://silovar-uk.github.io";
 
@@ -32,6 +34,35 @@ function response(body, status, origin, extra = {}) {
       ...extra
     }
   });
+}
+
+function jsonResponse(value, status, origin) {
+  return response(JSON.stringify(value), status, origin, {
+    "Content-Type": "application/json; charset=utf-8"
+  });
+}
+
+async function handleMetadata(request, env, origin, url) {
+  if (request.method !== "GET") {
+    return response("Method not allowed", 405, origin, { "Allow": "GET,OPTIONS" });
+  }
+  const raw = url.searchParams.get("url") || "";
+  if (!raw) return jsonResponse({ status: "error", error: "url_required" }, 400, origin);
+
+  try {
+    const data = await resolveMetadata(raw, env);
+    if (!data.title && !data.description) {
+      return jsonResponse({ status: "error", error: "metadata_not_found" }, 422, origin);
+    }
+    return jsonResponse({ status: "success", data }, 200, origin);
+  } catch (error) {
+    const status = Number(error?.status || 502);
+    if (status >= 500) console.error("metadata resolver error", error);
+    return jsonResponse({
+      status: "error",
+      error: String(error?.message || "metadata_error")
+    }, status, origin);
+  }
 }
 
 function bearer(request) {
@@ -85,6 +116,8 @@ export default {
     if (request.method === "OPTIONS") return response(null, 204, origin);
 
     const url = new URL(request.url);
+    if (url.pathname === "/v1/metadata") return handleMetadata(request, env, origin, url);
+
     const vaultId = vaultPath(url);
     if (!vaultId) return response("Not found", 404, origin);
 
