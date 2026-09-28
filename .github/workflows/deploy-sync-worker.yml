@@ -1,6 +1,12 @@
 name: Deploy Quick Links Sync Worker
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-sync-worker.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,5 +25,9 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          preCommands: wrangler r2 bucket create quicklinks-sync || true
+          preCommands: |
+            wrangler r2 bucket create quicklinks-sync || true
+            if [ -n "$YOUTUBE_API_KEY" ]; then printf '%s' "$YOUTUBE_API_KEY" | wrangler secret put YOUTUBE_API_KEY; fi
           command: deploy
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
