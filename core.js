@@ -639,8 +639,10 @@ function safeHttpUrl(value) {
 }
 
 const DIRECT_FETCH_TIMEOUT = 6500;
+const RESOLVER_TIMEOUT = 9000;
 const MICROLINK_TIMEOUT = 9000;
-const METADATA_ENDPOINT = 'https://api.microlink.io/';
+const METADATA_RESOLVER_ENDPOINT = 'https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata';
+const MICROLINK_ENDPOINT = 'https://api.microlink.io/';
 
 function meta(doc, selectors) {
   for (const selector of selectors) {
@@ -661,7 +663,7 @@ async function withTimeoutSignal(ms, signal, run) {
   try {
     return await run(controller.signal);
   } catch (error) {
-    if (signal?.aborted) throw error; // シートを閉じた等、呼び出し側の中止はそのまま伝える
+    if (signal?.aborted) throw error;
     if (!error.code) error.code = timedOut ? 'timeout' : 'network';
     throw error;
   } finally {
@@ -670,10 +672,75 @@ async function withTimeoutSignal(ms, signal, run) {
   }
 }
 
+function normalizeFetchedDescription(url, value) {
+  const description = cleanText(value, 1000);
+  const source = sourceOf(url);
+  if ((source.src === '動画' || source.src === 'ショート') && GENERIC_DESC.some(re => re.test(description))) return '';
+  return description;
+}
+
+function mergeFetchedMetadata(base, incoming, fallbackUrl) {
+  const nextUrl = safeHttpUrl(incoming?.url) || base?.url || fallbackUrl;
+  const title = cleanText(incoming?.title, 240);
+  const description = normalizeFetchedDescription(nextUrl, incoming?.description);
+  let domain = incoming?.domain || '';
+  try { if (!domain) domain = new URL(nextUrl).hostname.replace(/^www\./i, ''); } catch { domain = ''; }
+  return {
+    url: nextUrl,
+    title: base?.title || title,
+    domain: base?.domain || domain,
+    description: base?.description || description,
+    source: [base?.source, incoming?.source].filter(Boolean).join('+') || 'unknown',
+    provider: incoming?.provider || base?.provider || '',
+    descriptionSource: incoming?.descriptionSource || base?.descriptionSource || '',
+    confidence: incoming?.confidence || base?.confidence || ''
+  };
+}
+
+function hasMetadata(data) {
+  return !!(String(data?.title || '').trim() || String(data?.description || '').trim());
+}
+
+function hasCompleteMetadata(data) {
+  return !!(String(data?.title || '').trim() && String(data?.description || '').trim());
+}
+
+async function fetchResolverMetadata(url, { signal } = {}) {
+  return withTimeoutSignal(RESOLVER_TIMEOUT, signal, async innerSignal => {
+    const endpoint = new URL(METADATA_RESOLVER_ENDPOINT);
+    endpoint.searchParams.set('url', url);
+    const response = await fetch(endpoint.href, {
+      method: 'GET',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: { Accept: 'application/json' },
+      signal: innerSignal
+    });
+    if (!response.ok) throw new Error('resolver HTTP ' + response.status);
+    const payload = await response.json();
+    if (payload?.status !== 'success' || !payload?.data) throw new Error(payload?.error || 'ページ情報を取得できませんでした');
+    const data = payload.data;
+    const finalUrl = safeHttpUrl(data.url) || url;
+    let domain = '';
+    try { domain = new URL(finalUrl).hostname.replace(/^www\./i, ''); } catch { domain = hostOf(url); }
+    return {
+      url: finalUrl,
+      title: cleanText(data.title, 240) || domain,
+      domain,
+      description: normalizeFetchedDescription(finalUrl, data.description),
+      source: 'resolver',
+      provider: String(data.provider || ''),
+      descriptionSource: String(data.descriptionSource || ''),
+      confidence: String(data.confidence || '')
+    };
+  });
+}
+
 async function fetchDirectMetadata(url, { signal } = {}) {
   return withTimeoutSignal(DIRECT_FETCH_TIMEOUT, signal, async innerSignal => {
     const response = await fetch(url, { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'follow', referrerPolicy: 'no-referrer', signal: innerSignal });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
     const contentType = response.headers.get('content-type') || '';
     if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) throw new Error('HTMLではありません');
     const html = await response.text();
@@ -684,7 +751,7 @@ async function fetchDirectMetadata(url, { signal } = {}) {
       url: finalUrl,
       title: cleanText(meta(doc, ['meta[property="og:title"]', 'meta[name="twitter:title"]', 'title']), 240) || domain,
       domain,
-      description: cleanText(meta(doc, ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]']), 1000),
+      description: normalizeFetchedDescription(finalUrl, meta(doc, ['meta[name="description"]', 'meta[property="og:description"]', 'meta[name="twitter:description"]'])),
       source: 'direct'
     };
   });
@@ -692,7 +759,7 @@ async function fetchDirectMetadata(url, { signal } = {}) {
 
 async function fetchMicrolinkMetadata(url, { signal } = {}) {
   return withTimeoutSignal(MICROLINK_TIMEOUT, signal, async innerSignal => {
-    const endpoint = new URL(METADATA_ENDPOINT);
+    const endpoint = new URL(MICROLINK_ENDPOINT);
     endpoint.searchParams.set('url', url);
     const response = await fetch(endpoint.href, { method: 'GET', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Accept: 'application/json' }, signal: innerSignal });
     if (response.status === 429) {
@@ -706,7 +773,7 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
       rateError.code = 'rate'; rateError.resetAt = resetAt;
       throw rateError;
     }
-    if (!response.ok) throw new Error(`metadata HTTP ${response.status}`);
+    if (!response.ok) throw new Error('metadata HTTP ' + response.status);
     const payload = await response.json();
     if (payload?.status !== 'success' || !payload?.data) throw new Error(payload?.message || 'ページ情報を取得できませんでした');
     const data = payload.data;
@@ -716,7 +783,7 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
       url: finalUrl,
       title: cleanText(data.title, 240) || domain,
       domain,
-      description: cleanText(data.description, 1000),
+      description: normalizeFetchedDescription(finalUrl, data.description),
       source: 'microlink'
     };
   });
@@ -758,27 +825,51 @@ function endOfTodayIso() { const d = new Date(); d.setHours(23, 59, 59, 999); re
 // signalがabortされたら例外をそのまま投げる(呼び出し側で無視させる)。bulk:trueはまとめて取り直すときの枠を守る
 async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
   if (isLoginHost(url)) return { ok: false, reason: 'login' };
+
+  let best = { url, title: '', domain: hostOf(url), description: '', source: '' };
+  let lastReason = 'network';
+
   try {
-    const direct = await fetchDirectMetadata(url, { signal });
-    if ((direct.title || direct.description) && !looksSuspicious(direct)) return { ok: true, data: direct };
+    const resolver = await fetchResolverMetadata(url, { signal });
+    if (!looksSuspicious(resolver)) {
+      best = mergeFetchedMetadata(best, resolver, url);
+      if (hasCompleteMetadata(best)) return { ok: true, data: best };
+    }
   } catch (error) {
     if (signal?.aborted) throw error;
+    lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
   }
-  if (refetchBlocked()) return { ok: false, reason: 'rate' };
-  if (bulk && RF.used >= REFETCH_DAILY_LIMIT) return { ok: false, reason: 'rate' };
+
   try {
-    const data = await fetchMicrolinkMetadata(url, { signal });
+    const direct = await fetchDirectMetadata(url, { signal });
+    if (!looksSuspicious(direct)) {
+      best = mergeFetchedMetadata(best, direct, url);
+      if (hasCompleteMetadata(best)) return { ok: true, data: best };
+    }
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
+  }
+
+  if (refetchBlocked() || (bulk && RF.used >= REFETCH_DAILY_LIMIT)) {
+    return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: 'rate' };
+  }
+
+  try {
+    const microlink = await fetchMicrolinkMetadata(url, { signal });
     RF.used += 1; saveRF();
-    if (looksSuspicious(data)) return { ok: false, reason: 'suspicious' };
-    return { ok: true, data };
+    if (!looksSuspicious(microlink)) best = mergeFetchedMetadata(best, microlink, url);
+    return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: lastReason };
   } catch (error) {
     if (signal?.aborted) throw error;
     if (error?.code === 'rate') {
       RF.blockedUntil = error.resetAt ? new Date(error.resetAt).toISOString() : endOfTodayIso();
       saveRF();
-      return { ok: false, reason: 'rate' };
+      return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: 'rate' };
     }
-    return { ok: false, reason: error?.code === 'network' ? 'network' : 'timeout' };
+    return hasMetadata(best)
+      ? { ok: true, data: best }
+      : { ok: false, reason: error?.code === 'network' ? 'network' : 'timeout' };
   }
 }
 
