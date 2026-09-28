@@ -3,6 +3,16 @@ import { chromium } from 'playwright';
 
 const BASE_URL = process.env.LOCAL_URL || 'http://127.0.0.1:4173/';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const RESOLVER_PATTERN = 'https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?**';
+
+async function routeResolverFailure(page) {
+  await page.route(RESOLVER_PATTERN, route => route.fulfill({
+    status: 502,
+    headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+    body: JSON.stringify({ status: 'error', error: 'qa_resolver_failure' }),
+  }));
+}
+
 
 async function loadApp(page) {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
@@ -31,6 +41,8 @@ async function testDirectSuccess(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
   const page = await context.newPage();
   let directRequests = 0;
+
+  await routeResolverFailure(page);
 
   await page.route('https://qa-success.test/page', async route => {
     directRequests += 1;
@@ -73,6 +85,8 @@ async function testReducedMotion(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
 
+  await routeResolverFailure(page);
+
   await page.route('https://qa-reduced.test/page', async route => {
     await sleep(450);
     await route.fulfill({
@@ -106,6 +120,8 @@ async function testMicrolinkFallback(browser) {
   const page = await context.newPage();
   let directRequests = 0;
   let microlinkRequests = 0;
+
+  await routeResolverFailure(page);
 
   await page.route('https://qa-fallback.test/page', route => {
     directRequests += 1;
@@ -141,13 +157,78 @@ async function testMicrolinkFallback(browser) {
   }
 }
 
+async function testResolverSuccess(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let resolverRequests = 0;
+  let directRequests = 0;
+  let microlinkRequests = 0;
+
+  await page.route(RESOLVER_PATTERN, route => {
+    resolverRequests += 1;
+    return route.fulfill({
+      status: 200,
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+      body: JSON.stringify({
+        status: 'success',
+        data: {
+          url: 'https://qa-resolver.test/page',
+          title: 'Resolver Success',
+          description: 'Resolver metadata',
+          provider: 'web',
+          descriptionSource: 'meta',
+          confidence: 'high',
+        },
+      }),
+    });
+  });
+  await page.route('https://qa-resolver.test/page', route => {
+    directRequests += 1;
+    return route.abort('failed');
+  });
+  await page.route('https://api.microlink.io/**', route => {
+    microlinkRequests += 1;
+    return route.abort('failed');
+  });
+
+  try {
+    await loadApp(page);
+    await openLinkSheet(page);
+    await beginFetch(page, 'https://qa-resolver.test/page');
+    await page.waitForFunction(() => document.getElementById('fTitle').value.trim().length > 0, null, { timeout: 8000 });
+
+    assert.equal(resolverRequests, 1, 'resolver metadata is fetched once');
+    assert.equal(directRequests, 0, 'complete resolver metadata skips direct fetch');
+    assert.equal(microlinkRequests, 0, 'complete resolver metadata skips Microlink');
+    assert.equal(await page.locator('#fTitle').inputValue(), 'Resolver Success');
+    assert.equal(await page.locator('#fNote').inputValue(), 'Resolver metadata');
+
+    return 'PASS';
+  } finally {
+    await context.close();
+  }
+}
+
 async function testCancellation(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error)));
+  let resolverRequests = 0;
   let directRequests = 0;
   let microlinkRequests = 0;
+
+  await page.route(RESOLVER_PATTERN, async route => {
+    resolverRequests += 1;
+    await sleep(1200);
+    try {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+        body: JSON.stringify({ status: 'success', data: { title: 'Should Not Apply', description: 'Should Not Apply' } }),
+      });
+    } catch { /* シートを閉じた後に届いても無視する */ }
+  });
 
   await page.route('https://qa-cancel.test/page', async route => {
     directRequests += 1;
@@ -179,7 +260,8 @@ async function testCancellation(browser) {
     await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
     await page.waitForTimeout(1450);
 
-    assert.equal(directRequests, 1, 'cancelled flow starts only one direct request');
+    assert.equal(resolverRequests, 1, 'cancelled flow starts one resolver request');
+    assert.equal(directRequests, 0, 'closing the sheet prevents downstream direct fetch');
     assert.equal(microlinkRequests, 0, 'closing the sheet prevents the fallback request');
     assert.equal(await page.locator('#fTitle').inputValue(), '', 'cancelled flow does not fill the closed form');
 
@@ -198,6 +280,8 @@ async function testTimeout(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   let microlinkRequests = 0;
+
+  await routeResolverFailure(page);
 
   await page.route('https://qa-timeout.test/page', route => route.abort('failed'));
   await page.route('https://api.microlink.io/**', async route => {
@@ -235,6 +319,7 @@ try {
     directSuccess: await testDirectSuccess(browser),
     reducedMotion: await testReducedMotion(browser),
     microlinkFallback: await testMicrolinkFallback(browser),
+    resolverSuccess: await testResolverSuccess(browser),
     cancellation: await testCancellation(browser),
     timeout: await testTimeout(browser),
   };
