@@ -3,7 +3,7 @@ import { cleanText, fetchSafeHtml } from "./security.js";
 class MetaCollector {
   constructor() { this.values = {}; }
   element(el) {
-    const key = String(el.getAttribute("property") || el.getAttribute("name") || "").toLowerCase().trim();
+    const key = String(el.getAttribute("property") || el.getAttribute("name") || el.getAttribute("itemprop") || "").toLowerCase().trim();
     const value = cleanText(el.getAttribute("content") || "", 1200);
     if (key && value && !this.values[key]) this.values[key] = value;
   }
@@ -113,11 +113,13 @@ export async function extractHtmlMetadata(rawUrl) {
   const articleP = new ParagraphCollector();
   const mainP = new ParagraphCollector();
   const bodyP = new ParagraphCollector(6, 1200);
+  const microDescription = new TextCollector(1200);
   const jsonLd = new JsonLdCollector();
 
   await new HTMLRewriter()
     .on("meta[property]", meta)
     .on("meta[name]", meta)
+    .on("meta[itemprop]", meta)
     .on("title", title)
     .on("article h1", articleH1)
     .on("main h1", mainH1)
@@ -125,6 +127,7 @@ export async function extractHtmlMetadata(rawUrl) {
     .on("article p", articleP)
     .on("main p", mainP)
     .on("body p", bodyP)
+    .on('[itemprop="description"]', microDescription)
     .on('script[type="application/ld+json"]', jsonLd)
     .transform(new Response(fetched.html, { headers: { "Content-Type": "text/html; charset=utf-8" } }))
     .text();
@@ -143,6 +146,7 @@ export async function extractHtmlMetadata(rawUrl) {
     meta.values["description"] ||
     meta.values["og:description"] ||
     meta.values["twitter:description"] ||
+    cleanText(microDescription.value, 1000) ||
     jsonDescription ||
     bodyDescription,
     1000
@@ -152,6 +156,7 @@ export async function extractHtmlMetadata(rawUrl) {
   if (meta.values["description"]) source = "meta";
   else if (meta.values["og:description"]) source = "og";
   else if (meta.values["twitter:description"]) source = "twitter";
+  else if (cleanText(microDescription.value)) source = "microdata";
   else if (jsonDescription) source = "json-ld";
   else if (bodyDescription) source = "body";
 
