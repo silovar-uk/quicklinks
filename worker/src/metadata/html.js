@@ -116,7 +116,8 @@ export async function extractHtmlMetadata(rawUrl) {
   const jsonLd = new JsonLdCollector();
 
   await new HTMLRewriter()
-    .on("meta[property],meta[name]", meta)
+    .on("meta[property]", meta)
+    .on("meta[name]", meta)
     .on("title", title)
     .on("article h1", articleH1)
     .on("main h1", mainH1)
