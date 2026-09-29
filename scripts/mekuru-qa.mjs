@@ -235,7 +235,7 @@ const checks = [
     await page.locator('#fUrl').fill(MOCK ? 'https://example.com/qa-save' : 'https://qa-success.test/save');
     await page.locator('#fUrl').dispatchEvent('change');
     await page.waitForFunction(() => document.querySelector('#fTitle').value.trim().length > 0, null, { timeout: 8000 });
-    if (!MOCK) { assert.equal(await page.locator('#fTitle').inputValue(), 'QA Success'); assert.equal(await page.locator('#fNote').inputValue(), 'QA success description'); }
+    if (!MOCK) { assert.equal(await page.locator('#fTitle').inputValue(), 'QA Success'); assert.equal(await page.locator('#fDescription').inputValue(), 'QA success description'); assert.equal(await page.locator('#fNote').inputValue(), ''); }
     assert.match(await page.locator('#fSave').innerText(), /未分類で保存/, '分類なしのときのボタン名');
     await page.locator('#fCat').fill('受け入れ確認'); await page.keyboard.press('Enter');
     await page.locator('#fSave').click();
