@@ -581,12 +581,12 @@ function setStatus(kind, html) {
   const s = $('fStatus');
   s.hidden = false; s.className = 'status ' + kind; s.innerHTML = html; s.setAttribute('aria-busy', String(kind === 'busy'));
 }
-function setDescriptionField(value, source = '', updatedAt = null) {
+function setDescriptionField(value, source = '', updatedAt) {
   const text = String(value || '');
   $('fDescription').value = text;
   $('fDescriptionField').hidden = !text;
   F.descriptionSource = text ? String(source || '') : '';
-  F.descriptionUpdatedAt = text ? (updatedAt || new Date().toISOString()) : null;
+  F.descriptionUpdatedAt = text ? (updatedAt === undefined ? new Date().toISOString() : updatedAt) : null;
 }
 function checkDup() {
   const u = $('fUrl').value.trim();
