@@ -37,6 +37,49 @@ async function spinnerSnapshot(page) {
   });
 }
 
+async function testLegacyNoteMigration(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+
+  try {
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      localStorage.setItem('quick-links-mobile-localstorage-v1', JSON.stringify({
+        items: [{
+          id: 'legacy-note',
+          title: 'Legacy Note Link',
+          url: 'https://legacy-note.test/page',
+          projectName: '未分類',
+          note: 'This is a pre-migration personal note',
+          addedAt: '2026-09-01T00:00:00.000Z',
+          updatedAt: '2026-09-01T00:00:00.000Z',
+          clickCount: 0,
+          clickHistory: [],
+          archived: false,
+          isFavorite: false,
+          favoriteType: 'none',
+          favoriteExpiry: null,
+        }],
+        projects: ['未分類'],
+        projectColors: {},
+        promptMemos: [],
+        promptCategories: ['未分類'],
+      }));
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#item-legacy-note .item-more').click();
+    await page.locator('#detailSheet [data-act="edit"]').click();
+
+    assert.equal(await page.locator('#fNote').inputValue(), 'This is a pre-migration personal note', 'legacy note is preserved verbatim');
+    assert.equal(await page.locator('#fDescription').inputValue(), '', 'legacy note is not guessed to be a fetched description');
+    assert.equal(await page.locator('#fDescriptionField').isHidden(), true, 'empty fetched description stays out of the way');
+
+    return 'PASS';
+  } finally {
+    await context.close();
+  }
+}
+
 async function testDirectSuccess(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
   const page = await context.newPage();
@@ -381,6 +424,7 @@ async function testTimeout(browser) {
 const browser = await chromium.launch({ headless: true });
 try {
   const results = {
+    legacyNoteMigration: await testLegacyNoteMigration(browser),
     directSuccess: await testDirectSuccess(browser),
     reducedMotion: await testReducedMotion(browser),
     microlinkFallback: await testMicrolinkFallback(browser),
