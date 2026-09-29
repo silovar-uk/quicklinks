@@ -219,7 +219,7 @@
     fields.forEach(f => { out[f] = mergeField(base?.[f], local?.[f], remote?.[f], kind + '.' + id + '.' + f, conflicts); });
     if (kind === 'links') {
       // ページ説明は機械取得データなので競合ダイアログに出さず、取得時刻が新しい側を採用する。
-      const candidates = [base, local, remote]
+      const candidates = [local, remote, base]
         .filter(x => x && String(x.description || ''))
         .sort((a, b) => {
           const at = a?.descriptionUpdatedAt ? new Date(a.descriptionUpdatedAt).getTime() : 0;
