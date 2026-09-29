@@ -346,7 +346,7 @@ function renderCare() {
   const label = CARE.running ? '取り直しています…' : paused ? '続きから取り直す' : `取り直す（${c.fetchable.length}件）`;
   const canRun = !CARE.running && (paused || c.fetchable.length > 0);
   el.innerHTML = `<h3>情報の手入れ</h3>
-    <div class="care-stats"><div class="care-stat"><b>${c.noDescription}</b><span>説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
+    <div class="care-stats"><div class="care-stat"><b>${c.noDescription}</b><span>ページ説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
     <p>タイトルとページの説明だけを補います。自分メモには触れません。取得に使う外部サービスの無料枠は1日25件です。枠がなくなったら止まり、翌日に続きから再開できます。</p>
     <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo">${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
     ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `取り直しています… ${done} / ${total}件` : paused ? `今日の取得枠を使い切りました。${done} / ${total}件まで終わりました。続きは明日の朝から再開できます。` : `終わりました。説明や題名を入れた${CARE.log.filter(x => x.ok).length}件・取得できなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice().reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
@@ -388,7 +388,7 @@ async function startCareRun() {
     if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changedTitle = true; }
     if (!item.description && r.data.description) {
       item.description = r.data.description;
-      item.descriptionSource = String(r.data.source || r.data.provider || '');
+      item.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
       item.descriptionUpdatedAt = new Date().toISOString();
       changedDescription = true;
     }
@@ -539,7 +539,7 @@ async function refetchQuiet(item) {
   let changed = false;
   if (!item.description && r.data.description) {
     item.description = r.data.description;
-    item.descriptionSource = String(r.data.source || r.data.provider || '');
+    item.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
     item.descriptionUpdatedAt = new Date().toISOString();
     changed = true;
   }
@@ -616,9 +616,12 @@ async function startFetch() {
     setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
     return;
   }
-  if (!$('fTitle').value) $('fTitle').value = r.data.title;
-  if (!$('fDescription').value && r.data.description) setDescriptionField(r.data.description, r.data.source || r.data.provider || '');
-  setStatus('ok', `<span class="grow">タイトルとページの説明を取得しました。自分メモは別に残せます。</span>`);
+  const filledTitle = !$('fTitle').value && !!r.data.title;
+  const filledDescription = !$('fDescription').value && !!r.data.description;
+  if (filledTitle) $('fTitle').value = r.data.title;
+  if (filledDescription) setDescriptionField(r.data.description, r.data.descriptionSource || r.data.source || r.data.provider || '');
+  const fetched = [filledTitle && 'タイトル', filledDescription && 'ページの説明'].filter(Boolean).join('と');
+  setStatus('ok', `<span class="grow">${fetched ? fetched + 'を取得しました。' : 'ページ情報を確認しました。'}自分メモは別に残せます。</span>`);
 }
 // 編集シート・詳細シートの「ページ情報を取り直す」。結果は差分で出し、フォームに反映してから保存で確定する
 async function refetchInSheet() {
@@ -662,7 +665,7 @@ function applyDiff() {
   const g = F.got;
   if (!g) return;
   if ($('dTitle')?.checked) $('fTitle').value = g.title;
-  if ($('dDescription')?.checked) setDescriptionField(g.description, g.source || g.provider || '');
+  if ($('dDescription')?.checked) setDescriptionField(g.description, g.descriptionSource || g.source || g.provider || '');
   $('fDiff').hidden = true;
   toast('フォームに反映しました。自分メモはそのままです');
 }
@@ -723,7 +726,7 @@ async function enrichSavedLink(id) {
   }
   if (!latest.description && r.data.description) {
     latest.description = r.data.description;
-    latest.descriptionSource = String(r.data.source || r.data.provider || '');
+    latest.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
     latest.descriptionUpdatedAt = new Date().toISOString();
     changed = true;
   }
