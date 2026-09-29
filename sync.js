@@ -342,7 +342,7 @@
 
   function apply(data, etag) {
     localStorage.setItem('quick-links-sync-last-good-v1', JSON.stringify({ savedAt:now(), data:payload() }));
-    state.items = (data.links || []).map(x => ({ ...x, archived:false, isFavorite:x.favoriteType !== 'none' }));
+    state.items = normalizeLinkItems(data.links || []);
     state.promptMemos = (data.prompts || []).map(x => ({ ...x }));
     state.projects = uniq([...(data.projects || []), ...state.items.map(x => x.projectName)]);
     state.promptCategories = uniq([...(data.promptCategories || []), ...state.promptMemos.map(x => x.categoryName)]);
