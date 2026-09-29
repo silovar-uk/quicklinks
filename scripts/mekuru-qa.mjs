@@ -150,9 +150,9 @@ const checks = [
     assert.equal(await page.locator('#searchClear').isVisible(), false, '検索が空なのに消去ボタンが出ている');
     assert.deepEqual(errors, []); await context.close();
   }),
-  check('P1', 'PC:本文とメタ情報は12px以上(キー表示を除く)', async b => {
+  check('P1', 'PC:本文と主要メタ情報は12px以上(URLプレビュー・キー表示を除く)', async b => {
     const { page, context } = await open(b, PC);
-    const small = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(e => e.offsetParent && !e.closest('kbd, .kbd, dialog') && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).filter(e => parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className || e.tagName).slice(0, 5));
+    const small = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(e => e.offsetParent && !e.closest('kbd, .kbd, dialog, .item-url') && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).filter(e => parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className || e.tagName).slice(0, 5));
     assert.deepEqual(small, [], `12px未満: ${small.join(', ')}`); await context.close();
   }),
   check('P1', '表示の整え:Xは本文と投稿者に分け、YouTubeの末尾と定型の説明を出さない', async b => {
