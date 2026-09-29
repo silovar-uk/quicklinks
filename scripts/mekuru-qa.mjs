@@ -229,20 +229,20 @@ const checks = [
     assert.equal(await page.evaluate(() => document.querySelector('#searchSheet').open), true);
     assert.equal(await page.evaluate(() => document.activeElement.id), 'mSearchInput'); await context.close();
   }),
-  check('P1', '保存:URLを入れると待たずに取得し、保存するとシートが閉じて保存したカードが光る。項目は増えない', async b => {
+  check('P1', '保存:URLを入れると待たずに取得し、保存するとシートが閉じて保存したカードが光る。保存項目は定義済みだけ', async b => {
     const { page, context } = await open(b, PC);
     await page.locator('#addButton').click();
     await page.locator('#fUrl').fill(MOCK ? 'https://example.com/qa-save' : 'https://qa-success.test/save');
     await page.locator('#fUrl').dispatchEvent('change');
     await page.waitForFunction(() => document.querySelector('#fTitle').value.trim().length > 0, null, { timeout: 8000 });
-    if (!MOCK) { assert.equal(await page.locator('#fTitle').inputValue(), 'QA Success'); assert.equal(await page.locator('#fNote').inputValue(), 'QA success description'); }
+    if (!MOCK) { assert.equal(await page.locator('#fTitle').inputValue(), 'QA Success'); assert.equal(await page.locator('#fDescription').inputValue(), 'QA success description'); assert.equal(await page.locator('#fNote').inputValue(), ''); }
     assert.match(await page.locator('#fSave').innerText(), /未分類で保存/, '分類なしのときのボタン名');
     await page.locator('#fCat').fill('受け入れ確認'); await page.keyboard.press('Enter');
     await page.locator('#fSave').click();
     await page.waitForFunction(() => !document.querySelector('#linkSheet').open);
     assert.equal(await page.locator('#lib .item.flash').count(), 1, '光るカードがない');
     if (!MOCK) {
-      const allowed = ['addedAt', 'archived', 'clickCount', 'clickHistory', 'favoriteExpiry', 'favoriteType', 'id', 'isFavorite', 'lastClickedAt', 'note', 'projectName', 'title', 'updatedAt', 'url'];
+      const allowed = ['addedAt', 'archived', 'clickCount', 'clickHistory', 'description', 'descriptionSource', 'descriptionUpdatedAt', 'favoriteExpiry', 'favoriteType', 'id', 'isFavorite', 'lastClickedAt', 'note', 'projectName', 'title', 'updatedAt', 'url'];
       const s = await stored(page);
       s.items.forEach(x => Object.keys(x).forEach(k => assert.ok(allowed.includes(k), `リンクに新しい項目 ${k}`)));
       s.promptMemos.forEach(x => assert.deepEqual(Object.keys(x).sort(), ['body', 'categoryName', 'copyCount', 'createdAt', 'id', 'lastCopiedAt', 'title', 'updatedAt']));

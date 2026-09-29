@@ -92,6 +92,9 @@
       title: String(x.title || '無題'),
       url: String(x.url || ''),
       projectName: String(x.projectName || '未分類'),
+      description: String(x.description || ''),
+      descriptionSource: String(x.descriptionSource || ''),
+      descriptionUpdatedAt: x.descriptionUpdatedAt || null,
       note: String(x.note || ''),
       addedAt: x.addedAt || null,
       updatedAt: x.updatedAt || x.addedAt || null,
@@ -215,6 +218,18 @@
       : ['title','categoryName','body'];
     fields.forEach(f => { out[f] = mergeField(base?.[f], local?.[f], remote?.[f], kind + '.' + id + '.' + f, conflicts); });
     if (kind === 'links') {
+      // ページ説明は機械取得データなので競合ダイアログに出さず、取得時刻が新しい側を採用する。
+      const candidates = [local, remote, base]
+        .filter(x => x && String(x.description || ''))
+        .sort((a, b) => {
+          const at = a?.descriptionUpdatedAt ? new Date(a.descriptionUpdatedAt).getTime() : 0;
+          const bt = b?.descriptionUpdatedAt ? new Date(b.descriptionUpdatedAt).getTime() : 0;
+          return bt - at;
+        });
+      const desc = candidates[0] || local || remote || base || {};
+      out.description = String(desc.description || '');
+      out.descriptionSource = String(desc.descriptionSource || '');
+      out.descriptionUpdatedAt = desc.descriptionUpdatedAt || null;
       out.addedAt = earlier(local?.addedAt, remote?.addedAt) || base?.addedAt || null;
       out.updatedAt = later(local?.updatedAt, remote?.updatedAt) || base?.updatedAt || null;
       out.lastClickedAt = later(local?.lastClickedAt, remote?.lastClickedAt) || base?.lastClickedAt || null;
@@ -327,7 +342,7 @@
 
   function apply(data, etag) {
     localStorage.setItem('quick-links-sync-last-good-v1', JSON.stringify({ savedAt:now(), data:payload() }));
-    state.items = (data.links || []).map(x => ({ ...x, archived:false, isFavorite:x.favoriteType !== 'none' }));
+    state.items = normalizeLinkItems(data.links || []);
     state.promptMemos = (data.prompts || []).map(x => ({ ...x }));
     state.projects = uniq([...(data.projects || []), ...state.items.map(x => x.projectName)]);
     state.promptCategories = uniq([...(data.promptCategories || []), ...state.promptMemos.map(x => x.categoryName)]);

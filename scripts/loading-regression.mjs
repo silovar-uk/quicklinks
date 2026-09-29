@@ -37,6 +37,49 @@ async function spinnerSnapshot(page) {
   });
 }
 
+async function testLegacyNoteMigration(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+
+  try {
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      localStorage.setItem('quick-links-mobile-localstorage-v1', JSON.stringify({
+        items: [{
+          id: 'legacy-note',
+          title: 'Legacy Note Link',
+          url: 'https://legacy-note.test/page',
+          projectName: '未分類',
+          note: 'This is a pre-migration personal note',
+          addedAt: '2026-09-01T00:00:00.000Z',
+          updatedAt: '2026-09-01T00:00:00.000Z',
+          clickCount: 0,
+          clickHistory: [],
+          archived: false,
+          isFavorite: false,
+          favoriteType: 'none',
+          favoriteExpiry: null,
+        }],
+        projects: ['未分類'],
+        projectColors: {},
+        promptMemos: [],
+        promptCategories: ['未分類'],
+      }));
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#item-legacy-note .item-more').click();
+    await page.locator('#detailSheet [data-act="edit"]').click();
+
+    assert.equal(await page.locator('#fNote').inputValue(), 'This is a pre-migration personal note', 'legacy note is preserved verbatim');
+    assert.equal(await page.locator('#fDescription').inputValue(), '', 'legacy note is not guessed to be a fetched description');
+    assert.equal(await page.locator('#fDescriptionField').isHidden(), true, 'empty fetched description stays out of the way');
+
+    return 'PASS';
+  } finally {
+    await context.close();
+  }
+}
+
 async function testDirectSuccess(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
   const page = await context.newPage();
@@ -71,9 +114,20 @@ async function testDirectSuccess(browser) {
     await page.waitForFunction(() => document.getElementById('fTitle').value.trim().length > 0, null, { timeout: 8000 });
     assert.equal(directRequests, 1, 'direct metadata is fetched once');
     assert.equal(await page.locator('#fTitle').inputValue(), 'QA Success', 'direct metadata populates the form');
-    assert.equal(await page.locator('#fNote').inputValue(), 'Loading regression success', 'direct metadata populates the note');
+    assert.equal(await page.locator('#fDescription').inputValue(), 'Loading regression success', 'direct metadata populates the fetched description');
+    assert.equal(await page.locator('#fNote').inputValue(), '', 'metadata fetch does not write into the personal note');
     assert.equal(await page.locator('#fStatus').getAttribute('aria-busy'), 'false', 'busy state clears after success');
     assert.equal(await page.locator('.spin').count(), 0, 'spinner is removed after success');
+
+    await page.locator('#fNote').fill('Personal note');
+    await page.locator('#fSave').click();
+    await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
+    const saved = await page.evaluate(() => {
+      const data = JSON.parse(localStorage.getItem('quick-links-mobile-localstorage-v1') || '{}');
+      return (data.items || []).find(x => x.url === 'https://qa-success.test/page');
+    });
+    assert.equal(saved.description, 'Loading regression success', 'fetched description is stored in description');
+    assert.equal(saved.note, 'Personal note', 'personal note is stored independently');
 
     return 'PASS';
   } finally {
@@ -195,12 +249,12 @@ async function testMicrolinkExtractedDescription(browser) {
     await loadApp(page);
     await openLinkSheet(page);
     await beginFetch(page, 'https://www.youtube.com/watch?v=qaVideo123');
-    await page.waitForFunction(() => document.getElementById('fNote').value.trim().length > 0, null, { timeout: 8000 });
+    await page.waitForFunction(() => document.getElementById('fDescription').value.trim().length > 0, null, { timeout: 8000 });
 
     assert.equal(directRequests, 1, 'direct YouTube fetch is attempted after resolver failure');
     assert.equal(microlinkRequests, 1, 'Microlink fallback is used once');
     assert.equal(
-      await page.locator('#fNote').inputValue(),
+      await page.locator('#fDescription').inputValue(),
       'This is the actual video description from microdata.',
       'generic YouTube description is replaced by extracted video description'
     );
@@ -254,7 +308,8 @@ async function testResolverSuccess(browser) {
     assert.equal(directRequests, 0, 'complete resolver metadata skips direct fetch');
     assert.equal(microlinkRequests, 0, 'complete resolver metadata skips Microlink');
     assert.equal(await page.locator('#fTitle').inputValue(), 'Resolver Success');
-    assert.equal(await page.locator('#fNote').inputValue(), 'Resolver metadata');
+    assert.equal(await page.locator('#fDescription').inputValue(), 'Resolver metadata');
+    assert.equal(await page.locator('#fNote').inputValue(), '', 'resolver metadata stays separate from the personal note');
 
     return 'PASS';
   } finally {
@@ -369,6 +424,7 @@ async function testTimeout(browser) {
 const browser = await chromium.launch({ headless: true });
 try {
   const results = {
+    legacyNoteMigration: await testLegacyNoteMigration(browser),
     directSuccess: await testDirectSuccess(browser),
     reducedMotion: await testReducedMotion(browser),
     microlinkFallback: await testMicrolinkFallback(browser),

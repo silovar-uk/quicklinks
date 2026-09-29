@@ -167,6 +167,9 @@ function normalizeLinkItems(list) {
         title: String(item.title || '無題'),
         url: String(item.url || ''),
         projectName: String(item.projectName || '未分類').trim() || '未分類',
+        description: String(item.description || ''),
+        descriptionSource: String(item.descriptionSource || ''),
+        descriptionUpdatedAt: item.descriptionUpdatedAt || null,
         note: String(item.note || ''),
         addedAt: item.addedAt || now,
         updatedAt: item.updatedAt || item.addedAt || now,
@@ -202,6 +205,7 @@ function getLinkKey(item) {
     String(item.url || '').trim(),
     normalizeSpaces(item.title),
     normalizeSpaces(item.projectName || '未分類'),
+    normalizeSpaces(item.description),
     normalizeSpaces(item.note),
     item.archived ? 'archived' : 'active'
   ].join('\u001f');
@@ -333,8 +337,8 @@ function searchLinks(q) {
   if (!fold(q).trim()) return [];
   return state.items
     .filter(item => !item.archived)
-    .filter(item => { const v = view(item); return matchesSearch([v.title, v.by, v.desc, item.title, item.note, item.url, item.projectName, v.src], q); })
-    .map(item => ({ item, score: relevanceScore([view(item).title, item.projectName, `${item.url} ${item.note}`], q), recent: timeValue(item.lastClickedAt || item.updatedAt || item.addedAt) }))
+    .filter(item => { const v = view(item); return matchesSearch([v.title, v.by, v.desc, item.title, item.description, item.note, item.url, item.projectName, v.src], q); })
+    .map(item => ({ item, score: relevanceScore([view(item).title, item.projectName, `${item.url} ${item.description || ''} ${item.note}`], q), recent: timeValue(item.lastClickedAt || item.updatedAt || item.addedAt) }))
     .sort((a, b) => b.score - a.score || b.recent - a.recent)
     .map(entry => entry.item);
 }
@@ -393,7 +397,7 @@ function sourceOf(url) {
 
 // 保存データはそのまま。表示するときだけ、Xの自動タイトルなどを整える
 function view(item) {
-  let title = String(item.title || '').trim(), by = '', desc = String(item.note || '').trim(), m;
+  let title = String(item.title || '').trim(), by = '', desc = String(item.note || item.description || '').trim(), m;
   const s = sourceOf(item.url);
   if (s.src === 'X') {
     if ((m = title.match(/^X(?:ユーザー)?の(.+?)さん(?:[:：]\s*「([\s\S]*?)」?)?(?:\s*\/\s*X)?\s*$/))) { by = m[1]; title = m[2] || ''; }
@@ -892,11 +896,11 @@ function careCandidates() {
   const cutoff = Date.now() - 7 * DAY;
   const excluded = new Set(Object.keys(RF.failed || {}).filter(id => timeValue(RF.failed[id]) >= cutoff));
   const active = state.items.filter(item => !item.archived);
-  const need = active.filter(item => (!item.note || looksPlaceholder(item.title, item.url)) && !excluded.has(item.id));
+  const need = active.filter(item => (!item.description || looksPlaceholder(item.title, item.url)) && !excluded.has(item.id));
   return {
     fetchable: need.filter(item => !isLoginHost(item.url)),
     login: need.filter(item => isLoginHost(item.url)),
-    noNote: active.filter(item => !item.note).length,
+    noDescription: active.filter(item => !item.description).length,
     placeholder: active.filter(item => looksPlaceholder(item.title, item.url)).length
   };
 }
