@@ -95,8 +95,12 @@
       <label class="lab" for="fTitle">タイトル <button class="btn quiet" type="button" id="fRefetch" hidden style="margin-left:auto;height:28px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>ページ情報を取り直す</button></label>
       <input id="fTitle" class="inp" autocomplete="off">
     </div>
+    <div class="field" id="fDescriptionField" hidden>
+      <label class="lab" for="fDescription">ページの説明 <span class="aside">自動取得・自分メモとは別</span></label>
+      <textarea id="fDescription" class="inp" readonly aria-readonly="true"></textarea>
+    </div>
     <div class="field">
-      <label class="lab" for="fNote">備考 <span class="aside">ページの説明が入ります</span></label>
+      <label class="lab" for="fNote">自分メモ <span class="aside">ページの説明とは別に残せます</span></label>
       <textarea id="fNote" class="inp"></textarea>
     </div>
     <label class="switch"><input type="checkbox" id="fFav"> お気に入り</label>
