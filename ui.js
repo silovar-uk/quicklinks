@@ -346,8 +346,8 @@ function renderCare() {
   const label = CARE.running ? '取り直しています…' : paused ? '続きから取り直す' : `取り直す（${c.fetchable.length}件）`;
   const canRun = !CARE.running && (paused || c.fetchable.length > 0);
   el.innerHTML = `<h3>情報の手入れ</h3>
-    <div class="care-stats"><div class="care-stat"><b>${c.noNote}</b><span>説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
-    <p>空いているところだけ埋めます。書いた備考は上書きしません。取得に使う外部サービスの無料枠は1日25件です。枠がなくなったら止まり、翌日に続きから再開できます。</p>
+    <div class="care-stats"><div class="care-stat"><b>${c.noDescription}</b><span>説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
+    <p>タイトルとページの説明だけを補います。自分メモには触れません。取得に使う外部サービスの無料枠は1日25件です。枠がなくなったら止まり、翌日に続きから再開できます。</p>
     <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo">${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
     ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `取り直しています… ${done} / ${total}件` : paused ? `今日の取得枠を使い切りました。${done} / ${total}件まで終わりました。続きは明日の朝から再開できます。` : `終わりました。説明や題名を入れた${CARE.log.filter(x => x.ok).length}件・取得できなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice().reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
     <p class="diff-note">外から読めないページ（Notion・Googleドキュメントなど）は、そのページを開いてブックマークレット「Quick Linksに追加」を押すと、表示中のタイトルと説明で更新できます。</p>`;
@@ -383,12 +383,17 @@ async function startCareRun() {
       if (r.reason === 'rate') break;
       continue;
     }
-    const before = { id: item.id, title: item.title, note: item.note };
-    let changedTitle = false, changedNote = false;
+    const before = { id: item.id, title: item.title, description: item.description, descriptionSource: item.descriptionSource, descriptionUpdatedAt: item.descriptionUpdatedAt };
+    let changedTitle = false, changedDescription = false;
     if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changedTitle = true; }
-    if (!item.note && r.data.description) { item.note = r.data.description; changedNote = true; }
-    if (changedTitle || changedNote) { RF.batch.push(before); changed = true; }
-    CARE.log.push({ ok: changedTitle || changedNote, name: view(item).title.slice(0, 30), msg: changedTitle || changedNote ? [changedTitle && 'タイトル', changedNote && '説明'].filter(Boolean).join('と') + 'を入れました' : '変更なし' });
+    if (!item.description && r.data.description) {
+      item.description = r.data.description;
+      item.descriptionSource = String(r.data.source || r.data.provider || '');
+      item.descriptionUpdatedAt = new Date().toISOString();
+      changedDescription = true;
+    }
+    if (changedTitle || changedDescription) { RF.batch.push(before); changed = true; }
+    CARE.log.push({ ok: changedTitle || changedDescription, name: view(item).title.slice(0, 30), msg: changedTitle || changedDescription ? [changedTitle && 'タイトル', changedDescription && '説明'].filter(Boolean).join('と') + 'を入れました' : '変更なし' });
     saveRF();
     renderCare();
   }
@@ -398,7 +403,7 @@ async function startCareRun() {
 }
 function undoCare() {
   if (!RF.batch || !RF.batch.length) return;
-  RF.batch.forEach(b => { const item = find('link', b.id); if (item) { item.title = b.title; item.note = b.note; item.updatedAt = new Date().toISOString(); } });
+  RF.batch.forEach(b => { const item = find('link', b.id); if (item) { item.title = b.title; item.description = b.description || ''; item.descriptionSource = b.descriptionSource || ''; item.descriptionUpdatedAt = b.descriptionUpdatedAt || null; item.updatedAt = new Date().toISOString(); } });
   RF.batch = [];
   saveRF();
   CARE.log = [];
@@ -511,7 +516,8 @@ function linkDetail(item) {
   const v = view(item), r = reasonOf(item, currentDeckMem()), c = Number(item.clickCount || 0);
   return `<div class="d"><div class="d-top"><span class="d-cat">${escapeHtml(v.src)}・${dot(item.projectName)}${escapeHtml(item.projectName || '未分類')}${isFavorite(item) ? '・★' : ''}</span><h2>${escapeHtml(v.title)}</h2>${v.by ? `<div class="d-facts"><span>${escapeHtml(v.by)}</span></div>` : ''}<div class="d-facts"><span>${escapeHtml(formatDate(item.addedAt))}に保存(${escapeHtml(r.text)})</span><span>${c ? `${c}回開いた` : 'まだ開いていない'}</span></div></div>
     <div class="d-actions"><a class="btn primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-open>開く</a><button class="btn" type="button" data-act="copyurl">URLをコピー</button><button class="btn" type="button" data-act="edit">編集</button><button class="btn" type="button" data-act="refetch">ページ情報を取り直す</button><button class="btn quiet" type="button" data-act="letgo">手放す</button></div>
-    <div class="d-sec"><h3>説明</h3><p class="d-note ${item.note ? '' : 'none'}">${escapeHtml(item.note || '') || 'まだありません。「ページ情報を取り直す」で入れられます。'}</p></div>
+    <div class="d-sec"><h3>自分メモ</h3><p class="d-note ${item.note ? '' : 'none'}">${escapeHtml(item.note || '') || 'まだありません。編集から自分用のメモを残せます。'}</p></div>
+    <div class="d-sec"><h3>ページの説明</h3><p class="d-note ${item.description ? '' : 'none'}">${escapeHtml(item.description || '') || 'まだ取得していません。「ページ情報を取り直す」で取得できます。'}</p></div>
     <div class="d-sec"><h3>URL</h3><div class="d-url">${escapeHtml(item.url)}</div></div></div>`;
 }
 function showSheet(el) { if (!el.open) el.showModal(); }
@@ -531,7 +537,12 @@ async function refetchQuiet(item) {
   catch { toast('取り直せませんでした'); return; }
   if (!r.ok) { if (r.reason !== 'login') markFetchFailed(item.id); toast(fetchFailureText(r.reason)); return; }
   let changed = false;
-  if (!item.note && r.data.description) { item.note = r.data.description; changed = true; }
+  if (!item.description && r.data.description) {
+    item.description = r.data.description;
+    item.descriptionSource = String(r.data.source || r.data.provider || '');
+    item.descriptionUpdatedAt = new Date().toISOString();
+    changed = true;
+  }
   if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changed = true; }
   if (changed) { item.updatedAt = new Date().toISOString(); save(); render(); toast('ページ情報を取り直しました'); }
   else toast('新しく入れる内容はありませんでした');
@@ -546,7 +557,7 @@ function detailAction(name, kind, id) {
 }
 
 /* ============ 保存・編集シート ============ */
-const F = { mode: 'add', id: null, cat: '', comboIdx: -1, bm: null, controller: null, seq: 0, lastUrl: '' };
+const F = { mode: 'add', id: null, cat: '', comboIdx: -1, bm: null, controller: null, seq: 0, lastUrl: '', descriptionSource: '', descriptionUpdatedAt: null };
 function recentCats() {
   const seen = [];
   state.items.slice().sort((a, b) => timeValue(b.addedAt) - timeValue(a.addedAt)).forEach(i => { const n = i.projectName || '未分類'; if (!seen.includes(n)) seen.push(n); });
@@ -569,6 +580,13 @@ function abortFetchController() { if (F.controller) { F.controller.abort(); F.co
 function setStatus(kind, html) {
   const s = $('fStatus');
   s.hidden = false; s.className = 'status ' + kind; s.innerHTML = html; s.setAttribute('aria-busy', String(kind === 'busy'));
+}
+function setDescriptionField(value, source = '', updatedAt = null) {
+  const text = String(value || '');
+  $('fDescription').value = text;
+  $('fDescriptionField').hidden = !text;
+  F.descriptionSource = text ? String(source || '') : '';
+  F.descriptionUpdatedAt = text ? (updatedAt || new Date().toISOString()) : null;
 }
 function checkDup() {
   const u = $('fUrl').value.trim();
@@ -599,8 +617,8 @@ async function startFetch() {
     return;
   }
   if (!$('fTitle').value) $('fTitle').value = r.data.title;
-  if (!$('fNote').value) $('fNote').value = r.data.description;
-  setStatus('ok', `<span class="grow">タイトルと説明を入れました。確かめて保存してください。</span>`);
+  if (!$('fDescription').value && r.data.description) setDescriptionField(r.data.description, r.data.source || r.data.provider || '');
+  setStatus('ok', `<span class="grow">タイトルとページの説明を取得しました。自分メモは別に残せます。</span>`);
 }
 // 編集シート・詳細シートの「ページ情報を取り直す」。結果は差分で出し、フォームに反映してから保存で確定する
 async function refetchInSheet() {
@@ -622,7 +640,7 @@ async function refetchInSheet() {
     return;
   }
   $('fStatus').hidden = true;
-  const cur = { title: $('fTitle').value, note: $('fNote').value };
+  const cur = { title: $('fTitle').value, description: $('fDescription').value };
   F.got = r.data;
   showDiff({ heading: '取り直したページ情報', cur, got: r.data, titleDefault: looksPlaceholder(cur.title, url) });
 }
@@ -633,39 +651,35 @@ function showDiff({ heading, cur, got, titleDefault }) {
 }
 function diffHtml(cur, got, { heading, titleDefault }) {
   const t = got.title && got.title !== cur.title;
-  const n = got.description && got.description !== cur.note;
-  if (!t && !n) return `<h3>${escapeHtml(heading)}</h3><p class="diff-note">いまの内容と同じでした。</p>`;
+  const d = got.description && got.description !== cur.description;
+  if (!t && !d) return `<h3>${escapeHtml(heading)}</h3><p class="diff-note">いまの内容と同じでした。</p>`;
   return `<h3>${escapeHtml(heading)}</h3>` +
     (t ? `<div class="diff-item"><label><input type="checkbox" id="dTitle" ${titleDefault ? 'checked' : ''}><span><b>タイトル</b>を「${escapeHtml(got.title)}」にする</span></label><span class="was">いま：<s>${escapeHtml(cur.title || '(空)')}</s></span></div>` : '') +
-    (n ? (cur.note
-      ? `<div class="diff-item"><b>説明</b><span class="was">取得：${escapeHtml(got.description)}</span><label><input type="radio" name="dNote" value="keep" checked>備考はそのまま</label><label><input type="radio" name="dNote" value="append">備考の後ろに足す</label><label><input type="radio" name="dNote" value="replace">取得した説明に置き換える</label></div>`
-      : `<div class="diff-item"><label><input type="checkbox" id="dNoteFill" checked><span><b>備考</b>に説明を入れる：「${escapeHtml(got.description)}」</span></label></div>`)
-      : '') +
-    `<div class="m-row"><button class="btn primary" type="button" id="dApply">フォームに反映</button><span class="diff-note">保存するまで確定しません</span></div>`;
+    (d ? `<div class="diff-item"><label><input type="checkbox" id="dDescription" checked><span><b>ページの説明</b>を更新する</span></label><span class="was">取得：${escapeHtml(got.description)}</span>${cur.description ? `<span class="was">いま：<s>${escapeHtml(cur.description)}</s></span>` : ''}</div>` : '') +
+    `<div class="m-row"><button class="btn primary" type="button" id="dApply">フォームに反映</button><span class="diff-note">自分メモは変更しません。保存するまで確定しません</span></div>`;
 }
 function applyDiff() {
   const g = F.got;
   if (!g) return;
   if ($('dTitle')?.checked) $('fTitle').value = g.title;
-  if ($('dNoteFill')?.checked) $('fNote').value = g.description;
-  const how = document.querySelector('input[name="dNote"]:checked')?.value;
-  if (how === 'append') $('fNote').value = `${$('fNote').value}\n${g.description}`;
-  if (how === 'replace') $('fNote').value = g.description;
+  if ($('dDescription')?.checked) setDescriptionField(g.description, g.source || g.provider || '');
   $('fDiff').hidden = true;
-  toast('フォームに反映しました。保存すると確定します');
+  toast('フォームに反映しました。自分メモはそのままです');
 }
 function handleBookmarklet(bm) {
   const dup = state.items.find(i => canonicalUrl(i.url) === canonicalUrl(bm.url));
   if (!dup) {
-    $('fTitle').value = bm.title; $('fNote').value = bm.description;
-    setStatus('ok', '<span class="grow">表示中のページから受け取りました。引き出しを選んで保存してください。</span>');
+    $('fTitle').value = bm.title;
+    setDescriptionField(bm.description, 'bookmarklet');
+    setStatus('ok', '<span class="grow">表示中のページからタイトルと説明を受け取りました。自分メモは別に残せます。</span>');
     return;
   }
   F.mode = 'edit'; F.id = dup.id; $('fFav').checked = isFavorite(dup); setCat(dup.projectName);
   $('fTitle').value = dup.title; $('fNote').value = dup.note;
-  setStatus('warn', `<span class="grow">保存済みのリンクです（${escapeHtml(dup.projectName || '未分類')}）。表示中のページから受け取った内容で更新できます。</span>`);
-  F.got = { title: bm.title, description: bm.description };
-  showDiff({ heading: 'このページの内容で更新', cur: { title: dup.title, note: dup.note }, got: F.got, titleDefault: looksPlaceholder(dup.title, dup.url) });
+  setDescriptionField(dup.description, dup.descriptionSource, dup.descriptionUpdatedAt);
+  setStatus('warn', `<span class="grow">保存済みのリンクです（${escapeHtml(dup.projectName || '未分類')}）。表示中のページ情報だけ更新できます。自分メモは変更しません。</span>`);
+  F.got = { title: bm.title, description: bm.description, source: 'bookmarklet' };
+  showDiff({ heading: 'このページの内容で更新', cur: { title: dup.title, description: dup.description || '' }, got: F.got, titleDefault: looksPlaceholder(dup.title, dup.url) });
 }
 function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   Object.assign(F, { mode, id, bm, seq: F.seq + 1, lastUrl: '' });
@@ -675,6 +689,7 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   $('fUrl').value = it ? it.url : (bm ? bm.url : url);
   $('fTitle').value = it ? it.title : '';
   $('fNote').value = it ? it.note : '';
+  setDescriptionField(it ? it.description : '', it ? it.descriptionSource : '', it ? it.descriptionUpdatedAt : null);
   $('fFav').checked = it ? isFavorite(it) : false;
   $('fRefetch').hidden = mode !== 'edit';
   $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true;
@@ -691,7 +706,7 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
 async function enrichSavedLink(id) {
   const item = find('link', id);
   if (!item || item.archived) return;
-  if (!looksPlaceholder(item.title, item.url) && item.note) return;
+  if (!looksPlaceholder(item.title, item.url) && item.description) return;
 
   let r;
   try { r = await fetchPageMetadata(item.url); }
@@ -706,8 +721,10 @@ async function enrichSavedLink(id) {
     latest.title = r.data.title;
     changed = true;
   }
-  if (!latest.note && r.data.description) {
-    latest.note = r.data.description;
+  if (!latest.description && r.data.description) {
+    latest.description = r.data.description;
+    latest.descriptionSource = String(r.data.source || r.data.provider || '');
+    latest.descriptionUpdatedAt = new Date().toISOString();
     changed = true;
   }
   if (!changed) return;
@@ -726,9 +743,9 @@ function saveLink() {
   let item;
   if (F.mode === 'edit') {
     item = find('link', F.id);
-    Object.assign(item, { url, title, projectName, note: $('fNote').value, isFavorite: $('fFav').checked, favoriteType: $('fFav').checked ? 'normal' : 'none', updatedAt: new Date().toISOString() });
+    Object.assign(item, { url, title, projectName, description: $('fDescription').value, descriptionSource: F.descriptionSource, descriptionUpdatedAt: F.descriptionUpdatedAt, note: $('fNote').value, isFavorite: $('fFav').checked, favoriteType: $('fFav').checked ? 'normal' : 'none', updatedAt: new Date().toISOString() });
   } else {
-    item = { id: uid('link'), title, url, projectName, note: $('fNote').value, isFavorite: $('fFav').checked, favoriteType: $('fFav').checked ? 'normal' : 'none', favoriteExpiry: null, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastClickedAt: null, clickCount: 0, clickHistory: [], archived: false };
+    item = { id: uid('link'), title, url, projectName, description: $('fDescription').value, descriptionSource: F.descriptionSource, descriptionUpdatedAt: F.descriptionUpdatedAt, note: $('fNote').value, isFavorite: $('fFav').checked, favoriteType: $('fFav').checked ? 'normal' : 'none', favoriteExpiry: null, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastClickedAt: null, clickCount: 0, clickHistory: [], archived: false };
     state.items.unshift(item);
   }
   state.projects = normalizeProjects(state.projects, state.items);
@@ -738,7 +755,7 @@ function saveLink() {
   U.view = 'links';
   if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
   save(); render();
-  if (F.mode !== 'edit' && (looksPlaceholder(item.title, item.url) || !item.note)) {
+  if (F.mode !== 'edit' && (looksPlaceholder(item.title, item.url) || !item.description)) {
     setTimeout(() => enrichSavedLink(item.id), 0);
   }
   const el = $('item-' + item.id);
