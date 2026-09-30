@@ -64,7 +64,7 @@ async function desktop(browser) {
     assert.equal(saved[0].note, '', 'quick-save never invents a personal note');
     assert.equal(await search.inputValue(), '', 'universal input clears after quick-save');
     assert.equal(await page.locator('#linkSheet[open]').count(), 0, 'quick-save does not require the detailed save sheet');
-    assert.equal(await page.locator('#categoryAssistSheet[open]').count(), 0, 'quick-save is the explicit save-now path and does not interrupt with category assist');
+    assert.equal(await page.locator('#categoryAssist:not([hidden])').count(), 0, 'quick-save is the explicit save-now path and does not interrupt with category assist');
 
     await search.fill('https://qa-universal.test/page');
     await page.locator('[data-url-intent]').waitFor();
@@ -114,7 +114,7 @@ async function mobile(browser) {
     const saved = (await storedLinks(page)).find(x => x.url === 'https://qa-universal.test/mobile');
     assert.equal(saved.projectName, '未分類');
     assert.equal(await page.locator('#linkSheet[open]').count(), 0, 'mobile Enter also quick-saves without opening the detailed sheet');
-    assert.equal(await page.locator('#categoryAssistSheet[open]').count(), 0, 'mobile quick-save also skips category assist');
+    assert.equal(await page.locator('#categoryAssist:not([hidden])').count(), 0, 'mobile quick-save also skips category assist');
     return 'PASS';
   } finally {
     await context.close();

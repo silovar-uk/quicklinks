@@ -121,7 +121,7 @@ async function testDirectSuccess(browser) {
 
     await page.locator('#fNote').fill('Personal note');
     await page.locator('#fSave').click();
-    await page.locator('#categoryAssistSheet[open]').waitFor();
+    await page.locator('#categoryAssist:not([hidden])').waitFor();
     assert.equal(await page.locator('#linkSheet[open]').count(), 1, 'regular save keeps the form open while category assist is shown');
     await page.locator('#categoryAssistUncategorized').click();
     await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
