@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20260930-universal-input-v1">
+<link rel="stylesheet" href="./app.css?v=20260930-category-inline-v2">
 </head>
 <body>
 <div id="app">
@@ -83,12 +83,24 @@
     <div id="fStatus" class="status" role="status" aria-live="polite" aria-busy="false" hidden></div>
     <div id="fDup" class="dup" hidden></div>
     <div id="fDiff" class="diff" hidden></div>
-    <div class="field">
-      <label class="lab" for="fCat">引き出し <span class="aside">選ばなければ未分類</span></label>
+    <div class="field" id="fCatField">
+      <label class="lab" for="fCat">引き出し <span class="aside">あとで探しやすくできます</span></label>
       <div class="recent" id="fRecent" aria-label="最近入れた引き出し"></div>
       <div class="combo">
         <input id="fCat" class="inp" role="combobox" aria-expanded="false" aria-controls="fCatList" aria-autocomplete="list" autocomplete="off" placeholder="引き出しを選ぶか、新しい名前を入れる">
         <div id="fCatList" class="combo-list" role="listbox" aria-label="引き出しの候補" hidden></div>
+      </div>
+      <div id="categoryAssist" class="category-assist-inline" aria-live="polite" hidden>
+        <div class="category-assist-copy">
+          <strong>どこにしまう？</strong>
+          <span>まだ引き出しが選ばれていません。よく使う場所なら1タップで保存できます。</span>
+        </div>
+        <div id="categoryAssistSuggested" class="category-assist-suggested" hidden></div>
+        <div id="categoryAssistList" class="category-assist-list" role="list" aria-label="おすすめの引き出し"></div>
+        <div class="category-assist-actions">
+          <button id="categoryAssistMore" class="category-assist-more" type="button">ほかの引き出しを探す・新しく作る</button>
+          <button id="categoryAssistUncategorized" class="category-assist-skip" type="button">今は決めない</button>
+        </div>
       </div>
     </div>
     <div class="field">
@@ -105,17 +117,7 @@
     </div>
     <label class="switch"><input type="checkbox" id="fFav"> お気に入り</label>
   </form>
-  <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="fSave">未分類で保存</button></div>
-</dialog>
-
-<dialog id="categoryAssistSheet" class="bottom category-assist" aria-labelledby="categoryAssistTitle">
-  <div class="sheet-head"><h2 id="categoryAssistTitle">どの引き出しに入れる？</h2><button class="x" type="button" id="categoryAssistBack" aria-label="戻る"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button></div>
-  <div class="sheet-body category-assist-body">
-    <p class="category-assist-lead">まだ引き出しが選ばれていません。よく使う引き出しから、1タップで保存できます。</p>
-    <div id="categoryAssistList" class="category-assist-list" role="list" aria-label="引き出しを選ぶ"></div>
-    <button id="categoryAssistMore" class="category-assist-more" type="button">ほかの引き出しを探す・新しく作る</button>
-  </div>
-  <div class="sheet-foot category-assist-foot"><button class="btn quiet" type="button" id="categoryAssistUncategorized">未分類のまま保存</button></div>
+  <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="fSave">保存</button></div>
 </dialog>
 
 <dialog id="promptSheet" class="bottom" aria-labelledby="promptSheetTitle">
@@ -157,8 +159,8 @@
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="./core.js?v=20260930-universal-input-v1"></script>
-<script src="./ui.js?v=20260930-universal-input-v1"></script>
-<script src="./sync.js?v=20260930-universal-input-v1"></script>
+<script src="./core.js?v=20260930-category-inline-v2"></script>
+<script src="./ui.js?v=20260930-category-inline-v2"></script>
+<script src="./sync.js?v=20260930-category-inline-v2"></script>
 </body>
 </html>
