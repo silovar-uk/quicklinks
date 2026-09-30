@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261001-desc-note-v1">
+<link rel="stylesheet" href="./app.css?v=20261001-universal-input-v1">
 </head>
 <body>
 <div id="app">
@@ -21,7 +21,7 @@
     </div>
     <div class="search" role="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-      <input id="searchInput" type="search" placeholder="打てば探せます(ひらがなでも)" autocomplete="off" spellcheck="false" aria-label="リンクとプロンプトを探す" aria-controls="lib" aria-autocomplete="list">
+      <input id="searchInput" type="search" placeholder="探す / URLを貼って保存" autocomplete="off" spellcheck="false" aria-label="リンクとプロンプトを探す" aria-controls="lib" aria-autocomplete="list">
       <span class="search-keys" id="searchKeys"><span class="kbd">/</span><span class="kbd">Ctrl K</span></span>
       <button class="search-clear" id="searchClear" type="button" aria-label="検索を消す" hidden><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button>
     </div>
@@ -136,7 +136,7 @@
 </dialog>
 
 <dialog id="searchSheet" class="full search-sheet" aria-label="探す">
-  <div class="sheet-head"><button class="x" type="button" data-close aria-label="戻る" style="margin:0"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><input id="mSearchInput" type="search" placeholder="探す(ひらがなでも)" autocomplete="off" aria-label="リンクとプロンプトを探す"></div>
+  <div class="sheet-head"><button class="x" type="button" data-close aria-label="戻る" style="margin:0"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button><input id="mSearchInput" type="search" placeholder="探す / URLを貼って保存" autocomplete="off" aria-label="リンクとプロンプトを探す"></div>
   <div id="mResults" class="list1"></div>
 </dialog>
 
@@ -147,8 +147,8 @@
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="./core.js?v=20261001-desc-note-v1"></script>
-<script src="./ui.js?v=20261001-desc-note-v1"></script>
-<script src="./sync.js?v=20261001-desc-note-v1"></script>
+<script src="./core.js?v=20261001-universal-input-v1"></script>
+<script src="./ui.js?v=20261001-universal-input-v1"></script>
+<script src="./sync.js?v=20261001-universal-input-v1"></script>
 </body>
 </html>
