@@ -241,7 +241,7 @@ function focusSavedItem(id) {
   }
 }
 
-function quickSaveUrl(rawUrl) {
+function quickSaveUrl(rawUrl, projectName = '未分類') {
   const url = exactInputUrl(rawUrl);
   if (!url) return null;
   const dup = findDuplicate(url);
@@ -257,7 +257,7 @@ function quickSaveUrl(rawUrl) {
     id: uid('link'),
     title: hostOf(url) || url,
     url,
-    projectName: '未分類',
+    projectName,
     description: '',
     descriptionSource: '',
     descriptionUpdatedAt: null,
@@ -277,8 +277,34 @@ function quickSaveUrl(rawUrl) {
   save();
   focusSavedItem(item.id);
   setTimeout(() => enrichSavedLink(item.id), 0);
-  toast('いったん未分類に保存しました', { action: { label: '引き出しを選ぶ', fn: () => openLinkSheet({ mode: 'edit', id: item.id }) }, ms: 5000 });
+  const later = isUncategorizedCategory(projectName);
+  toast(later ? 'いったん未分類に保存しました' : `「${projectName}」に入れました`, { action: { label: later ? '引き出しを選ぶ' : '変える', fn: () => openLinkSheet({ mode: 'edit', id: item.id }) }, ms: 5000 });
   return item;
+}
+// スマホの「探す・貼る」にURLを貼ったとき。入力欄のすぐ上に引き出しを並べ、押した引き出しへそのまま入れる
+function handIntentHtml(url) {
+  const up = urlPreview(url);
+  const cur = !['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) && !isUncategorizedCategory(U.drawer) ? [U.drawer] : [];
+  const names = [...new Set([...cur, ...categoryAssistOptions()])];
+  const u = escapeHtml(url);
+  return `<div class="hand-intent" data-url-intent>
+    <div class="hand-card"><b>このURLを保存</b><small>${escapeHtml(up.path ? `${up.host} › ${up.path}` : up.host)}</small><span>入れる引き出しを押す・Enterでいったん未分類</span></div>
+    <div class="hand-drawers" role="group" aria-label="入れる引き出し">${names.map(n => `<button type="button" data-url-save-to="${escapeHtml(n)}" data-url="${u}">${dot(n)}${escapeHtml(n)}</button>`).join('')}<button type="button" data-url-quick-save="${u}">未分類</button><button type="button" data-url-detail-save="${u}">詳しく…</button></div>
+  </div>`;
+}
+// 引き出しを押したら、カードをその引き出しへ吸い込ませてから保存する(動きを減らす設定では待たない)
+async function dropIntoDrawer(btn) {
+  const strip = btn.closest('.hand-drawers');
+  if (strip.dataset.busy) return; // 二度押しで二重に入れない
+  strip.dataset.busy = '1';
+  const card = strip.previousElementSibling;
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const a = card.getBoundingClientRect(), b = btn.getBoundingClientRect();
+    btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 240, delay: 180 });
+    await card.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${b.left + b.width / 2 - (a.left + a.width / 2)}px, ${b.top + b.height / 2 - (a.top + a.height / 2)}px) scale(.15)`, opacity: 0 }], { duration: 280, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }).finished;
+  }
+  closeSheet($('searchSheet'));
+  quickSaveUrl(btn.dataset.url, btn.dataset.urlSaveTo);
 }
 function renderLib() {
   const q = U.query.trim();
@@ -1115,7 +1141,7 @@ function renderMobileResults() {
   }
   const intentUrl = exactInputUrl(q);
   if (intentUrl) {
-    $('mResults').innerHTML = urlIntentHtml(intentUrl, { compact: true });
+    $('mResults').innerHTML = findDuplicate(intentUrl) ? urlIntentHtml(intentUrl, { compact: true }) : handIntentHtml(intentUrl);
     return;
   }
   const links = searchLinks(q), prompts = searchPrompts(q);
@@ -1155,6 +1181,8 @@ document.addEventListener('click', e => {
   const closeBtn = t.closest('[data-close]');
   if (closeBtn) { closeSheet(closeBtn.closest('dialog')); return; }
 
+  const saveTo = t.closest('[data-url-save-to]');
+  if (saveTo) { dropIntoDrawer(saveTo); return; }
   const quickUrl = t.closest('[data-url-quick-save]');
   if (quickUrl) {
     if (quickUrl.closest('#mResults')) closeSheet($('searchSheet'));
@@ -1356,6 +1384,8 @@ $('bottomAdd').addEventListener('click', () => openLinkSheet());
 $('manageButton').addEventListener('click', () => switchView(U.view === 'manage' ? 'links' : 'manage'));
 $('searchOpen').addEventListener('click', () => { showSheet($('searchSheet')); const i = $('mSearchInput'); i.value = ''; i.focus(); renderMobileResults(); });
 $('mSearchInput').addEventListener('input', renderMobileResults);
+// 引き出しを押してもキーボードを下げない(吸い込みの動きの途中で画面が動かないように)
+$('mResults').addEventListener('mousedown', e => { if (e.target.closest('.hand-drawers button')) e.preventDefault(); });
 $('mSearchInput').addEventListener('keydown', e => {
   if (e.isComposing || e.key !== 'Enter') return;
   const intentUrl = exactInputUrl(e.target.value);
