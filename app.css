@@ -121,6 +121,19 @@ mark{background:#fbe3a4;color:inherit;border-radius:2px;padding:0 1px}
 .lib-head .n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .lib-head select{margin-left:auto;height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--sheet);font-size:12px;padding:0 6px}
 .lib{padding:0 16px 40px}
+.url-intent{margin:16px 0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;border:1px solid var(--line2);border-radius:12px;background:var(--sheet)}
+.url-intent-mark{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--tint);color:var(--accent);font-weight:800;font-size:18px}
+.url-intent-copy{min-width:0;display:grid;gap:2px}
+.url-intent-copy b{font-size:14px}
+.url-intent-copy span{font-size:13px;color:var(--ink2)}
+.url-intent-copy small{font:11px/1.4 var(--mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.url-intent-actions{display:flex;align-items:center;gap:6px}
+@media(max-width:720px){
+  .url-intent{grid-template-columns:auto minmax(0,1fr);align-items:start}
+  .url-intent-actions{grid-column:1/-1}
+  .url-intent-actions .btn{flex:1}
+}
+.url-intent.compact{margin:14px 16px}
 .month{display:flex;align-items:baseline;gap:8px;margin:16px 0 8px;font-size:13px;font-weight:700;color:var(--ink2)}
 .month .n{font-weight:500;color:var(--muted);font-size:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
