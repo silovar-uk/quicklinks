@@ -1135,10 +1135,13 @@ document.addEventListener('click', e => {
   }
   const existingUrl = t.closest('[data-url-existing-open]');
   if (existingUrl) {
+    const id = existingUrl.dataset.urlExistingOpen;
+    const item = find('link', id);
+    if (item) window.open(item.url, '_blank', 'noopener');
     if (existingUrl.closest('#mResults')) closeSheet($('searchSheet'));
     clearUniversalInput();
-    focusSavedItem(existingUrl.dataset.urlExistingOpen);
-    openLink(existingUrl.dataset.urlExistingOpen);
+    focusSavedItem(id);
+    openLink(id);
     return;
   }
   const editExistingUrl = t.closest('[data-url-existing-edit]');
