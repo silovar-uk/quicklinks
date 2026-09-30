@@ -31,7 +31,8 @@ async function reset(page) {
     localStorage.removeItem('quick-links-mekuru-v1');
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('#addButton').waitFor();
+  const isMobile = await page.evaluate(() => matchMedia('(max-width: 899px)').matches);
+  await page.locator(isMobile ? '#bottomAdd' : '#addButton').waitFor({ state: 'visible' });
 }
 
 async function storedLinks(page) {
