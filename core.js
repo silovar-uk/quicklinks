@@ -618,6 +618,13 @@ function normalizeQuickUrl(value) {
   return parsed.href;
 }
 
+function exactInputUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw || /\s/.test(raw) || !/^(https?:\/\/|www\.)/i.test(raw)) return '';
+  try { return normalizeQuickUrl(raw); }
+  catch { return ''; }
+}
+
 function canonicalUrl(value) {
   try {
     const url = new URL(normalizeQuickUrl(value));
