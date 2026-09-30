@@ -87,6 +87,12 @@ jobs:
           QA_PHASES: P1,P2,P3,P4
         run: node scripts/mekuru-qa.mjs
 
+      - name: Run yoranai acceptance QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+          QA_PHASES: P1
+        run: node scripts/yoranai-qa.mjs
+
       - name: Collect server log
         if: always()
         run: cp /tmp/quicklinks-server.log visual-qa/server.log || true
