@@ -647,14 +647,22 @@ function recentCats() {
   state.items.slice().sort((a, b) => timeValue(b.addedAt) - timeValue(a.addedAt)).forEach(i => { const n = i.projectName || '未分類'; if (!seen.includes(n)) seen.push(n); });
   return seen.slice(0, 6);
 }
+function isCategoryBlank(name) {
+  return !String(name || '').trim();
+}
 function isUncategorizedCategory(name) {
-  const value = String(name || '').trim();
-  return !value || value === '未分類';
+  return String(name || '').trim() === '未分類';
 }
 function saveLabel() {
   if (F.mode === 'edit') return '保存';
-  if (F.bm && isUncategorizedCategory(F.cat)) return '引き出しを選んで保存';
-  return !isUncategorizedCategory(F.cat) ? `「${F.cat}」に保存` : '未分類で保存';
+  if (isCategoryBlank(F.cat)) return '保存';
+  if (isUncategorizedCategory(F.cat)) return '未分類に保存';
+  return `「${F.cat}」に保存`;
+}
+function closeCategoryAssist() {
+  const assist = $('categoryAssist');
+  if (assist) assist.hidden = true;
+  $('fCatField')?.classList.remove('assist-open');
 }
 function setCat(name) {
   F.cat = String(name || '').trim();
@@ -662,6 +670,7 @@ function setCat(name) {
   $$('#fRecent button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === F.cat)));
   $('fSave').textContent = saveLabel();
   $('fSave').disabled = false;
+  if (!isCategoryBlank(F.cat)) closeCategoryAssist();
   closeCombo();
 }
 function abortFetchController() { if (F.controller) { F.controller.abort(); F.controller = null; } }
@@ -785,6 +794,7 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   $('fRefetch').hidden = mode !== 'edit';
   $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true;
   $('fPaste').hidden = mode === 'edit';
+  closeCategoryAssist();
   $('fRecent').innerHTML = recentCats().map(c => `<button type="button" data-cat="${escapeHtml(c)}" aria-pressed="false">${dot(c)}${escapeHtml(c)}</button>`).join('');
   setCat(it ? it.projectName : (!['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) ? U.drawer : ''));
   $('fPage').hidden = !bm;
@@ -826,36 +836,61 @@ async function enrichSavedLink(id) {
 }
 
 function categoryAssistOptions() {
-  const recent = recentCats().filter(name => !isUncategorizedCategory(name));
-  const byCount = moodCounts().map(([name]) => name).filter(name => !isUncategorizedCategory(name));
-  const known = (state.projects || []).filter(name => !isUncategorizedCategory(name));
+  const recent = recentCats().filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name));
+  const byCount = moodCounts().map(([name]) => name).filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name));
+  const known = (state.projects || []).filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name));
   return [...new Set([...recent, ...byCount, ...known])].slice(0, 12);
 }
+function categoryAssistSuggestion() {
+  const url = $('fUrl').value.trim();
+  if (!/^https?:\/\//.test(url)) return null;
+  const host = hostOf(url);
+  if (!host) return null;
+  const sameHost = state.items.filter(item => !item.archived && hostOf(item.url) === host && !isUncategorizedCategory(item.projectName) && !isCategoryBlank(item.projectName));
+  if (sameHost.length < 2) return null;
+  const counts = new Map();
+  sameHost.forEach(item => counts.set(item.projectName, (counts.get(item.projectName) || 0) + 1));
+  const [name, count] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+  if (!name || count < 2 || count / sameHost.length < 2 / 3) return null;
+  return { name, count, total: sameHost.length, host };
+}
 function renderCategoryAssist() {
-  const names = categoryAssistOptions();
-  const recent = new Set(recentCats().filter(name => !isUncategorizedCategory(name)));
+  const suggestion = categoryAssistSuggestion();
+  const names = categoryAssistOptions().filter(name => name !== suggestion?.name);
+  const recent = new Set(recentCats().filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name)));
   const counts = new Map(moodCounts());
+  const suggested = $('categoryAssistSuggested');
+  suggested.hidden = !suggestion;
+  suggested.innerHTML = suggestion
+    ? `<button class="category-assist-prediction" type="button" data-assist-cat="${escapeHtml(suggestion.name)}"><span class="category-assist-kicker">たぶんここ</span><span class="category-assist-name">${dot(suggestion.name)}<span>${escapeHtml(suggestion.name)}</span></span><span class="n">${escapeHtml(suggestion.host)} の保存先 ${suggestion.count}/${suggestion.total}件</span></button>`
+    : '';
   const box = $('categoryAssistList');
   box.innerHTML = names.length
     ? names.map(name => `<button class="category-assist-choice${recent.has(name) ? ' is-recent' : ''}" type="button" data-assist-cat="${escapeHtml(name)}" role="listitem"><span class="category-assist-name">${dot(name)}<span>${escapeHtml(name)}</span></span><span class="n">${Number(counts.get(name) || 0)}件${recent.has(name) ? '・最近' : ''}</span></button>`).join('')
-    : '<div class="category-assist-empty">まだ引き出しがありません。最初の引き出しを作ると、次からここに出ます。</div>';
-  $('categoryAssistMore').textContent = names.length ? 'ほかの引き出しを探す・新しく作る' : '引き出しを作る';
+    : (!suggestion ? '<div class="category-assist-empty">まだ引き出しがありません。新しく作るか、「今は決めない」で保存できます。</div>' : '');
+  $('categoryAssistMore').textContent = (names.length || suggestion) ? 'ほかの引き出しを探す・新しく作る' : '引き出しを作る';
 }
 function openCategoryAssist() {
   closeCombo();
   renderCategoryAssist();
-  showSheet($('categoryAssistSheet'));
+  const assist = $('categoryAssist');
+  assist.hidden = false;
+  $('fCatField').classList.add('assist-open');
+  requestAnimationFrame(() => {
+    $('fCatField').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const first = assist.querySelector('[data-assist-cat], #categoryAssistMore');
+    first?.focus({ preventScroll: true });
+  });
 }
-function saveLink(options = {}) {
-  const allowUncategorized = !!options.allowUncategorized;
+function saveLink() {
   const url = $('fUrl').value.trim();
   if (!/^https?:\/\//.test(url)) { setStatus('bad', '<span class="grow">http:// か https:// で始まるURLを入れてください。</span>'); $('fUrl').focus(); return; }
-  if (F.mode !== 'edit' && isUncategorizedCategory(F.cat) && !allowUncategorized) {
+  if (isCategoryBlank(F.cat)) {
     openCategoryAssist();
     return;
   }
   const title = $('fTitle').value.trim() || hostOf(url);
-  const projectName = isUncategorizedCategory(F.cat) ? '未分類' : F.cat;
+  const projectName = F.cat;
   let item;
   if (F.mode === 'edit') {
     item = find('link', F.id);
@@ -1339,7 +1374,13 @@ $('fPaste').addEventListener('click', async () => {
   } catch { toast('ここでは読み取れません。URL欄に貼り付けてください'); }
 });
 $('fCat').addEventListener('click', renderCombo);
-$('fCat').addEventListener('input', () => { F.cat = $('fCat').value.trim(); $('fSave').textContent = saveLabel(); $('fSave').disabled = false; renderCombo(); });
+$('fCat').addEventListener('input', () => {
+  F.cat = $('fCat').value.trim();
+  $('fSave').textContent = saveLabel();
+  $('fSave').disabled = false;
+  if (!isCategoryBlank(F.cat)) closeCategoryAssist();
+  renderCombo();
+});
 $('fCat').addEventListener('keydown', e => {
   if (e.isComposing) return;
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if ($('fCatList').hidden) renderCombo(); moveCombo(e.key === 'ArrowDown' ? 1 : -1); }
@@ -1348,25 +1389,23 @@ $('fCat').addEventListener('keydown', e => {
 });
 $('fCat').addEventListener('blur', () => setTimeout(closeCombo, 150));
 $('fSave').addEventListener('click', saveLink);
-$('categoryAssistList').addEventListener('click', e => {
+$('categoryAssist').addEventListener('click', e => {
   const btn = e.target.closest('[data-assist-cat]');
   if (!btn) return;
   setCat(btn.dataset.assistCat);
-  closeSheet($('categoryAssistSheet'));
   saveLink();
 });
 $('categoryAssistMore').addEventListener('click', () => {
-  closeSheet($('categoryAssistSheet'));
+  closeCategoryAssist();
   requestAnimationFrame(() => { $('fCat').focus(); renderCombo(); });
 });
-$('categoryAssistBack').addEventListener('click', () => closeSheet($('categoryAssistSheet')));
 $('categoryAssistUncategorized').addEventListener('click', () => {
-  closeSheet($('categoryAssistSheet'));
-  saveLink({ allowUncategorized: true });
+  setCat('未分類');
+  saveLink();
 });
 $('linkForm').addEventListener('submit', e => e.preventDefault());
 // closeイベントは非同期に届く。開き直した後に前の回のcloseが届いても、新しい回の取得は止めない
-$('linkSheet').addEventListener('close', () => { abortFetchController(); closeSheet($('categoryAssistSheet')); });
+$('linkSheet').addEventListener('close', () => { abortFetchController(); closeCategoryAssist(); });
 
 $('pCat').addEventListener('click', renderPromptCombo);
 $('pCat').addEventListener('input', renderPromptCombo);
