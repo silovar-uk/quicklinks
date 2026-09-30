@@ -205,6 +205,81 @@ function searchResultList() {
   const prompts = q ? searchPrompts(q) : [];
   return { links, prompts, combined: [...links.slice(0, 20).map(item => ({ kind: 'link', item })), ...prompts.slice(0, 20).map(item => ({ kind: 'prompt', item }))] };
 }
+function urlIntentHtml(url, { compact = false } = {}) {
+  const dup = findDuplicate(url);
+  const up = urlPreview(url);
+  const label = up.path ? `${up.host} › ${up.path}` : up.host;
+  if (dup) {
+    return `<div class="url-intent ${compact ? 'compact' : ''}" data-url-intent>
+      <div class="url-intent-mark" aria-hidden="true">✓</div>
+      <div class="url-intent-copy"><b>保存済みです</b><span>${escapeHtml(view(dup).title)}</span><small>${escapeHtml(label)}</small></div>
+      <div class="url-intent-actions"><button class="btn primary" type="button" data-url-existing-open="${escapeHtml(dup.id)}">開く</button><button class="btn" type="button" data-url-existing-edit="${escapeHtml(dup.id)}">編集</button></div>
+    </div>`;
+  }
+  return `<div class="url-intent ${compact ? 'compact' : ''}" data-url-intent>
+    <div class="url-intent-mark" aria-hidden="true">＋</div>
+    <div class="url-intent-copy"><b>このURLを保存</b><span>Enterでいったん未分類へ保存</span><small>${escapeHtml(label)}</small></div>
+    <div class="url-intent-actions"><button class="btn primary" type="button" data-url-quick-save="${escapeHtml(url)}">いったん保存</button><button class="btn" type="button" data-url-detail-save="${escapeHtml(url)}">引き出しを選ぶ</button></div>
+  </div>`;
+}
+
+function clearUniversalInput() {
+  U.query = '';
+  U.active = -1;
+  $('searchInput').value = '';
+}
+
+function focusSavedItem(id) {
+  U.view = 'links';
+  U.drawer = 'ALL';
+  U.kind = 'all';
+  render();
+  const el = $('item-' + id);
+  if (el) {
+    el.scrollIntoView({ block: 'center' });
+    el.classList.add('flash');
+  }
+}
+
+function quickSaveUrl(rawUrl) {
+  const url = exactInputUrl(rawUrl);
+  if (!url) return null;
+  const dup = findDuplicate(url);
+  clearUniversalInput();
+  if (dup) {
+    focusSavedItem(dup.id);
+    toast('すでに保存しています', { action: { label: '編集', fn: () => openLinkSheet({ mode: 'edit', id: dup.id }) }, ms: 4500 });
+    return dup;
+  }
+
+  const now = new Date().toISOString();
+  const item = {
+    id: uid('link'),
+    title: hostOf(url) || url,
+    url,
+    projectName: '未分類',
+    description: '',
+    descriptionSource: '',
+    descriptionUpdatedAt: null,
+    note: '',
+    isFavorite: false,
+    favoriteType: 'none',
+    favoriteExpiry: null,
+    addedAt: now,
+    updatedAt: now,
+    lastClickedAt: null,
+    clickCount: 0,
+    clickHistory: [],
+    archived: false
+  };
+  state.items.unshift(item);
+  state.projects = normalizeProjects(state.projects, state.items);
+  save();
+  focusSavedItem(item.id);
+  setTimeout(() => enrichSavedLink(item.id), 0);
+  toast('いったん未分類に保存しました', { action: { label: '引き出しを選ぶ', fn: () => openLinkSheet({ mode: 'edit', id: item.id }) }, ms: 5000 });
+  return item;
+}
 function renderLib() {
   const q = U.query.trim();
   const showLib = U.view === 'links' || q;
@@ -213,6 +288,15 @@ function renderLib() {
   if (!showLib) return;
   const sel = $('sortSelect');
   if (q) {
+    const intentUrl = exactInputUrl(q);
+    if (intentUrl) {
+      $('libTitle').textContent = '保存';
+      $('libCount').textContent = '';
+      sel.hidden = true;
+      $('lib').innerHTML = urlIntentHtml(intentUrl);
+      $('lib').classList.add('list1');
+      return;
+    }
     const r = searchResultList();
     $('libTitle').textContent = `「${q}」`;
     $('libCount').textContent = `${r.links.length + r.prompts.length}件`;
@@ -993,6 +1077,11 @@ function renderMobileResults() {
     $('mResults').innerHTML = ids.length ? `<div class="group-head">めくる束のつづき</div><div class="grid">${ids.map(id => itemHtml(find('link', id))).join('')}</div>` : '';
     return;
   }
+  const intentUrl = exactInputUrl(q);
+  if (intentUrl) {
+    $('mResults').innerHTML = urlIntentHtml(intentUrl, { compact: true });
+    return;
+  }
   const links = searchLinks(q), prompts = searchPrompts(q);
   $('mResults').innerHTML = (links.length ? `<div class="group-head">リンク <span class="n">${links.length}件</span></div><div class="grid">${links.slice(0, 20).map(l => itemHtml(l, q)).join('')}</div>` : '') +
     (prompts.length ? `<div class="group-head">プロンプト <span class="n">${prompts.length}件</span></div>${prompts.slice(0, 20).map(p => rowHtml(p, q)).join('')}` : '') ||
@@ -1029,6 +1118,37 @@ document.addEventListener('click', e => {
   const t = e.target;
   const closeBtn = t.closest('[data-close]');
   if (closeBtn) { closeSheet(closeBtn.closest('dialog')); return; }
+
+  const quickUrl = t.closest('[data-url-quick-save]');
+  if (quickUrl) {
+    if (quickUrl.closest('#mResults')) closeSheet($('searchSheet'));
+    quickSaveUrl(quickUrl.dataset.urlQuickSave);
+    return;
+  }
+  const detailUrl = t.closest('[data-url-detail-save]');
+  if (detailUrl) {
+    if (detailUrl.closest('#mResults')) closeSheet($('searchSheet'));
+    clearUniversalInput();
+    render();
+    openLinkSheet({ url: detailUrl.dataset.urlDetailSave });
+    return;
+  }
+  const existingUrl = t.closest('[data-url-existing-open]');
+  if (existingUrl) {
+    if (existingUrl.closest('#mResults')) closeSheet($('searchSheet'));
+    clearUniversalInput();
+    focusSavedItem(existingUrl.dataset.urlExistingOpen);
+    openLink(existingUrl.dataset.urlExistingOpen);
+    return;
+  }
+  const editExistingUrl = t.closest('[data-url-existing-edit]');
+  if (editExistingUrl) {
+    if (editExistingUrl.closest('#mResults')) closeSheet($('searchSheet'));
+    clearUniversalInput();
+    render();
+    openLinkSheet({ mode: 'edit', id: editExistingUrl.dataset.urlExistingEdit });
+    return;
+  }
 
   if (t.closest('[data-org-done]')) { U.organize = false; closeSheet($('catSheet')); render(); return; }
   const orgMore = t.closest('[data-org-more]');
@@ -1151,7 +1271,11 @@ $('deckTrack').addEventListener('scroll', () => {
 $('deckPrev').addEventListener('click', () => { const mk = deck(U.drawer, U.kind); setPos(mk.pos - 1); });
 $('deckNext').addEventListener('click', () => { const mk = deck(U.drawer, U.kind); setPos(mk.pos + 1); });
 $('sortSelect').addEventListener('change', e => { state.linkSort = e.target.value; save(); render(); });
-$('searchInput').addEventListener('input', e => { U.query = e.target.value; U.active = U.query.trim() ? 0 : -1; render(); });
+$('searchInput').addEventListener('input', e => {
+  U.query = e.target.value;
+  U.active = U.query.trim() && !exactInputUrl(U.query) ? 0 : -1;
+  render();
+});
 $('searchInput').addEventListener('keydown', e => {
   if (e.isComposing) return;
   if (e.key === 'Escape') { e.preventDefault(); if (U.query) { U.query = ''; e.target.value = ''; U.active = -1; render(); } else e.target.blur(); return; }
@@ -1167,6 +1291,19 @@ $('searchInput').addEventListener('keydown', e => {
   }
   if (e.key === 'Enter') {
     e.preventDefault();
+    const intentUrl = exactInputUrl(e.target.value);
+    if (intentUrl) {
+      const dup = findDuplicate(intentUrl);
+      if (e.shiftKey) {
+        clearUniversalInput();
+        render();
+        if (dup) openLinkSheet({ mode: 'edit', id: dup.id });
+        else openLinkSheet({ url: intentUrl });
+      } else {
+        quickSaveUrl(intentUrl);
+      }
+      return;
+    }
     const { combined } = searchResultList();
     const r = combined[Math.max(0, U.active)];
     if (!r) return;
@@ -1180,6 +1317,14 @@ $('bottomAdd').addEventListener('click', () => openLinkSheet());
 $('manageButton').addEventListener('click', () => switchView(U.view === 'manage' ? 'links' : 'manage'));
 $('searchOpen').addEventListener('click', () => { showSheet($('searchSheet')); const i = $('mSearchInput'); i.value = ''; i.focus(); renderMobileResults(); });
 $('mSearchInput').addEventListener('input', renderMobileResults);
+$('mSearchInput').addEventListener('keydown', e => {
+  if (e.isComposing || e.key !== 'Enter') return;
+  const intentUrl = exactInputUrl(e.target.value);
+  if (!intentUrl) return;
+  e.preventDefault();
+  closeSheet($('searchSheet'));
+  quickSaveUrl(intentUrl);
+});
 
 $('fUrl').addEventListener('change', () => { checkDup(); if (F.mode === 'add') startFetch(); });
 $('fUrl').addEventListener('paste', () => setTimeout(() => { checkDup(); if (F.mode === 'add') startFetch(); }, 0));
