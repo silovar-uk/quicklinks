@@ -52,7 +52,7 @@ jobs:
         env:
           LOCAL_URL: http://127.0.0.1:4173/
           PRODUCTION_URL: https://silovar-uk.github.io/quicklinks/
-          RUN_PRODUCTION_QA: '1'
+          RUN_PRODUCTION_QA: ${{ github.event_name == 'pull_request' && '0' || '1' }}
           VISUAL_QA_DIR: visual-qa
         run: node scripts/visual-qa.mjs
 
