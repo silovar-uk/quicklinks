@@ -359,6 +359,15 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   .recent button{height:40px}
   #toast{bottom:calc(var(--bar-h,57px) + 12px)}
   #manage{padding:8px 16px 40px}
+  /* 探す:入力欄は下のバーの「探す」と同じ場所・同じ大きさに置き、キーボードに乗せる。結果はその上に積む */
+  .search-sheet[open]{flex-direction:column-reverse;animation:handIn .14s ease-out}
+  .search-sheet .sheet-head{padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px));gap:8px;border-bottom:0;border-top:1px solid var(--line);background:var(--paper)}
+  #mSearchInput{height:44px;border-radius:12px;background:var(--sheet);padding:0 12px}
+  .search-sheet .sheet-head .x{width:52px;height:44px;margin:0;border-radius:12px;font-size:15px;font-weight:600;color:var(--ink2)}
+  #mResults{display:flex;flex-direction:column;padding:8px 16px}
+  /* 結果が少ないときは入力欄のすぐ上へ寄せる(justify-content:flex-endだと、あふれたときに上端までスクロールできない) */
+  #mResults>:first-child{margin-top:auto}
+  html.keyboard-open dialog.full{top:var(--vv-top,0px);bottom:auto;height:var(--shell-h,100dvh);max-height:var(--shell-h,100dvh)}
   .care-stats{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
@@ -396,3 +405,4 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 .modal-title{margin:0;font-size:16px;font-weight:700;flex:1}
 .modal-close{width:32px;height:32px;border:0;border-radius:8px;background:transparent;font-size:18px;color:var(--ink2)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+@keyframes handIn{from{opacity:0}}
