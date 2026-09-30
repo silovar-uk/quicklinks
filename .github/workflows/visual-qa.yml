@@ -66,6 +66,11 @@ jobs:
           LOCAL_URL: http://127.0.0.1:4173/
         run: node scripts/loading-regression.mjs
 
+      - name: Run universal input regression QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+        run: node scripts/universal-input-regression.mjs
+
       - name: Run category organizer regression QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/
