@@ -802,7 +802,8 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   showSheet($('linkSheet'));
   if (bm) handleBookmarklet(bm);
   else if (url) { checkDup(); startFetch(); }
-  if (mode === 'add' && !url && !bm) $('fUrl').focus(); else $('fCat').focus();
+  // スマホでは、URLが空の新規保存だけキーボードを出す(URL入り・編集は、引き出しを押すだけのことが多い)
+  if (mode === 'add' && !url && !bm) $('fUrl').focus(); else if (!hand()) $('fCat').focus();
 }
 async function enrichSavedLink(id) {
   const item = find('link', id);
@@ -961,7 +962,7 @@ function openPromptSheet({ mode = 'add', id = null } = {}) {
   $('pDelete').hidden = mode !== 'edit';
   $('pRecent').innerHTML = recentPromptCats().map(c => `<button type="button" data-pcat="${escapeHtml(c)}">${dot(c)}${escapeHtml(c)}</button>`).join('');
   showSheet($('promptSheet'));
-  $('pTitle').focus();
+  if (mode === 'add' || !hand()) $('pTitle').focus();
 }
 function savePrompt() {
   const title = $('pTitle').value.trim() || '無題のプロンプト';
@@ -1373,6 +1374,8 @@ $('fPaste').addEventListener('click', async () => {
     if (m) { $('fUrl').value = m; checkDup(); startFetch(); } else toast('クリップボードにURLがありませんでした');
   } catch { toast('ここでは読み取れません。URL欄に貼り付けてください'); }
 });
+// スマホのURL欄は「完了」キー。押したらキーボードを閉じて引き出しを見せる(閉じるとchangeが走り、重複の確認と取得が始まる)
+$('fUrl').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && hand()) { e.preventDefault(); e.target.blur(); } });
 $('fCat').addEventListener('click', renderCombo);
 $('fCat').addEventListener('input', () => {
   F.cat = $('fCat').value.trim();
@@ -1397,7 +1400,8 @@ $('categoryAssist').addEventListener('click', e => {
 });
 $('categoryAssistMore').addEventListener('click', () => {
   closeCategoryAssist();
-  requestAnimationFrame(() => { $('fCat').focus(); renderCombo(); });
+  // iOSはタップの処理中に呼んだfocusでないとキーボードを出さない。requestAnimationFrameで遅らせない
+  $('fCat').focus(); renderCombo();
 });
 $('categoryAssistUncategorized').addEventListener('click', () => {
   setCat('未分類');
@@ -1483,7 +1487,8 @@ window.addEventListener('drop', e => {
 const rootEl = document.documentElement;
 function shellMetrics() {
   const vv = window.visualViewport;
-  const h = Math.round(vv ? vv.height : innerHeight);
+  // 拡大中(ピンチ・入力時の自動拡大)は visualViewport.height が倍率ぶん小さくなる。倍率を掛け戻し、外枠にはキーボードの分だけを反映する
+  const h = Math.round(vv ? vv.height * vv.scale : innerHeight);
   rootEl.style.setProperty('--shell-h', h + 'px');
   rootEl.style.setProperty('--vv-top', Math.round(vv ? vv.offsetTop : 0) + 'px');
   const bar = $('bottomBar');
