@@ -97,6 +97,15 @@ async function testMobile(engineName, browserType, width) {
     assert.ok(Math.abs(before.barBottom - before.innerHeight) <= 2, engineName + ' bar sits at visible bottom');
     assert.ok(before.docWidth <= before.innerWidth, engineName + ' has no horizontal page overflow');
 
+    // Safari can retain the keyboard-sized visualViewport measurement after dismissal.
+    // The resting shell must fill the viewport even when that dialog measurement is stale.
+    await page.evaluate(() => document.documentElement.style.setProperty('--shell-h', '420px'));
+    const staleKeyboard = await snapshotMobile(page);
+    assert.ok(Math.abs(staleKeyboard.barBottom - staleKeyboard.innerHeight) <= 2,
+      engineName + ' stale keyboard height does not leave a blank area below the bar');
+    assert.ok(Math.abs(staleKeyboard.shellHeight - staleKeyboard.innerHeight) <= 2,
+      engineName + ' resting shell follows the CSS viewport, not dialog measurements');
+
     await page.locator('#center').evaluate(node => { node.scrollTop = 1200; });
     await page.waitForTimeout(80);
     let afterScroll = await snapshotMobile(page);
