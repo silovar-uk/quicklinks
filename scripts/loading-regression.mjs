@@ -304,7 +304,11 @@ async function testResolverSuccess(browser) {
   try {
     await loadApp(page);
     await openLinkSheet(page);
-    await beginFetch(page, 'https://qa-resolver.test/page');
+    // The resolver mock responds immediately: its transient busy state can end
+    // before Playwright observes it. This case verifies the completed result;
+    // the delayed-response cases above separately verify the loading indicator.
+    await page.locator('#fUrl').fill('https://qa-resolver.test/page');
+    await page.locator('#fUrl').dispatchEvent('change');
     await page.waitForFunction(() => document.getElementById('fTitle').value.trim().length > 0, null, { timeout: 8000 });
 
     assert.equal(resolverRequests, 1, 'resolver metadata is fetched once');
