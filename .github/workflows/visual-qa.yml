@@ -81,6 +81,11 @@ jobs:
           LOCAL_URL: http://127.0.0.1:4173/
         run: node scripts/mobile-shell-regression.mjs
 
+      - name: Run sync recovery regression QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+        run: node scripts/sync-regression.mjs
+
       - name: Run mekuru acceptance QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/

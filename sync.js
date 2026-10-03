@@ -5,6 +5,9 @@
   const DEFAULT_ENDPOINT = 'https://quicklinks-sync.silovar-uk.workers.dev';
   const enc = new TextEncoder();
   const dec = new TextDecoder();
+  const SYNC_TIMEOUT_MS = Math.max(1000, Number(window.__QUICKLINKS_SYNC_TIMEOUT_MS__ || 15000));
+  let syncStartedAt = 0;
+  let recoveredInterruptedSync = false;
 
   function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
   function now() { return new Date().toISOString(); }
@@ -65,21 +68,32 @@
     try {
       const x = JSON.parse(localStorage.getItem(META_KEY) || 'null') || {};
       const d = defaultMeta();
-      return {
+      recoveredInterruptedSync = x.syncing === true;
+      const next = {
         ...d, ...x,
+        // syncing は通信中だけの実行時状態。前回セッションの値は絶対に引き継がない。
+        syncing: false,
         endpoint: String(x.endpoint || d.endpoint).replace(/\/$/, ''),
         tombstones: {
           links: { ...(x.tombstones?.links || {}) },
           prompts: { ...(x.tombstones?.prompts || {}) }
         }
       };
+      if (recoveredInterruptedSync && next.enabled && !next.lastError) {
+        next.lastError = '前回の同期が途中で止まりました。もう一度同期できます。';
+      }
+      return next;
     } catch (_) { return defaultMeta(); }
   }
   let meta = loadMeta();
   function saveMeta() {
-    localStorage.setItem(META_KEY, JSON.stringify(meta));
+    // 一時状態を永続化しない。Safari が通信途中でページを止めても次回起動で復旧できる。
+    const stored = clone(meta);
+    delete stored.syncing;
+    localStorage.setItem(META_KEY, JSON.stringify(stored));
     window.dispatchEvent(new CustomEvent('quicklinks-sync-meta'));
   }
+  if (recoveredInterruptedSync) saveMeta();
   function publicMeta() {
     const x = clone(meta);
     delete x.secret;
@@ -314,8 +328,53 @@
   async function headers(extra) {
     return { Authorization:'Bearer ' + await authToken(), ...(extra || {}) };
   }
+  const activeRequests = new Set();
+  function syncError(message, code) {
+    const e = new Error(message);
+    e.code = code;
+    return e;
+  }
+  async function fetchWithTimeout(url, options) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw syncError('オフラインです。通信が戻ってから同期してください。', 'SYNC_OFFLINE');
+    }
+    const controller = new AbortController();
+    activeRequests.add(controller);
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const e = syncError('同期サーバーから応答がありません。通信を確認して、もう一度同期してください。', 'SYNC_TIMEOUT');
+        reject(e);
+        try { controller.abort(); } catch (_) {}
+      }, SYNC_TIMEOUT_MS);
+    });
+    try {
+      return await Promise.race([
+        fetch(url, { ...(options || {}), signal:controller.signal }),
+        timeout
+      ]);
+    } catch (e) {
+      if (e?.code === 'SYNC_TIMEOUT' || e?.code === 'SYNC_OFFLINE') throw e;
+      if (e?.name === 'AbortError') {
+        throw syncError('同期通信が中断されました。もう一度同期してください。', 'SYNC_INTERRUPTED');
+      }
+      if (e instanceof TypeError) {
+        throw syncError('同期サーバーに接続できません。通信を確認して、もう一度同期してください。', 'SYNC_NETWORK');
+      }
+      throw e;
+    } finally {
+      if (timer) clearTimeout(timer);
+      activeRequests.delete(controller);
+    }
+  }
+  function abortActiveRequests() {
+    activeRequests.forEach(controller => {
+      try { controller.abort(); } catch (_) {}
+    });
+    activeRequests.clear();
+  }
   async function getRemote() {
-    const r = await fetch(meta.endpoint + '/v1/vault/' + encodeURIComponent(meta.vaultId), {
+    const r = await fetchWithTimeout(meta.endpoint + '/v1/vault/' + encodeURIComponent(meta.vaultId), {
       method:'GET', headers:await headers({ Accept:'application/json' }), cache:'no-store'
     });
     if (r.status === 404) return { exists:false, data:null, etag:'' };
@@ -331,7 +390,7 @@
     const h = await headers({ 'Content-Type':'application/json' });
     if (createOnly) h['If-None-Match'] = '*';
     else if (etag) h['If-Match'] = etag;
-    const r = await fetch(meta.endpoint + '/v1/vault/' + encodeURIComponent(meta.vaultId), {
+    const r = await fetchWithTimeout(meta.endpoint + '/v1/vault/' + encodeURIComponent(meta.vaultId), {
       method:'PUT', headers:h, body:JSON.stringify(await encrypt(data)), cache:'no-store'
     });
     if (r.status === 409 || r.status === 412) return { conflict:true };
@@ -359,6 +418,28 @@
     rawSave();
     render();
   }
+  function keepLocalChangesAfterRemoteWrite(remoteData, etag) {
+    // 同期中にユーザーが編集した場合、古いスナップショットで端末側を上書きしない。
+    // 共有側だけを新しい基準点にし、現在の端末状態を次の同期対象として残す。
+    meta.base = clone(remoteData);
+    meta.tombstones = clone(remoteData.tombstones || { links:{}, prompts:{} });
+    meta.syncing = false;
+    meta.lastError = '';
+    meta.lastSyncedAt = now();
+    meta.etag = etag || '';
+    observe();
+    meta.dirty = true;
+    saveMeta();
+    scheduleAutoSync();
+  }
+  function applyUnlessLocallyChanged(data, etag, localSnapshot) {
+    if (!same(payload(), localSnapshot)) {
+      keepLocalChangesAfterRemoteWrite(data, etag);
+      return true;
+    }
+    apply(data, etag);
+    return false;
+  }
   function diff(before, after) {
     function one(a, b) {
       const A = ids(a), B = ids(b); let added=0, updated=0, deleted=0;
@@ -371,7 +452,11 @@
 
   async function syncNow(choices) {
     if (!meta.enabled) throw new Error('端末間同期が設定されていません');
-    meta.syncing = true; meta.lastError = ''; saveMeta();
+    if (meta.syncing) throw syncError('同期はすでに実行中です。', 'SYNC_BUSY');
+    meta.syncing = true;
+    syncStartedAt = Date.now();
+    meta.lastError = '';
+    saveMeta();
     const local = payload();
     try {
       for (let attempt=0; attempt<3; attempt++) {
@@ -380,8 +465,8 @@
           const w = await putRemote(local, '', true);
           if (w.conflict) continue;
           const result = { localToShared:diff({links:[],prompts:[]}, local), sharedToLocal:diff(local, local) };
-          apply(local, w.etag);
-          return { result };
+          const pendingLocalChanges = applyUnlessLocallyChanged(local, w.etag, local);
+          return { result, pendingLocalChanges };
         }
         const x = mergePayload(meta.base, local, remote.data);
         if (x.conflicts.length && !choices) {
@@ -392,12 +477,20 @@
         const w = await putRemote(merged, remote.etag, false);
         if (w.conflict) continue;
         const result = { localToShared:diff(remote.data, merged), sharedToLocal:diff(local, merged) };
-        apply(merged, w.etag);
-        return { result };
+        const pendingLocalChanges = applyUnlessLocallyChanged(merged, w.etag, local);
+        return { result, pendingLocalChanges };
       }
       throw new Error('別端末と更新が重なりました。もう一度同期してください');
     } catch (e) {
-      meta.syncing = false; meta.lastError = e.message || '同期できませんでした'; saveMeta(); throw e;
+      meta.lastError = e.message || '同期できませんでした';
+      saveMeta();
+      throw e;
+    } finally {
+      syncStartedAt = 0;
+      if (meta.syncing) {
+        meta.syncing = false;
+        saveMeta();
+      }
     }
   }
 
@@ -501,6 +594,7 @@
   }
   function renderSyncUi() {
     addUi();
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
     const b = document.getElementById('syncButton');
     if (b) {
       const label = document.getElementById('syncLabel');
@@ -508,19 +602,19 @@
       b.dataset.state = state;
       const text = !meta.enabled ? '同期設定' : meta.syncing ? '同期中…' : meta.lastError ? '再同期' : meta.dirty ? '同期する' : '同期済み';
       if (label) label.textContent = text;
-      b.title = !meta.enabled ? '端末間同期を設定' : meta.lastError ? '同期でエラーが発生しました。クリックして再同期' : meta.dirty ? '未同期の変更があります。クリックして同期' : '端末間同期';
+      b.title = !meta.enabled ? '端末間同期を設定' : meta.syncing ? '端末間同期を実行中' : offline ? 'オフラインです。端末の変更は保存されています' : meta.lastError ? '同期でエラーが発生しました。クリックして再同期' : meta.dirty ? '未同期の変更があります。クリックして同期' : '端末間同期';
       b.setAttribute('aria-label', b.title);
     }
     const c = document.getElementById('manageSync');
     if (!c) return;
     if (!meta.enabled) {
-      c.innerHTML = '<div class="quick-sync-head"><div><h2 class="settings-title">端末間同期</h2><p class="settings-lead">普段はこの端末だけに保存。必要なときだけ、別端末と全件を同期します。</p></div><span class="quick-sync-badge">端末保存</span></div><button class="btn primary quick-sync-main" id="syncStartBtn">同期をはじめる</button><div class="quick-sync-note">ログイン不要。同期ボタンを押したときだけ通信します。</div>';
+      c.innerHTML = '<div class="quick-sync-head"><div><h2 class="settings-title">端末間同期</h2><p class="settings-lead">普段はこの端末に保存。同期を設定すると、変更後は自動で別端末へ反映します。</p></div><span class="quick-sync-badge">端末保存</span></div><button class="btn primary quick-sync-main" id="syncStartBtn">同期をはじめる</button><div class="quick-sync-note">ログイン不要。同期データは暗号化され、必要なら上の同期ボタンから今すぐ再同期できます。</div>';
       document.getElementById('syncStartBtn').addEventListener('click', async () => {
         const setupBackup = clone(meta);
         enableNew(); renderSyncUi();
         try {
           const r = await syncNow();
-          showResult(r.result);
+          showResult(r.result, r.pendingLocalChanges);
           toast('端末間同期を設定しました');
         } catch (e) {
           meta = setupBackup;
@@ -531,7 +625,7 @@
       });
       return;
     }
-    const status = meta.lastError ? '同期できませんでした' : meta.dirty ? '未同期の変更あり' : '同期済み';
+    const status = meta.syncing ? '同期中…' : offline ? 'オフライン・端末には保存済み' : meta.lastError ? '同期できませんでした' : meta.dirty ? '未同期の変更あり' : '同期済み';
     c.innerHTML = '<div class="quick-sync-head"><div><h2 class="settings-title">端末間同期</h2><p class="settings-lead">' + esc(status) + ' · 最終同期 ' + esc(fmt(meta.lastSyncedAt)) + '</p></div><span class="quick-sync-badge ' + (meta.lastError ? 'bad' : meta.dirty ? 'dirty' : 'ok') + '">' + (meta.lastError ? '!' : meta.dirty ? '●' : '✓') + '</span></div>' + (meta.lastError ? '<div class="quick-sync-error">' + esc(meta.lastError) + '</div>' : '') + '<button class="btn primary quick-sync-main" id="syncNowBtn">' + (meta.syncing ? '同期中…' : '今すぐ同期') + '</button><div class="settings-grid quick-sync-actions"><button class="btn ghost" id="syncPairBtn">別の端末を追加</button><button class="btn ghost" id="syncDisconnectBtn">この端末の連携を解除</button></div>';
     document.getElementById('syncNowBtn').disabled = meta.syncing;
     document.getElementById('syncNowBtn').addEventListener('click', () => runSync());
@@ -577,10 +671,10 @@
     if (b.deleted) p.push('プロンプト−' + b.deleted);
     return p.join(' / ') || '変更なし';
   }
-  function showResult(r) {
+  function showResult(r, pendingLocalChanges) {
     let n = document.getElementById('syncResult');
     if (!n) { n=document.createElement('div'); n.id='syncResult'; n.className='quick-sync-result'; document.body.appendChild(n); }
-    n.innerHTML = '<strong>✓ 同期完了</strong><span>この端末 → 共有　' + esc(resultText(r.localToShared)) + '</span><span>共有 → この端末　' + esc(resultText(r.sharedToLocal)) + '</span>';
+    n.innerHTML = '<strong>✓ ' + (pendingLocalChanges ? '同期済み・続きも反映します' : '同期完了') + '</strong><span>この端末 → 共有　' + esc(resultText(r.localToShared)) + '</span><span>共有 → この端末　' + esc(resultText(r.sharedToLocal)) + '</span>' + (pendingLocalChanges ? '<span>同期中に行った変更は消さず、続けて同期します。</span>' : '');
     n.classList.add('show'); clearTimeout(n._t); n._t=setTimeout(() => n.classList.remove('show'), 3500);
   }
   function handleError(e) {
@@ -589,13 +683,33 @@
   }
   async function runSync(choices) {
     if (meta.syncing) return;
-    try { const r=await syncNow(choices); showResult(r.result); }
+    try { const r=await syncNow(choices); showResult(r.result, r.pendingLocalChanges); }
     catch (e) { handleError(e); }
     renderSyncUi();
   }
 
+  function recoverStaleRuntimeSync() {
+    if (!meta.syncing || !syncStartedAt) return false;
+    if (Date.now() - syncStartedAt <= SYNC_TIMEOUT_MS + 1000) return false;
+    abortActiveRequests();
+    meta.syncing = false;
+    syncStartedAt = 0;
+    meta.lastError = '前回の同期が途中で止まりました。もう一度同期できます。';
+    saveMeta();
+    return true;
+  }
+
   window.addEventListener('quicklinks-content-changed', scheduleAutoSync);
   window.addEventListener('quicklinks-sync-meta', renderSyncUi);
+  window.addEventListener('online', () => {
+    renderSyncUi();
+    if (meta.enabled && meta.dirty && !meta.syncing) scheduleAutoSync();
+  });
+  window.addEventListener('offline', renderSyncUi);
+  window.addEventListener('pageshow', () => {
+    recoverStaleRuntimeSync();
+    renderSyncUi();
+  });
   addUi();
   if (meta.enabled && !meta.observed) { meta.observed = payload(); saveMeta(); }
   try {
