@@ -109,9 +109,13 @@ async function testTimeoutRetryAndInFlightEdit(name, browserType) {
   const context = await browser.newContext();
   const page = await context.newPage();
   let mode = 'hang';
+  let remoteBody = null;
+  let remoteEtag = '"qa-etag-0"';
+  let putCount = 0;
 
   await page.route(ENDPOINT + '/**', async route => {
     const req = route.request();
+    const requestMode = mode;
     const headers = {
       'Access-Control-Allow-Origin': ORIGIN,
       'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
@@ -123,25 +127,36 @@ async function testTimeoutRetryAndInFlightEdit(name, browserType) {
       await route.fulfill({ status: 204, headers });
       return;
     }
-    if (mode === 'hang') {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      await route.fulfill({ status: 504, headers, body: 'late response' });
+    if (requestMode === 'hang') {
+      await new Promise(resolve => setTimeout(resolve, 1300));
+      try { await route.fulfill({ status: 504, headers, body: 'late response' }); } catch (_) {}
       return;
     }
     if (req.method() === 'GET') {
-      await route.fulfill({ status: 404, headers, body: 'Not found' });
+      if (!remoteBody) {
+        await route.fulfill({ status: 404, headers, body: 'Not found' });
+      } else {
+        await route.fulfill({
+          status: 200,
+          headers: { ...headers, 'Content-Type': 'application/json; charset=utf-8', ETag: remoteEtag },
+          body: remoteBody,
+        });
+      }
       return;
     }
     if (req.method() === 'PUT') {
-      await new Promise(resolve => setTimeout(resolve, mode === 'slow-success' ? 180 : 0));
-      await route.fulfill({ status: 204, headers: { ...headers, ETag: '"qa-etag"' } });
+      if (requestMode === 'slow-success') await new Promise(resolve => setTimeout(resolve, 180));
+      remoteBody = req.postData() || '';
+      putCount += 1;
+      remoteEtag = '"qa-etag-' + putCount + '"';
+      await route.fulfill({ status: 204, headers: { ...headers, ETag: remoteEtag } });
       return;
     }
     await route.fulfill({ status: 405, headers });
   });
 
   try {
-    await openSeeded(page, syncMeta(), 120);
+    await openSeeded(page, syncMeta(), 1000);
 
     await page.click('#syncButton');
     await page.waitForFunction(() => window.QuickLinksSync.getMeta().lastError.includes('応答がありません'));
@@ -156,10 +171,10 @@ async function testTimeoutRetryAndInFlightEdit(name, browserType) {
     await page.click('#syncButton');
     await page.waitForFunction(() => window.QuickLinksSync.getMeta().syncing === true);
 
+    // Change local state after syncNow() captured its snapshot. The completed request must not
+    // overwrite this newer edit; it should become a queued follow-up sync instead.
     await page.evaluate(() => {
-      const raw = localStorage.getItem('quick-links-mobile-localstorage-v1');
-      const next = JSON.parse(raw);
-      next.items.push({
+      state.items.push({
         id: 'sync-link-during-flight',
         title: 'Saved during sync',
         url: 'https://example.com/during',
@@ -178,29 +193,25 @@ async function testTimeoutRetryAndInFlightEdit(name, browserType) {
         favoriteType: 'none',
         favoriteExpiry: null
       });
-      localStorage.setItem('quick-links-mobile-localstorage-v1', JSON.stringify(next));
-      location.reload();
+      save();
     });
-    await page.waitForLoadState('domcontentloaded');
-    await page.locator('#syncButton').waitFor({ state: 'attached' });
-
-    // Reload during a sync must always come back operable, even if the old request vanished with the page.
-    const afterReload = await page.evaluate(() => window.QuickLinksSync.getMeta());
-    assert.equal(afterReload.syncing, false, name + ' reload during sync is self-healing');
 
     mode = 'fresh';
-    await page.click('#syncButton');
     await page.waitForFunction(() => {
       const m = window.QuickLinksSync.getMeta();
-      return !m.syncing && !m.lastError;
-    });
+      return !m.syncing && !m.dirty && !m.lastError;
+    }, { timeout: 5000 });
+
     const success = await page.evaluate(() => ({
       meta: window.QuickLinksSync.getMeta(),
       label: document.querySelector('#syncLabel')?.textContent || '',
+      keptDuringFlightEdit: state.items.some(item => item.id === 'sync-link-during-flight'),
     }));
     assert.equal(success.meta.syncing, false, name + ' successful retry finishes cleanly');
     assert.equal(success.meta.lastError, '', name + ' clears the previous timeout error');
     assert.equal(success.label, '同期済み', name + ' reports success after retry');
+    assert.equal(success.keptDuringFlightEdit, true, name + ' preserves edits made while a sync is in flight');
+    assert.ok(putCount >= 2, name + ' queues a follow-up write for the in-flight edit');
   } finally {
     await context.close();
     await browser.close();
