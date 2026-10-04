@@ -716,6 +716,57 @@ function hasCompleteMetadata(data) {
   return !!(String(data?.title || '').trim() && String(data?.description || '').trim());
 }
 
+function youtubeVideoId(value) {
+  try {
+    const u = new URL(String(value || ''));
+    const h = u.hostname.replace(/^www\./i, '').toLowerCase();
+    let id = '';
+    if (h === 'youtu.be') {
+      id = u.pathname.split('/').filter(Boolean)[0] || '';
+    } else if (h === 'youtube.com' || h.endsWith('.youtube.com')) {
+      if (u.pathname === '/watch') id = u.searchParams.get('v') || '';
+      else {
+        const m = u.pathname.match(/^\/(?:shorts|live|embed)\/([^/?#]+)/i);
+        id = m?.[1] || '';
+      }
+    }
+    return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : '';
+  } catch {
+    return '';
+  }
+}
+
+async function fetchYouTubeOEmbedMetadata(url, { signal } = {}) {
+  const videoId = youtubeVideoId(url);
+  if (!videoId) throw new Error('YouTube動画URLではありません');
+  return withTimeoutSignal(5000, signal, async innerSignal => {
+    const endpoint = new URL('https://www.youtube.com/oembed');
+    endpoint.searchParams.set('url', `https://www.youtube.com/watch?v=${videoId}`);
+    endpoint.searchParams.set('format', 'json');
+    const response = await fetch(endpoint.href, {
+      method: 'GET',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: { Accept: 'application/json' },
+      signal: innerSignal
+    });
+    if (!response.ok) throw new Error('YouTube oEmbed HTTP ' + response.status);
+    const payload = await response.json();
+    const title = cleanText(payload?.title, 240);
+    if (!title) throw new Error('YouTubeタイトルを取得できませんでした');
+    return {
+      url,
+      title,
+      domain: 'youtube.com',
+      description: '',
+      source: 'youtube-oembed',
+      provider: 'YouTube',
+      author: cleanText(payload?.author_name, 160)
+    };
+  });
+}
+
 async function fetchResolverMetadata(url, { signal } = {}) {
   return withTimeoutSignal(RESOLVER_TIMEOUT, signal, async innerSignal => {
     const endpoint = new URL(METADATA_RESOLVER_ENDPOINT);
@@ -854,6 +905,17 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
 
   let best = { url, title: '', domain: hostOf(url), description: '', source: '' };
   let lastReason = 'network';
+  const youtubeId = youtubeVideoId(url);
+
+  if (youtubeId) {
+    try {
+      const youtube = await fetchYouTubeOEmbedMetadata(url, { signal });
+      if (!looksSuspicious(youtube)) best = mergeFetchedMetadata(best, youtube, url);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
+    }
+  }
 
   try {
     const resolver = await fetchResolverMetadata(url, { signal });
@@ -866,15 +928,19 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
     lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
   }
 
-  try {
-    const direct = await fetchDirectMetadata(url, { signal });
-    if (!looksSuspicious(direct)) {
-      best = mergeFetchedMetadata(best, direct, url);
-      if (hasCompleteMetadata(best)) return { ok: true, data: best };
+  // YouTube本体はブラウザからのHTML取得がCORS等で失敗しやすい。
+  // oEmbedでタイトルを先に確保したYouTubeだけは、無駄な直fetchを飛ばしてresolver/Microlinkへ任せる。
+  if (!youtubeId) {
+    try {
+      const direct = await fetchDirectMetadata(url, { signal });
+      if (!looksSuspicious(direct)) {
+        best = mergeFetchedMetadata(best, direct, url);
+        if (hasCompleteMetadata(best)) return { ok: true, data: best };
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
     }
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
   }
 
   if (refetchBlocked() || (bulk && RF.used >= REFETCH_DAILY_LIMIT)) {
