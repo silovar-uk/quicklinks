@@ -693,7 +693,7 @@ function closeCategoryAssist() {
 function setCat(name) {
   F.cat = String(name || '').trim();
   $('fCat').value = F.cat;
-  $('#fRecent button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === F.cat)));
+  $$('#fRecent button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === F.cat)));
   $('fSave').textContent = saveLabel();
   $('fSave').disabled = false;
   if (!isCategoryBlank(F.cat) && !hand()) closeCategoryAssist();
