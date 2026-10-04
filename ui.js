@@ -859,6 +859,7 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   $('fRefetch').hidden = mode !== 'edit';
   $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true;
   $('fPaste').hidden = mode === 'edit';
+  $('fCatField').classList.remove('manual-category-open');
   closeCategoryAssist();
   setDetailsOpen(mode === 'edit');
   $('fRecent').innerHTML = recentCats().map(c => `<button type="button" data-cat="${escapeHtml(c)}" aria-pressed="false">${dot(c)}${escapeHtml(c)}</button>`).join('');
@@ -1467,6 +1468,7 @@ $('fSave').addEventListener('click', saveLink);
 $('categoryAssist').addEventListener('click', e => {
   const btn = e.target.closest('[data-assist-cat]');
   if (!btn) return;
+  $('fCatField').classList.remove('manual-category-open');
   setCat(btn.dataset.assistCat);
   if (hand()) {
     renderCategoryAssist();
@@ -1476,10 +1478,12 @@ $('categoryAssist').addEventListener('click', e => {
 });
 $('categoryAssistMore').addEventListener('click', () => {
   closeCategoryAssist();
+  $('fCatField').classList.add('manual-category-open');
   // iOSはタップの処理中に呼んだfocusでないとキーボードを出さない。requestAnimationFrameで遅らせない
   $('fCat').focus(); renderCombo();
 });
 $('categoryAssistUncategorized').addEventListener('click', () => {
+  $('fCatField').classList.remove('manual-category-open');
   setCat('未分類');
   if (hand()) { renderCategoryAssist(); return; }
   saveLink();
