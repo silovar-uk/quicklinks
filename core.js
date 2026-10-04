@@ -736,6 +736,11 @@ function youtubeVideoId(value) {
   }
 }
 
+function youtubeCanonicalUrl(value) {
+  const id = youtubeVideoId(value);
+  return id ? `https://www.youtube.com/watch?v=${id}` : String(value || '');
+}
+
 async function fetchYouTubeOEmbedMetadata(url, { signal } = {}) {
   const videoId = youtubeVideoId(url);
   if (!videoId) throw new Error('YouTube動画URLではありません');
@@ -756,12 +761,41 @@ async function fetchYouTubeOEmbedMetadata(url, { signal } = {}) {
     const title = cleanText(payload?.title, 240);
     if (!title) throw new Error('YouTubeタイトルを取得できませんでした');
     return {
-      url,
+      url: youtubeCanonicalUrl(url),
       title,
       domain: 'youtube.com',
       description: '',
       source: 'youtube-oembed',
       provider: 'YouTube',
+      author: cleanText(payload?.author_name, 160)
+    };
+  });
+}
+
+async function fetchNoembedMetadata(url, { signal } = {}) {
+  const canonical = youtubeCanonicalUrl(url);
+  if (!youtubeVideoId(canonical)) throw new Error('YouTube動画URLではありません');
+  return withTimeoutSignal(5500, signal, async innerSignal => {
+    const endpoint = new URL('https://noembed.com/embed');
+    endpoint.searchParams.set('url', canonical);
+    const response = await fetch(endpoint.href, {
+      method: 'GET',
+      credentials: 'omit',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      signal: innerSignal
+    });
+    if (!response.ok) throw new Error('Noembed HTTP ' + response.status);
+    const payload = await response.json();
+    const title = cleanText(payload?.title, 240);
+    if (!title || payload?.error) throw new Error(payload?.error || 'Noembedでタイトルを取得できませんでした');
+    return {
+      url: canonical,
+      title,
+      domain: 'youtube.com',
+      description: '',
+      source: 'noembed',
+      provider: String(payload?.provider_name || 'YouTube'),
       author: cleanText(payload?.author_name, 160)
     };
   });
@@ -906,19 +940,29 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
   let best = { url, title: '', domain: hostOf(url), description: '', source: '' };
   let lastReason = 'network';
   const youtubeId = youtubeVideoId(url);
+  const metadataUrl = youtubeId ? youtubeCanonicalUrl(url) : url;
 
   if (youtubeId) {
     try {
-      const youtube = await fetchYouTubeOEmbedMetadata(url, { signal });
+      const youtube = await fetchYouTubeOEmbedMetadata(metadataUrl, { signal });
       if (!looksSuspicious(youtube)) best = mergeFetchedMetadata(best, youtube, url);
     } catch (error) {
       if (signal?.aborted) throw error;
       lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
     }
+    if (!best.title) {
+      try {
+        const noembed = await fetchNoembedMetadata(metadataUrl, { signal });
+        if (!looksSuspicious(noembed)) best = mergeFetchedMetadata(best, noembed, url);
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
+      }
+    }
   }
 
   try {
-    const resolver = await fetchResolverMetadata(url, { signal });
+    const resolver = await fetchResolverMetadata(metadataUrl, { signal });
     if (!looksSuspicious(resolver)) {
       best = mergeFetchedMetadata(best, resolver, url);
       if (hasCompleteMetadata(best)) return { ok: true, data: best };
@@ -948,7 +992,7 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
   }
 
   try {
-    const microlink = await fetchMicrolinkMetadata(url, { signal });
+    const microlink = await fetchMicrolinkMetadata(metadataUrl, { signal });
     RF.used += 1; saveRF();
     if (!looksSuspicious(microlink)) best = mergeFetchedMetadata(best, microlink, url);
     return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: lastReason };
