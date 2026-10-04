@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261002-mobile-height">
+<link rel="stylesheet" href="./app.css?v=20261004-save-workspace">
 </head>
 <body>
 <div id="app">
@@ -72,7 +72,7 @@
   </nav>
 </div>
 
-<dialog id="linkSheet" class="bottom" aria-labelledby="linkSheetTitle">
+<dialog id="linkSheet" class="bottom link-save-sheet" aria-labelledby="linkSheetTitle">
   <div class="sheet-head"><h2 id="linkSheetTitle">リンクを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <form class="sheet-body" id="linkForm" novalidate>
     <div id="fPage" class="page-card" hidden></div>
@@ -92,8 +92,8 @@
       </div>
       <div id="categoryAssist" class="category-assist-inline" aria-live="polite" hidden>
         <div class="category-assist-copy">
-          <strong>どこにしまう？</strong>
-          <span>まだ引き出しが選ばれていません。よく使う場所なら1タップで保存できます。</span>
+          <strong>保存先</strong>
+          <span>候補を選んでから保存します。過去の保存先から「たぶんここ」も出します。</span>
         </div>
         <div id="categoryAssistSuggested" class="category-assist-suggested" hidden></div>
         <div id="categoryAssistList" class="category-assist-list" role="list" aria-label="おすすめの引き出し"></div>
@@ -103,19 +103,25 @@
         </div>
       </div>
     </div>
-    <div class="field">
-      <label class="lab" for="fTitle">タイトル <button class="btn quiet" type="button" id="fRefetch" hidden style="margin-left:auto;height:28px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>ページ情報を取り直す</button></label>
-      <input id="fTitle" class="inp" autocomplete="off">
+    <button class="details-toggle" type="button" id="fDetailsToggle" aria-expanded="false" aria-controls="fDetails">
+      <span class="details-toggle-copy"><strong>詳細を追加</strong><small>タイトル・自分メモ・お気に入り</small></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
+    </button>
+    <div id="fDetails" class="link-details">
+      <div class="field">
+        <label class="lab" for="fTitle">タイトル <button class="btn quiet" type="button" id="fRefetch" hidden style="margin-left:auto;height:28px"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>ページ情報を取り直す</button></label>
+        <input id="fTitle" class="inp" autocomplete="off">
+      </div>
+      <div class="field" id="fDescriptionField" hidden>
+        <label class="lab" for="fDescription">ページの説明 <span class="aside">自動取得・自分メモとは別</span></label>
+        <textarea id="fDescription" class="inp" readonly aria-readonly="true"></textarea>
+      </div>
+      <div class="field">
+        <label class="lab" for="fNote">自分メモ <span class="aside">ページの説明とは別に残せます</span></label>
+        <textarea id="fNote" class="inp"></textarea>
+      </div>
+      <label class="switch"><input type="checkbox" id="fFav"> お気に入り</label>
     </div>
-    <div class="field" id="fDescriptionField" hidden>
-      <label class="lab" for="fDescription">ページの説明 <span class="aside">自動取得・自分メモとは別</span></label>
-      <textarea id="fDescription" class="inp" readonly aria-readonly="true"></textarea>
-    </div>
-    <div class="field">
-      <label class="lab" for="fNote">自分メモ <span class="aside">ページの説明とは別に残せます</span></label>
-      <textarea id="fNote" class="inp"></textarea>
-    </div>
-    <label class="switch"><input type="checkbox" id="fFav"> お気に入り</label>
   </form>
   <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="fSave">保存</button></div>
 </dialog>
@@ -160,7 +166,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20260930-yoranai-p3"></script>
-<script src="./ui.js?v=20260930-yoranai-p3"></script>
+<script src="./ui.js?v=20261004-save-workspace"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>
