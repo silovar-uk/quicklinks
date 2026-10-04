@@ -693,11 +693,48 @@ function closeCategoryAssist() {
 function setCat(name) {
   F.cat = String(name || '').trim();
   $('fCat').value = F.cat;
-  $$('#fRecent button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === F.cat)));
+  $('#fRecent button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === F.cat)));
   $('fSave').textContent = saveLabel();
   $('fSave').disabled = false;
-  if (!isCategoryBlank(F.cat)) closeCategoryAssist();
+  if (!isCategoryBlank(F.cat) && !hand()) closeCategoryAssist();
+  if (hand() && $('linkSheet').open && F.mode === 'add') renderCategoryAssist();
   closeCombo();
+}
+
+function setDetailsOpen(open) {
+  const box = $('fDetails');
+  const btn = $('fDetailsToggle');
+  if (!box || !btn) return;
+  const expanded = !hand() || !!open;
+  box.hidden = !expanded;
+  btn.setAttribute('aria-expanded', String(expanded));
+  btn.querySelector('strong').textContent = expanded ? '詳細を閉じる' : '詳細を追加';
+}
+
+function renderSaveTargetCard() {
+  const box = $('fPage');
+  if (!box) return;
+  const url = $('fUrl').value.trim();
+  if (F.bm) {
+    box.hidden = false;
+    box.innerHTML = `<span class="save-target-kicker">保存するページ</span><b>${escapeHtml(F.bm.title || F.bm.url)}</b><span>${escapeHtml(F.bm.url)}</span>`;
+    return;
+  }
+  if (!hand() || !/^https?:\/\//.test(url)) {
+    box.hidden = true;
+    return;
+  }
+  const title = $('fTitle').value.trim() || hostOf(url) || url;
+  box.hidden = false;
+  box.innerHTML = `<span class="save-target-kicker">保存するページ</span><b>${escapeHtml(title)}</b><span>${escapeHtml(url)}</span>`;
+}
+
+function showMobileDestinationPicker() {
+  if (!hand() || F.mode !== 'add') return;
+  renderCategoryAssist();
+  const assist = $('categoryAssist');
+  assist.hidden = false;
+  $('fCatField').classList.add('assist-open');
 }
 function abortFetchController() { if (F.controller) { F.controller.abort(); F.controller = null; } }
 function setStatus(kind, html) {
@@ -743,6 +780,8 @@ async function startFetch() {
   const filledDescription = !$('fDescription').value && !!r.data.description;
   if (filledTitle) $('fTitle').value = r.data.title;
   if (filledDescription) setDescriptionField(r.data.description, r.data.descriptionSource || r.data.source || r.data.provider || '');
+  renderSaveTargetCard();
+  showMobileDestinationPicker();
   const fetched = [filledTitle && 'タイトル', filledDescription && 'ページの説明'].filter(Boolean).join('と');
   setStatus('ok', `<span class="grow">${fetched ? fetched + 'を取得しました。' : 'ページ情報を確認しました。'}自分メモは別に残せます。</span>`);
 }
@@ -821,11 +860,13 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true;
   $('fPaste').hidden = mode === 'edit';
   closeCategoryAssist();
+  setDetailsOpen(mode === 'edit');
   $('fRecent').innerHTML = recentCats().map(c => `<button type="button" data-cat="${escapeHtml(c)}" aria-pressed="false">${dot(c)}${escapeHtml(c)}</button>`).join('');
   setCat(it ? it.projectName : (!['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) ? U.drawer : ''));
   $('fPage').hidden = !bm;
-  if (bm) $('fPage').innerHTML = `<b>${escapeHtml(bm.title || bm.url)}</b><span>${escapeHtml(bm.url)}</span>`;
   showSheet($('linkSheet'));
+  renderSaveTargetCard();
+  showMobileDestinationPicker();
   if (bm) handleBookmarklet(bm);
   else if (url) { checkDup(); startFetch(); }
   // スマホでは、URLが空の新規保存だけキーボードを出す(URL入り・編集は、引き出しを押すだけのことが多い)
@@ -889,11 +930,11 @@ function renderCategoryAssist() {
   const suggested = $('categoryAssistSuggested');
   suggested.hidden = !suggestion;
   suggested.innerHTML = suggestion
-    ? `<button class="category-assist-prediction" type="button" data-assist-cat="${escapeHtml(suggestion.name)}"><span class="category-assist-kicker">たぶんここ</span><span class="category-assist-name">${dot(suggestion.name)}<span>${escapeHtml(suggestion.name)}</span></span><span class="n">${escapeHtml(suggestion.host)} の保存先 ${suggestion.count}/${suggestion.total}件</span></button>`
+    ? `<button class="category-assist-prediction${F.cat === suggestion.name ? ' is-selected' : ''}" type="button" data-assist-cat="${escapeHtml(suggestion.name)}" aria-pressed="${String(F.cat === suggestion.name)}"><span class="category-assist-kicker">たぶんここ</span><span class="category-assist-name">${dot(suggestion.name)}<span>${escapeHtml(suggestion.name)}</span></span><span class="n">${escapeHtml(suggestion.host)} の保存先 ${suggestion.count}/${suggestion.total}件</span></button>`
     : '';
   const box = $('categoryAssistList');
   box.innerHTML = names.length
-    ? names.map(name => `<button class="category-assist-choice${recent.has(name) ? ' is-recent' : ''}" type="button" data-assist-cat="${escapeHtml(name)}" role="listitem"><span class="category-assist-name">${dot(name)}<span>${escapeHtml(name)}</span></span><span class="n">${Number(counts.get(name) || 0)}件${recent.has(name) ? '・最近' : ''}</span></button>`).join('')
+    ? names.map(name => `<button class="category-assist-choice${recent.has(name) ? ' is-recent' : ''}${F.cat === name ? ' is-selected' : ''}" type="button" data-assist-cat="${escapeHtml(name)}" role="listitem" aria-pressed="${String(F.cat === name)}"><span class="category-assist-name">${dot(name)}<span>${escapeHtml(name)}</span></span><span class="n">${Number(counts.get(name) || 0)}件${recent.has(name) ? '・最近' : ''}</span></button>`).join('')
     : (!suggestion ? '<div class="category-assist-empty">まだ引き出しがありません。新しく作るか、「今は決めない」で保存できます。</div>' : '');
   $('categoryAssistMore').textContent = (names.length || suggestion) ? 'ほかの引き出しを探す・新しく作る' : '引き出しを作る';
 }
@@ -1395,8 +1436,9 @@ $('mSearchInput').addEventListener('keydown', e => {
   quickSaveUrl(intentUrl);
 });
 
-$('fUrl').addEventListener('change', () => { checkDup(); if (F.mode === 'add') startFetch(); });
-$('fUrl').addEventListener('paste', () => setTimeout(() => { checkDup(); if (F.mode === 'add') startFetch(); }, 0));
+$('fUrl').addEventListener('input', () => { renderSaveTargetCard(); if (F.mode === 'add' && hand()) showMobileDestinationPicker(); });
+$('fUrl').addEventListener('change', () => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') startFetch(); });
+$('fUrl').addEventListener('paste', () => setTimeout(() => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') { showMobileDestinationPicker(); startFetch(); } }, 0));
 $('fPaste').addEventListener('click', async () => {
   try {
     const text = await navigator.clipboard.readText();
@@ -1426,6 +1468,10 @@ $('categoryAssist').addEventListener('click', e => {
   const btn = e.target.closest('[data-assist-cat]');
   if (!btn) return;
   setCat(btn.dataset.assistCat);
+  if (hand()) {
+    renderCategoryAssist();
+    return;
+  }
   saveLink();
 });
 $('categoryAssistMore').addEventListener('click', () => {
@@ -1435,8 +1481,10 @@ $('categoryAssistMore').addEventListener('click', () => {
 });
 $('categoryAssistUncategorized').addEventListener('click', () => {
   setCat('未分類');
+  if (hand()) { renderCategoryAssist(); return; }
   saveLink();
 });
+$('fDetailsToggle').addEventListener('click', () => setDetailsOpen($('fDetailsToggle').getAttribute('aria-expanded') !== 'true'));
 $('linkForm').addEventListener('submit', e => e.preventDefault());
 // closeイベントは非同期に届く。開き直した後に前の回のcloseが届いても、新しい回の取得は止めない
 $('linkSheet').addEventListener('close', () => { abortFetchController(); closeCategoryAssist(); });
