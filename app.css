@@ -236,6 +236,11 @@ dialog.side{margin:0 0 0 auto;width:min(460px,100%);height:100%;max-height:100%;
 .sheet-foot{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 .sheet-foot .btn{height:40px;flex:1}
 .sheet-foot .btn.primary{flex:2}
+.details-toggle{display:none}
+.link-details{display:grid;gap:14px}
+.details-toggle-copy{display:grid;gap:1px;text-align:left}
+.details-toggle-copy strong{font-size:14px}
+.details-toggle-copy small{font-size:12px;color:var(--muted);font-weight:500}
 .field{display:grid;gap:6px}
 .lab{font-size:12px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:8px}
 .lab .aside{margin-left:auto;font-weight:500;color:var(--muted)}
@@ -278,6 +283,7 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 .category-assist-choice{min-width:0;min-height:62px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--sheet);color:var(--ink);text-align:left;display:grid;align-content:center;gap:5px}
 .category-assist-choice:hover,.category-assist-prediction:hover{border-color:#b9b9b2;background:var(--sheet)}
 .category-assist-choice.is-recent{border-color:#d8c5c6;background:var(--tint)}
+.category-assist-choice.is-selected,.category-assist-prediction.is-selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(180,35,44,.12);background:var(--tint)}
 .category-assist-name{min-width:0;display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700}
 .category-assist-name>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .category-assist-choice .n,.category-assist-prediction .n{font-size:11px;color:var(--muted);padding-left:15px}
@@ -351,8 +357,91 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   .row-copy{height:36px;margin-right:12px}
   #bottomBar{display:flex}
   dialog.bottom,dialog.side{width:100%;height:auto;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:calc(var(--shell-h,100dvh) - 8px)}
+
+  /* リンク保存は「小さなモーダル」ではなく、短時間の作業画面として全画面にする */
+  #linkSheet{
+    width:100%;
+    height:100dvh;
+    max-height:100dvh;
+    margin:0;
+    border-radius:0;
+    box-shadow:none;
+    background:var(--paper);
+  }
+  #linkSheet::backdrop{background:var(--paper)}
+  #linkSheet .sheet-head{
+    flex:0 0 auto;
+    min-height:56px;
+    padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px 16px;
+    background:rgba(247,247,245,.96);
+    border-bottom:1px solid var(--line);
+    backdrop-filter:saturate(180%) blur(14px);
+    -webkit-backdrop-filter:saturate(180%) blur(14px);
+  }
+  #linkSheet .sheet-head h2{font-size:17px}
+  #linkSheet .sheet-head .x{width:44px;height:44px}
+  #linkSheet .sheet-body{
+    padding:16px 16px 28px;
+    gap:16px;
+    background:var(--paper);
+    -webkit-overflow-scrolling:touch;
+  }
+  #linkSheet .sheet-foot{
+    flex:0 0 auto;
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
+    background:rgba(255,255,255,.96);
+    border-top:1px solid var(--line);
+    box-shadow:0 -10px 30px rgba(0,0,0,.04);
+    backdrop-filter:saturate(180%) blur(14px);
+    -webkit-backdrop-filter:saturate(180%) blur(14px);
+  }
+  #linkSheet .sheet-foot [data-close]{display:none}
+  #linkSheet .sheet-foot .btn.primary{flex:1;height:48px;border-radius:12px;font-size:15px}
+  #linkSheet .page-card{
+    padding:14px;
+    border-radius:12px;
+    background:var(--sheet);
+    box-shadow:0 4px 16px rgba(0,0,0,.04);
+  }
+  #linkSheet .page-card .save-target-kicker{
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.08em;
+    color:var(--accent);
+  }
+  #linkSheet #fCatField>.lab{font-size:14px;color:var(--ink)}
+  #linkSheet #fCatField>.recent{display:none}
+  #linkSheet #fCatField>.combo{display:none}
+  #linkSheet .category-assist-inline{
+    margin-top:0;
+    padding:0;
+    border:0;
+    background:transparent;
+    gap:12px;
+  }
+  #linkSheet .category-assist-copy span{font-size:12px}
+  #linkSheet .category-assist-prediction{min-height:78px;border-radius:12px;padding:12px 14px}
+  #linkSheet .category-assist-choice{min-height:64px;border-radius:12px}
+  #linkSheet .details-toggle{
+    width:100%;
+    min-height:58px;
+    padding:9px 12px;
+    border:1px solid var(--line2);
+    border-radius:12px;
+    background:var(--sheet);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    font-weight:700;
+  }
+  #linkSheet .details-toggle svg{transition:transform .16s ease}
+  #linkSheet .details-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+  #linkSheet .link-details{display:grid;gap:16px;padding:2px 0 8px}
+  #linkSheet .link-details[hidden]{display:none!important}
   /* キーボードが出ているときは、シートを表示領域の上端にそろえ、保存ボタンをキーボードの上に残す */
   html.keyboard-open dialog.bottom,html.keyboard-open dialog.side{margin:0 0 auto;top:var(--vv-top,0px);bottom:auto;height:var(--shell-h,100dvh);max-height:var(--shell-h,100dvh);border-radius:0}
+  html.keyboard-open #linkSheet{width:100%;height:var(--shell-h,100dvh);max-height:var(--shell-h,100dvh);margin:0;border-radius:0}
   dialog.full{width:100%;height:100%;max-height:100%;margin:0;border-radius:0}
   .inp{height:44px;font-size:16px}
   textarea.inp{font-size:16px}
