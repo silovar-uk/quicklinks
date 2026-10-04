@@ -412,6 +412,9 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   #linkSheet #fCatField>.lab{font-size:14px;color:var(--ink)}
   #linkSheet #fCatField>.recent{display:none}
   #linkSheet #fCatField>.combo{display:none}
+  #linkSheet #fCatField.manual-category-open>.recent{display:flex}
+  #linkSheet #fCatField.manual-category-open>.combo{display:block}
+  #linkSheet #fCatField.manual-category-open .category-assist-inline{display:none!important}
   #linkSheet .category-assist-inline{
     margin-top:0;
     padding:0;
