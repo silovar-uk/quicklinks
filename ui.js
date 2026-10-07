@@ -667,7 +667,7 @@ function detailAction(name, kind, id) {
 }
 
 /* ============ 保存・編集シート ============ */
-const F = { mode: 'add', id: null, cat: '', comboIdx: -1, bm: null, controller: null, seq: 0, lastUrl: '', descriptionSource: '', descriptionUpdatedAt: null };
+const F = { mode: 'add', id: null, cat: '', comboIdx: -1, bm: null, controller: null, seq: 0, lastUrl: '', descriptionSource: '', descriptionUpdatedAt: null, linkView: 'form' };
 function recentCats() {
   const seen = [];
   state.items.slice().sort((a, b) => timeValue(b.addedAt) - timeValue(a.addedAt)).forEach(i => { const n = i.projectName || '未分類'; if (!seen.includes(n)) seen.push(n); });
@@ -730,11 +730,78 @@ function renderSaveTargetCard() {
 }
 
 function showMobileDestinationPicker() {
-  if (!hand() || F.mode !== 'add') return;
+  if (!hand() || F.mode !== 'add' || F.linkView === 'destination') return;
   renderCategoryAssist();
   const assist = $('categoryAssist');
   assist.hidden = false;
   $('fCatField').classList.add('assist-open');
+}
+
+function destinationCategoryNames() {
+  const recent = recentCats();
+  const counted = moodCounts().map(([name]) => name);
+  const known = state.projects || [];
+  return [...new Set([...recent, ...counted, ...known])]
+    .filter(name => !isCategoryBlank(name) && !isUncategorizedCategory(name));
+}
+function destinationSearchKey(value) {
+  return String(value || '').normalize('NFKC').toLocaleLowerCase('ja').replace(/\s+/g, ' ').trim();
+}
+function destinationRow(name, counts) {
+  const selected = F.cat === name;
+  return `<button class="destination-row${selected ? ' is-selected' : ''}" type="button" data-destination="${escapeHtml(name)}" aria-pressed="${String(selected)}"><span class="destination-name">${dot(name)}<span>${escapeHtml(name)}</span></span><span class="destination-meta">${Number(counts.get(name) || 0)}件${selected ? '<span class="destination-check" aria-label="選択中">✓</span>' : ''}</span></button>`;
+}
+function destinationSection(title, names, counts) {
+  if (!names.length) return '';
+  return `<section class="destination-section"><h3>${escapeHtml(title)}</h3><div class="destination-list">${names.map(name => destinationRow(name, counts)).join('')}</div></section>`;
+}
+function renderDestinationPicker(query = $('destinationSearch')?.value || '') {
+  const body = $('destinationBody');
+  if (!body) return;
+  const counts = new Map(moodCounts());
+  const all = destinationCategoryNames().sort((a, b) => a.localeCompare(b, 'ja'));
+  const recent = recentCats()
+    .filter(name => all.includes(name))
+    .slice(0, 6);
+  const raw = String(query || '').trim();
+  const key = destinationSearchKey(raw);
+
+  if (key) {
+    const matches = all.filter(name => destinationSearchKey(name).includes(key));
+    const exact = all.some(name => destinationSearchKey(name) === key) || isUncategorizedCategory(raw);
+    const create = !exact
+      ? `<button class="destination-create" type="button" data-create-destination="${escapeHtml(raw)}"><span class="destination-create-plus" aria-hidden="true">＋</span><span><strong>「${escapeHtml(raw)}」</strong>を新しい引き出しにする</span></button>`
+      : '';
+    body.innerHTML = `${destinationSection('検索結果', matches, counts)}${create}${!matches.length && !create ? '<div class="destination-empty">一致する引き出しがありません。</div>' : ''}`;
+    return;
+  }
+
+  const recentHtml = destinationSection('最近使った', recent, counts);
+  const allHtml = destinationSection('すべての引き出し', all, counts);
+  body.innerHTML = recentHtml + allHtml || '<div class="destination-empty">まだ引き出しがありません。上の検索欄に名前を入れると、そのまま新しく作れます。</div>';
+}
+function openDestinationPicker() {
+  if (!hand()) return;
+  F.linkView = 'destination';
+  closeCombo();
+  closeCategoryAssist();
+  $('destinationSearch').value = '';
+  $('destinationSearchClear').hidden = true;
+  renderDestinationPicker('');
+  $('destinationPicker').hidden = false;
+  $('linkSheet').classList.add('destination-mode');
+  $('destinationBody').scrollTop = 0;
+}
+function closeDestinationPicker() {
+  if (F.linkView !== 'destination') return;
+  F.linkView = 'form';
+  $('linkSheet').classList.remove('destination-mode');
+  $('destinationPicker').hidden = true;
+  if (hand() && F.mode === 'add') showMobileDestinationPicker();
+}
+function chooseDestination(name) {
+  setCat(name);
+  closeDestinationPicker();
 }
 function abortFetchController() { if (F.controller) { F.controller.abort(); F.controller = null; } }
 function setStatus(kind, html) {
@@ -859,7 +926,11 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   $('fRefetch').hidden = mode !== 'edit';
   $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true;
   $('fPaste').hidden = mode === 'edit';
-  $('fCatField').classList.remove('manual-category-open');
+  F.linkView = 'form';
+  $('linkSheet').classList.remove('destination-mode');
+  $('destinationPicker').hidden = true;
+  $('destinationSearch').value = '';
+  $('destinationSearchClear').hidden = true;
   closeCategoryAssist();
   setDetailsOpen(mode === 'edit');
   $('fRecent').innerHTML = recentCats().map(c => `<button type="button" data-cat="${escapeHtml(c)}" aria-pressed="false">${dot(c)}${escapeHtml(c)}</button>`).join('');
@@ -1468,7 +1539,6 @@ $('fSave').addEventListener('click', saveLink);
 $('categoryAssist').addEventListener('click', e => {
   const btn = e.target.closest('[data-assist-cat]');
   if (!btn) return;
-  $('fCatField').classList.remove('manual-category-open');
   setCat(btn.dataset.assistCat);
   if (hand()) {
     renderCategoryAssist();
@@ -1477,21 +1547,55 @@ $('categoryAssist').addEventListener('click', e => {
   saveLink();
 });
 $('categoryAssistMore').addEventListener('click', () => {
+  if (hand()) {
+    openDestinationPicker();
+    return;
+  }
   closeCategoryAssist();
-  $('fCatField').classList.add('manual-category-open');
-  // iOSはタップの処理中に呼んだfocusでないとキーボードを出さない。requestAnimationFrameで遅らせない
-  $('fCat').focus(); renderCombo();
+  $('fCat').focus();
+  renderCombo();
 });
 $('categoryAssistUncategorized').addEventListener('click', () => {
-  $('fCatField').classList.remove('manual-category-open');
   setCat('未分類');
   if (hand()) { renderCategoryAssist(); return; }
   saveLink();
 });
+$('destinationBack').addEventListener('click', closeDestinationPicker);
+$('destinationSearch').addEventListener('input', e => {
+  const value = e.target.value;
+  $('destinationSearchClear').hidden = !value;
+  renderDestinationPicker(value);
+});
+$('destinationSearchClear').addEventListener('click', () => {
+  $('destinationSearch').value = '';
+  $('destinationSearchClear').hidden = true;
+  renderDestinationPicker('');
+  $('destinationSearch').focus();
+});
+$('destinationBody').addEventListener('click', e => {
+  const existing = e.target.closest('[data-destination]');
+  if (existing) {
+    chooseDestination(existing.dataset.destination);
+    return;
+  }
+  const create = e.target.closest('[data-create-destination]');
+  if (create) chooseDestination(create.dataset.createDestination);
+});
 $('fDetailsToggle').addEventListener('click', () => setDetailsOpen($('fDetailsToggle').getAttribute('aria-expanded') !== 'true'));
 $('linkForm').addEventListener('submit', e => e.preventDefault());
+$('linkSheet').addEventListener('cancel', e => {
+  if (F.linkView !== 'destination') return;
+  e.preventDefault();
+  closeDestinationPicker();
+});
 // closeイベントは非同期に届く。開き直した後に前の回のcloseが届いても、新しい回の取得は止めない
-$('linkSheet').addEventListener('close', () => { abortFetchController(); closeCategoryAssist(); });
+$('linkSheet').addEventListener('close', () => {
+  abortFetchController();
+  closeCategoryAssist();
+  F.linkView = 'form';
+  $('linkSheet').classList.remove('destination-mode');
+  $('destinationPicker').hidden = true;
+});
 
 $('pCat').addEventListener('click', renderPromptCombo);
 $('pCat').addEventListener('input', renderPromptCombo);
