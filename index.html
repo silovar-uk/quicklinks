@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261004-save-workspace">
+<link rel="stylesheet" href="./app.css?v=20261007-destination-picker">
 </head>
 <body>
 <div id="app">
@@ -124,6 +124,21 @@
     </div>
   </form>
   <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="fSave">保存</button></div>
+  <section id="destinationPicker" class="destination-picker" aria-labelledby="destinationPickerTitle" hidden>
+    <div class="destination-head">
+      <button id="destinationBack" class="destination-back" type="button" aria-label="リンク保存に戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <h2 id="destinationPickerTitle">保存先を選ぶ</h2>
+      <span class="destination-head-spacer" aria-hidden="true"></span>
+    </div>
+    <div class="destination-search-shell">
+      <div class="destination-search" role="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input id="destinationSearch" type="search" placeholder="引き出しを検索・新しく作る" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="引き出しを検索。見つからなければ新しく作れます">
+        <button id="destinationSearchClear" class="destination-search-clear" type="button" aria-label="検索を消す" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button>
+      </div>
+    </div>
+    <div id="destinationBody" class="destination-body"></div>
+  </section>
 </dialog>
 
 <dialog id="promptSheet" class="bottom" aria-labelledby="promptSheetTitle">
@@ -166,7 +181,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20261004-youtube-oembed2"></script>
-<script src="./ui.js?v=20261004-save-workspace-hotfix1"></script>
+<script src="./ui.js?v=20261007-destination-picker"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>
