@@ -119,11 +119,15 @@ async function testDirectSuccess(browser) {
     assert.equal(await page.locator('#fStatus').getAttribute('aria-busy'), 'false', 'busy state clears after success');
     assert.equal(await page.locator('.spin').count(), 0, 'spinner is removed after success');
 
+    // スマホ幅では自分メモは「詳細を追加」の中にある(10/4の段階表示)
+    if (await page.locator('#fDetailsToggle').isVisible()) await page.locator('#fDetailsToggle').click();
     await page.locator('#fNote').fill('Personal note');
     await page.locator('#fSave').click();
     await page.locator('#categoryAssist:not([hidden])').waitFor();
     assert.equal(await page.locator('#linkSheet[open]').count(), 1, 'regular save keeps the form open while category assist is shown');
     await page.locator('#categoryAssistUncategorized').click();
+    // スマホ幅では、引き出しを選んだあと保存をもう一度押す(10/4の段階表示)
+    if (await page.locator('#linkSheet[open]').count()) await page.locator('#fSave').click();
     await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
     const saved = await page.evaluate(() => {
       const data = JSON.parse(localStorage.getItem('quick-links-mobile-localstorage-v1') || '{}');

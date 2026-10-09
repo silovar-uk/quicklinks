@@ -230,6 +230,8 @@ function clearUniversalInput() {
 }
 
 function focusSavedItem(id) {
+  // スマホでは、保存しても見ている引き出し・位置を動かさない。一覧に出ていれば光らせるだけ
+  if (hand()) { render(); $('item-' + id)?.classList.add('flash'); return; }
   U.view = 'links';
   U.drawer = 'ALL';
   U.kind = 'all';
@@ -1043,14 +1045,17 @@ function saveLink() {
   abortFetchController();
   closeSheet($('linkSheet'));
   U.query = ''; $('searchInput').value = '';
-  U.view = 'links';
-  if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
+  // スマホでは見ている画面を動かさない(引き出しの切り替えも、一覧へのスクロールもしない)
+  if (!hand()) {
+    U.view = 'links';
+    if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
+  }
   save(); render();
   if (F.mode !== 'edit' && (looksPlaceholder(item.title, item.url) || !item.description)) {
     setTimeout(() => enrichSavedLink(item.id), 0);
   }
   const el = $('item-' + item.id);
-  if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
+  if (el) { if (!hand()) el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
   toast(F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
 }
 function comboOptions() {
@@ -1674,23 +1679,62 @@ const rootEl = document.documentElement;
 function shellMetrics() {
   const vv = window.visualViewport;
   // 拡大中(ピンチ・入力時の自動拡大)は visualViewport.height が倍率ぶん小さくなる。倍率を掛け戻し、外枠にはキーボードの分だけを反映する
-  const h = Math.round(vv ? vv.height * vv.scale : innerHeight);
+  // WebKitで見える高さの報告が遅れても、縮んだ内側の高さを超えないようにする。
+  const reportedH = vv ? vv.height * vv.scale : innerHeight;
+  const h = Math.round(Math.min(reportedH, innerHeight));
   rootEl.style.setProperty('--shell-h', h + 'px');
   rootEl.style.setProperty('--vv-top', Math.round(vv ? vv.offsetTop : 0) + 'px');
   const bar = $('bottomBar');
   if (bar && bar.offsetParent) rootEl.style.setProperty('--bar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px');
   const editing = !!document.activeElement?.matches?.('input, textarea, select');
-  if (!editing) shellMetrics.base = Math.max(shellMetrics.base || 0, h);
-  rootEl.classList.toggle('keyboard-open', editing && h < (shellMetrics.base || h) * 0.78);
+  // WebKitでは画面サイズ変更時に入力欄のフォーカスが外れることがある。シートが開いていれば短い画面に対応する。
+  const sheetActive = hand() && !!document.querySelector('dialog[open]');
+  if (!editing && !sheetActive) shellMetrics.base = Math.max(shellMetrics.base || 0, h);
+  // 端末横向きなど、CSSの表示域自体が小さい場合もキーボード相当の余白を確保する。
+  const crampedViewport = hand() && matchMedia('(max-height: 420px)').matches;
+  rootEl.classList.toggle('keyboard-open', crampedViewport || ((editing || sheetActive) && h < (shellMetrics.base || h) * 0.78));
 }
 let shellFrame = 0;
 function scheduleShell() { if (!shellFrame) shellFrame = requestAnimationFrame(() => { shellFrame = 0; shellMetrics(); }); }
 window.visualViewport?.addEventListener('resize', scheduleShell);
 window.visualViewport?.addEventListener('scroll', scheduleShell);
 addEventListener('resize', scheduleShell);
+// WebKitではキーボードやviewport変更がresizeイベントを発火しない場合がある。
+// シート表示中だけ高さを照合し、イベントの取りこぼしを補正する。
+setInterval(() => {
+  if (!hand() || !document.querySelector('dialog[open]')) return;
+  const v = window.visualViewport;
+  const actual = Math.round(Math.min(v ? v.height * v.scale : innerHeight, innerHeight));
+  const last = parseFloat(rootEl.style.getPropertyValue('--shell-h')) || 0;
+  // 背景タブやWebKitの自動テストではrequestAnimationFrameが遅れるため、ここでは同期更新。
+  if (Math.abs(actual - last) > 1) shellMetrics();
+}, 120);
 addEventListener('orientationchange', () => { shellMetrics.base = 0; scheduleShell(); });
 document.addEventListener('focusin', scheduleShell);
 document.addEventListener('focusout', () => setTimeout(scheduleShell, 0));
+// iOS 26は、キーボードを閉じたあとも文書のずれ(スクロール位置)を戻さないことがある。
+// スマホでは文書そのものはスクロールしない作りなので、入力を離れたら0へ戻す
+function settleViewport() {
+  if (!hand() || document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+  if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) window.scrollTo(0, 0);
+}
+document.addEventListener('focusout', () => setTimeout(settleViewport, 150));
+window.visualViewport?.addEventListener('resize', () => setTimeout(settleViewport, 150));
+
+// 実機の「寄り」を数字で見る窓。?vv を付けて開いたときだけ出す(原因が分かったら消してよい)
+if (/[?&]vv\b/.test(location.search) && window.visualViewport) {
+  const probe = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'vvProbe' }));
+  let maxScale = 1;
+  const show = () => {
+    const v = window.visualViewport;
+    maxScale = Math.max(maxScale, v.scale);
+    probe.textContent = `倍率 ${v.scale.toFixed(2)}(最大 ${maxScale.toFixed(2)})\n上 ${Math.round(v.offsetTop)}・見える高さ ${Math.round(v.height)}/${innerHeight}・文書 ${Math.round(window.scrollY)}`;
+  };
+  ['resize', 'scroll'].forEach(t => window.visualViewport.addEventListener(t, show));
+  document.addEventListener('focusin', show);
+  document.addEventListener('focusout', () => setTimeout(show, 300));
+  show();
+}
 
 /* ============ 初期化 ============ */
 render();

@@ -129,12 +129,12 @@ const checks = [
     assert.notEqual((await active(page)).id, 'fUrl', 'EnterでURL欄から抜けない');
     await page.locator('#fStatus').waitFor({ state: 'visible', timeout: 3000 }); await context.close();
   }),
-  check('P1', 'スマホ:引き出しの提案で「ほかの引き出し」を押すと、引き出し欄にそのまま打てる', async b => {
+  check('P1', 'スマホ:引き出しの提案で「ほかの引き出し」を押すと、引き出しを探す欄が出る(10/4の全画面の選び方)', async b => {
     const { page, context } = await open(b, SE);
     await page.locator('#bottomAdd').click(); await page.locator('#fUrl').fill(NEW_URL('assist'));
     await page.locator('#fSave').click(); await page.locator('#categoryAssist:not([hidden])').waitFor();
     await page.locator('#categoryAssistMore').click();
-    assert.equal((await active(page)).id, 'fCat', '引き出し欄にフォーカスが入らない'); await context.close();
+    await page.locator('#destinationSearch').waitFor({ state: 'visible' }); await context.close();
   }),
   check('P1', 'PC:URL入りで保存シートを開くと、これまでどおり引き出し欄から打てる', async b => {
     const { page, context } = await open(b, PC);
@@ -147,7 +147,8 @@ const checks = [
       const { page, context } = await open(browser, SE);
       await page.locator('#bottomAdd').click(); await page.locator('#linkSheet[open]').waitFor();
       await keyboardUp(page);
-      assert.equal(await kbOpen(page), true, `${name}: キーボードが出た扱いにならない`);
+      const metrics = await page.evaluate(() => ({ innerHeight, width: innerWidth, vvHeight: visualViewport?.height, vvScale: visualViewport?.scale, shellHeight: document.documentElement.style.getPropertyValue('--shell-h'), small: matchMedia('(max-height: 420px)').matches, sheet: !!document.querySelector('dialog[open]'), focused: document.activeElement?.id }));
+      assert.equal(await kbOpen(page), true, `${name}: キーボードが出た扱いにならない ${JSON.stringify(metrics)}`);
       const s = await box(page, '#linkSheet'), f = await box(page, '#fSave');
       assert.ok(s.top >= -1 && s.bottom <= KB.height + 1, `${name}: シート ${Math.round(s.top)}〜${Math.round(s.bottom)}`);
       assert.ok(f.top >= 0 && f.bottom <= KB.height, `${name}: 保存ボタン ${Math.round(f.top)}〜${Math.round(f.bottom)}`);
