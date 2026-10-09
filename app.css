@@ -12,6 +12,10 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%}
+/* ダブルタップでの拡大を止める(ピンチ拡大は残す)。iOSは一度でも拡大すると、ダブルタップの拡大を復活させるため。
+   文字の自動拡大(横向きにしたとき)も止める */
+html,dialog{touch-action:manipulation}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -231,6 +235,8 @@ dialog::backdrop{background:rgba(20,20,18,.42)}
 dialog.side{margin:0 0 0 auto;width:min(460px,100%);height:100%;max-height:100%;border-radius:12px 0 0 12px}
 .sheet-head{display:flex;align-items:center;gap:8px;padding:14px 12px 12px 16px;border-bottom:1px solid var(--line)}
 .sheet-head h2{margin:0;font-size:16px;font-weight:700;min-width:0}
+/* シートを開いたときの最初のフォーカスは見出しに置く(Safariは閉じるボタンに置いて赤い枠を出すため) */
+.sheet-head h2:focus{outline:none}
 .sheet-head .x{margin-left:auto;width:36px;height:36px;border:0;border-radius:8px;background:transparent;display:grid;place-items:center;color:var(--ink2)}
 .sheet-body{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px 18px;display:grid;gap:14px;align-content:start}
 .sheet-foot{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
@@ -585,6 +591,10 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   textarea.inp{font-size:16px}
   /* iPhoneは16px未満の入力欄に触れると画面を拡大し、閉じても戻さない。スマホでは文字を打てる欄をすべて16px以上にする */
   .url-row .inp,.textarea{font-size:16px}
+  /* これから増える欄も含め、文字を打てる欄は一律16px以上にする(個別の指定より優先させる) */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea{font-size:16px!important}
+  /* キーボード表示中は、短いシートでも中で少しスクロールできるようにする。中に余地がないと、iOSは文書ごと動かしてシートがずれる */
+  html.keyboard-open dialog[open] .sheet-body::after{content:"";display:block;height:40vh}
   .recent button{height:40px}
   #toast{bottom:calc(var(--bar-h,57px) + 12px)}
   #manage{padding:8px 16px 40px}
@@ -647,5 +657,7 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 .modal-title{margin:0;font-size:16px;font-weight:700;flex:1}
 .modal-close{width:32px;height:32px;border:0;border-radius:8px;background:transparent;font-size:18px;color:var(--ink2)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+/* 実機の「寄り」を数字で見る窓(?vv のときだけ) */
+#vvProbe{position:fixed;left:8px;top:calc(env(safe-area-inset-top,0px) + 4px);z-index:999;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.72);color:#fff;font:11px/1.5 var(--mono);pointer-events:none;white-space:pre}
 @keyframes handIn{from{opacity:0}}
 @keyframes handRise{from{transform:translateY(10px);opacity:0}}

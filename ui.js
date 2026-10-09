@@ -230,6 +230,8 @@ function clearUniversalInput() {
 }
 
 function focusSavedItem(id) {
+  // スマホでは、保存しても見ている引き出し・位置を動かさない。一覧に出ていれば光らせるだけ
+  if (hand()) { render(); $('item-' + id)?.classList.add('flash'); return; }
   U.view = 'links';
   U.drawer = 'ALL';
   U.kind = 'all';
@@ -1043,14 +1045,17 @@ function saveLink() {
   abortFetchController();
   closeSheet($('linkSheet'));
   U.query = ''; $('searchInput').value = '';
-  U.view = 'links';
-  if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
+  // スマホでは見ている画面を動かさない(引き出しの切り替えも、一覧へのスクロールもしない)
+  if (!hand()) {
+    U.view = 'links';
+    if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
+  }
   save(); render();
   if (F.mode !== 'edit' && (looksPlaceholder(item.title, item.url) || !item.description)) {
     setTimeout(() => enrichSavedLink(item.id), 0);
   }
   const el = $('item-' + item.id);
-  if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
+  if (el) { if (!hand()) el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
   toast(F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
 }
 function comboOptions() {
@@ -1691,6 +1696,29 @@ addEventListener('resize', scheduleShell);
 addEventListener('orientationchange', () => { shellMetrics.base = 0; scheduleShell(); });
 document.addEventListener('focusin', scheduleShell);
 document.addEventListener('focusout', () => setTimeout(scheduleShell, 0));
+// iOS 26は、キーボードを閉じたあとも文書のずれ(スクロール位置)を戻さないことがある。
+// スマホでは文書そのものはスクロールしない作りなので、入力を離れたら0へ戻す
+function settleViewport() {
+  if (!hand() || document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+  if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) window.scrollTo(0, 0);
+}
+document.addEventListener('focusout', () => setTimeout(settleViewport, 150));
+window.visualViewport?.addEventListener('resize', () => setTimeout(settleViewport, 150));
+
+// 実機の「寄り」を数字で見る窓。?vv を付けて開いたときだけ出す(原因が分かったら消してよい)
+if (/[?&]vv\b/.test(location.search) && window.visualViewport) {
+  const probe = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'vvProbe' }));
+  let maxScale = 1;
+  const show = () => {
+    const v = window.visualViewport;
+    maxScale = Math.max(maxScale, v.scale);
+    probe.textContent = `倍率 ${v.scale.toFixed(2)}(最大 ${maxScale.toFixed(2)})\n上 ${Math.round(v.offsetTop)}・見える高さ ${Math.round(v.height)}/${innerHeight}・文書 ${Math.round(window.scrollY)}`;
+  };
+  ['resize', 'scroll'].forEach(t => window.visualViewport.addEventListener(t, show));
+  document.addEventListener('focusin', show);
+  document.addEventListener('focusout', () => setTimeout(show, 300));
+  show();
+}
 
 /* ============ 初期化 ============ */
 render();

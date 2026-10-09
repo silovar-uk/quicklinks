@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261007-destination-picker">
+<link rel="stylesheet" href="./app.css?v=20261010-kakekaeru-p1">
 </head>
 <body>
 <div id="app">
@@ -73,7 +73,7 @@
 </div>
 
 <dialog id="linkSheet" class="bottom link-save-sheet" aria-labelledby="linkSheetTitle">
-  <div class="sheet-head"><h2 id="linkSheetTitle">リンクを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-head"><h2 id="linkSheetTitle" tabindex="-1" autofocus>リンクを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <form class="sheet-body" id="linkForm" novalidate>
     <div id="fPage" class="page-card" hidden></div>
     <div class="field">
@@ -142,7 +142,7 @@
 </dialog>
 
 <dialog id="promptSheet" class="bottom" aria-labelledby="promptSheetTitle">
-  <div class="sheet-head"><h2 id="promptSheetTitle">プロンプトを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-head"><h2 id="promptSheetTitle" tabindex="-1" autofocus>プロンプトを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <form class="sheet-body" id="promptForm" novalidate>
     <div class="field">
       <label class="lab" for="pCat">カテゴリ <span class="aside">選ばなければ未分類</span></label>
@@ -159,12 +159,12 @@
 </dialog>
 
 <dialog id="detailSheet" class="side" aria-labelledby="detailSheetTitle">
-  <div class="sheet-head"><h2 id="detailSheetTitle">詳細</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-head"><h2 id="detailSheetTitle" tabindex="-1" autofocus>詳細</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <div class="sheet-body" id="detailSheetBody" style="padding:0"></div>
 </dialog>
 
 <dialog id="actionSheet" class="bottom" aria-labelledby="actionTitle">
-  <div class="sheet-head"><h2 id="actionTitle">操作</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-head"><h2 id="actionTitle" tabindex="-1" autofocus>操作</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <div class="menu" id="actionMenu"></div>
 </dialog>
 
@@ -174,14 +174,14 @@
 </dialog>
 
 <dialog id="catSheet" class="bottom" aria-labelledby="catSheetTitle">
-  <div class="sheet-head"><h2 id="catSheetTitle">引き出しと並び順</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-head"><h2 id="catSheetTitle" tabindex="-1" autofocus>引き出しと並び順</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <div class="menu" id="catMenu"></div>
 </dialog>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20261004-youtube-oembed2"></script>
-<script src="./ui.js?v=20261007-destination-picker"></script>
+<script src="./ui.js?v=20261010-kakekaeru-p1"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>
