@@ -147,7 +147,8 @@ const checks = [
       const { page, context } = await open(browser, SE);
       await page.locator('#bottomAdd').click(); await page.locator('#linkSheet[open]').waitFor();
       await keyboardUp(page);
-      assert.equal(await kbOpen(page), true, `${name}: キーボードが出た扱いにならない`);
+      const metrics = await page.evaluate(() => ({ innerHeight, width: innerWidth, vvHeight: visualViewport?.height, vvScale: visualViewport?.scale, shellHeight: document.documentElement.style.getPropertyValue('--shell-h'), small: matchMedia('(max-height: 420px)').matches, sheet: !!document.querySelector('dialog[open]'), focused: document.activeElement?.id }));
+      assert.equal(await kbOpen(page), true, `${name}: キーボードが出た扱いにならない ${JSON.stringify(metrics)}`);
       const s = await box(page, '#linkSheet'), f = await box(page, '#fSave');
       assert.ok(s.top >= -1 && s.bottom <= KB.height + 1, `${name}: シート ${Math.round(s.top)}〜${Math.round(s.bottom)}`);
       assert.ok(f.top >= 0 && f.bottom <= KB.height, `${name}: 保存ボタン ${Math.round(f.top)}〜${Math.round(f.bottom)}`);
