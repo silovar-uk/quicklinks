@@ -1679,7 +1679,9 @@ const rootEl = document.documentElement;
 function shellMetrics() {
   const vv = window.visualViewport;
   // 拡大中(ピンチ・入力時の自動拡大)は visualViewport.height が倍率ぶん小さくなる。倍率を掛け戻し、外枠にはキーボードの分だけを反映する
-  const h = Math.round(vv ? vv.height * vv.scale : innerHeight);
+  // WebKitで見える高さの報告が遅れても、縮んだ内側の高さを超えないようにする。
+  const reportedH = vv ? vv.height * vv.scale : innerHeight;
+  const h = Math.round(Math.min(reportedH, innerHeight));
   rootEl.style.setProperty('--shell-h', h + 'px');
   rootEl.style.setProperty('--vv-top', Math.round(vv ? vv.offsetTop : 0) + 'px');
   const bar = $('bottomBar');
