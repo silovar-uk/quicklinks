@@ -1706,7 +1706,8 @@ setInterval(() => {
   const v = window.visualViewport;
   const actual = Math.round(Math.min(v ? v.height * v.scale : innerHeight, innerHeight));
   const last = parseFloat(rootEl.style.getPropertyValue('--shell-h')) || 0;
-  if (Math.abs(actual - last) > 1) scheduleShell();
+  // 背景タブやWebKitの自動テストではrequestAnimationFrameが遅れるため、ここでは同期更新。
+  if (Math.abs(actual - last) > 1) shellMetrics();
 }, 120);
 addEventListener('orientationchange', () => { shellMetrics.base = 0; scheduleShell(); });
 document.addEventListener('focusin', scheduleShell);
