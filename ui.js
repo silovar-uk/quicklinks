@@ -1685,8 +1685,10 @@ function shellMetrics() {
   const bar = $('bottomBar');
   if (bar && bar.offsetParent) rootEl.style.setProperty('--bar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px');
   const editing = !!document.activeElement?.matches?.('input, textarea, select');
-  if (!editing) shellMetrics.base = Math.max(shellMetrics.base || 0, h);
-  rootEl.classList.toggle('keyboard-open', editing && h < (shellMetrics.base || h) * 0.78);
+  // WebKitでは画面サイズ変更時に入力欄のフォーカスが外れることがある。シートが開いていれば短い画面に対応する。
+  const sheetActive = hand() && !!document.querySelector('dialog[open]');
+  if (!editing && !sheetActive) shellMetrics.base = Math.max(shellMetrics.base || 0, h);
+  rootEl.classList.toggle('keyboard-open', (editing || sheetActive) && h < (shellMetrics.base || h) * 0.78);
 }
 let shellFrame = 0;
 function scheduleShell() { if (!shellFrame) shellFrame = requestAnimationFrame(() => { shellFrame = 0; shellMetrics(); }); }
