@@ -1699,6 +1699,15 @@ function scheduleShell() { if (!shellFrame) shellFrame = requestAnimationFrame((
 window.visualViewport?.addEventListener('resize', scheduleShell);
 window.visualViewport?.addEventListener('scroll', scheduleShell);
 addEventListener('resize', scheduleShell);
+// WebKitではキーボードやviewport変更がresizeイベントを発火しない場合がある。
+// シート表示中だけ高さを照合し、イベントの取りこぼしを補正する。
+setInterval(() => {
+  if (!hand() || !document.querySelector('dialog[open]')) return;
+  const v = window.visualViewport;
+  const actual = Math.round(Math.min(v ? v.height * v.scale : innerHeight, innerHeight));
+  const last = parseFloat(rootEl.style.getPropertyValue('--shell-h')) || 0;
+  if (Math.abs(actual - last) > 1) scheduleShell();
+}, 120);
 addEventListener('orientationchange', () => { shellMetrics.base = 0; scheduleShell(); });
 document.addEventListener('focusin', scheduleShell);
 document.addEventListener('focusout', () => setTimeout(scheduleShell, 0));
