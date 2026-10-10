@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261010-kakekaeru-p2">
+<link rel="stylesheet" href="./app.css?v=20261010-kakekaeru-p3">
 </head>
 <body>
 <div id="app">
@@ -133,6 +133,18 @@
   <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn danger" type="button" id="pDelete" hidden>削除</button><button class="btn primary" type="button" id="pSave">保存</button></div>
 </dialog>
 
+<dialog id="refileSheet" class="bottom" aria-labelledby="refileTitle">
+  <div class="sheet-head"><h2 id="refileTitle" tabindex="-1" autofocus>引き出しを掛け替える</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
+  <div class="sheet-body">
+    <p class="refile-what" id="refileWhat"></p>
+    <div class="field tagpick" id="rCatField">
+      <div class="tagpick-head"><label class="lab" for="rCat">入れる引き出し</label><button class="tagpick-all" type="button" id="rCatAll" aria-expanded="false" aria-controls="rTags" hidden>すべて</button></div>
+      <input id="rCat" class="inp tagpick-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="rTags" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="名前で探す・新しく作る">
+      <div class="tags" id="rTags" role="listbox" aria-label="入れる引き出し"></div>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="detailSheet" class="side" aria-labelledby="detailSheetTitle">
   <div class="sheet-head"><h2 id="detailSheetTitle" tabindex="-1" autofocus>詳細</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <div class="sheet-body" id="detailSheetBody" style="padding:0"></div>
@@ -156,7 +168,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20261004-youtube-oembed2"></script>
-<script src="./ui.js?v=20261010-kakekaeru-p2"></script>
+<script src="./ui.js?v=20261010-kakekaeru-p3"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>

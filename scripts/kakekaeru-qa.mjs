@@ -368,6 +368,100 @@ const checks = [
     await page.locator('#pTitle').fill('QAのプロンプト'); await page.locator('#pBody').fill('本文');
     await page.locator('#pSave').click();
     assert.equal((await stored(page)).promptMemos.find(x => x.title === 'QAのプロンプト')?.categoryName, '新カテゴリ'); await context.close();
+  }),
+
+  // P3 破「札を押せば、掛け替わる」
+  check('P3', 'スマホ:束のカードの札を押すと掛け替えのシートが開き、いまの引き出しが選ばれている(キーボードは出さない)', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      const card = page.locator('#deckTrack .card.is-current');
+      const id = await card.getAttribute('data-id');
+      const cur = (await stored(page)).items.find(x => x.id === id).projectName;
+      await card.locator('[data-refile]').click();
+      await page.locator('#refileSheet[open]').waitFor();
+      assert.equal(await page.locator('#rTags [aria-selected="true"]').getAttribute('data-name'), cur, `${name}: いまの引き出しが選ばれていない`);
+      assert.notEqual((await active(page)).tag, 'INPUT', `${name}: 開いただけでキーボードを出した`);
+      await context.close();
+    });
+  }),
+  check('P3', '札を押して別の引き出しを選ぶと、すぐ掛け替わってシートが閉じ、「◯◯へ掛け替えました」と元に戻すが出る。元に戻すで戻る', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const card = page.locator('#deckTrack .card.is-current');
+    const id = await card.getAttribute('data-id');
+    const cur = (await stored(page)).items.find(x => x.id === id).projectName;
+    const to = cur === 'まなび' ? 'ごはん' : 'まなび';
+    await card.locator('[data-refile]').click(); await page.locator('#refileSheet[open]').waitFor();
+    await page.locator('#rCatAll').click();
+    await page.locator(`#rTags [data-name="${to}"]`).click();
+    await page.waitForFunction(() => !document.querySelector('#refileSheet').open, null, { timeout: 3000 });
+    assert.equal((await stored(page)).items.find(x => x.id === id).projectName, to);
+    assert.match(await page.locator('#toast').innerText(), new RegExp(`「${to}」へ掛け替えました`));
+    await page.locator('#toast button').click();
+    assert.equal((await stored(page)).items.find(x => x.id === id).projectName, cur, '元に戻らない'); await context.close();
+  }),
+  check('P3', '詳細シートの札からも掛け替えられる', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await page.locator('#lib .item .item-more').first().click(); await page.locator('#detailSheet[open]').waitFor();
+    const id = await page.evaluate(() => U.sel.id);
+    await page.locator('#detailSheet [data-refile]').click();
+    await page.locator('#refileSheet[open]').waitFor();
+    assert.equal(await page.evaluate(() => document.querySelector('#detailSheet').open), false, '詳細シートが閉じない');
+    await page.locator('#rTags [data-name="未分類"]').click();
+    assert.equal((await stored(page)).items.find(x => x.id === id).projectName, '未分類'); await context.close();
+  }),
+  check('P3', '掛け替えで新しい引き出しを作れる(打ってEnter)。元に戻すと、その空の引き出しも片づく', async b => {
+    const { page, context } = await open(b, PC);
+    const id = await page.locator('#deckTrack .card.is-current').getAttribute('data-id');
+    await page.locator('#deckTrack .card.is-current [data-refile]').click(); await page.locator('#refileSheet[open]').waitFor();
+    await page.locator('#rCat').fill('掛け替え先'); await page.locator('#rCat').press('Enter');
+    await page.waitForFunction(() => !document.querySelector('#refileSheet').open, null, { timeout: 3000 });
+    let s = await stored(page);
+    assert.equal(s.items.find(x => x.id === id).projectName, '掛け替え先');
+    assert.ok(s.projects.includes('掛け替え先'));
+    await page.locator('#toast button').click();
+    s = await stored(page);
+    assert.notEqual(s.items.find(x => x.id === id).projectName, '掛け替え先');
+    assert.equal(s.projects.includes('掛け替え先'), false, '空の引き出しが残った'); await context.close();
+  }),
+  check('P3', 'スマホ:札は見た目が小さくても、押せる範囲は縦44px以上', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      const hit = await page.locator('#deckTrack .card.is-current [data-refile]').evaluate(el => {
+        const r = el.getBoundingClientRect(), x = r.left + r.width / 2;
+        let top = r.top, bottom = r.bottom;
+        while (document.elementFromPoint(x, top - 1)?.closest('[data-refile]') === el) top--;
+        while (document.elementFromPoint(x, bottom + 1)?.closest('[data-refile]') === el) bottom++;
+        return bottom - top;
+      });
+      assert.ok(hit >= 43, `${name}: 押せる高さ ${hit}px`); await context.close();
+    });
+  }),
+  check('P3', '「いったん保存」の知らせの「引き出しを選ぶ」で、掛け替えのシートが開く', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await page.locator('#searchOpen').click(); await page.locator('#mSearchInput').fill(NEW_URL('later-refile'));
+    await page.locator('.hand-drawers [data-url-quick-save]').click();
+    await page.waitForFunction(() => !document.querySelector('#searchSheet').open, null, { timeout: 3000 });
+    await page.locator('#toast button').click();
+    await page.locator('#refileSheet[open]').waitFor();
+    await page.locator('#rTags [data-name="しごと"]').click();
+    assert.equal((await itemOf(page, NEW_URL('later-refile')))?.projectName, 'しごと'); await context.close();
+  }),
+  check('P3', 'PC:一覧のリンクを左の引き出しへ落とすと掛け替わる。保存していないURLを落とすと、その引き出しに保存される', async b => {
+    const { page, context } = await open(b, PC);
+    const drop = async (url, drawer) => {
+      const dt = await page.evaluateHandle(u => { const d = new DataTransfer(); d.setData('text/uri-list', u); return d; }, url);
+      const target = page.locator(`#rail [data-rail="cat:${drawer}"]`);
+      await target.dispatchEvent('dragover', { dataTransfer: dt });
+      assert.equal(await target.evaluate(el => el.classList.contains('is-drop-target')), true, '落とす先が光らない');
+      await target.dispatchEvent('drop', { dataTransfer: dt });
+    };
+    const first = (await stored(page)).items[0];
+    const to = first.projectName === 'まなび' ? 'ごはん' : 'まなび';
+    await drop(first.url, to);
+    assert.equal((await stored(page)).items.find(x => x.id === first.id).projectName, to, '掛け替わらない');
+    assert.equal(await page.evaluate(() => document.querySelector('#linkSheet').open), false, '保存シートが開いた');
+    await drop(NEW_URL('dropped'), 'ごはん');
+    assert.equal((await itemOf(page, NEW_URL('dropped')))?.projectName, 'ごはん', '新しいURLが保存されない'); await context.close();
   })
 ];
 

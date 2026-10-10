@@ -103,6 +103,8 @@ mark{background:#fbe3a4;color:inherit;border-radius:2px;padding:0 1px}
 .deck-nav{margin-left:auto;display:flex;gap:6px}
 .deck-nav .btn{height:30px}
 .track{position:relative;display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:16px;padding:2px 16px 12px;scrollbar-width:thin;overscroll-behavior-x:contain}
+/* 束の枠はプログラムからしかフォーカスしない(WebKitは、札を作り直したあとフォーカスをここへ移して枠を出す) */
+.track:focus{outline:none}
 .card{scroll-snap-align:start;flex:0 0 400px;height:236px;display:flex;flex-direction:column;gap:6px;padding:14px 16px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sheet);position:relative}
 .card.is-current{border-color:#bdbdb6;box-shadow:0 6px 20px rgba(0,0,0,.07)}
 .card-meta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:12px;color:var(--muted)}
@@ -285,6 +287,18 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 .tagpick.is-asking{animation:ask .9s ease-out}
 @keyframes ask{0%,45%{box-shadow:0 0 0 3px rgba(180,35,44,.28)}100%{box-shadow:0 0 0 0 rgba(180,35,44,0)}}
 .field-error{margin:0;color:var(--bad);font-size:12px}
+/* ---------- 札(リンクのいまの引き出し。押すと掛け替え。計画書4.3) ---------- */
+.tag-btn{position:relative;display:inline-flex;align-items:center;gap:5px;max-width:100%;height:22px;padding:0 5px 0 7px;border:1px solid var(--line2);border-radius:999px;background:var(--sheet);color:var(--ink2);font-size:12px;font-weight:600;line-height:1}
+.tag-btn>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag-btn svg{width:12px;height:12px;color:var(--muted)}
+.tag-btn:hover{border-color:#b9b9b2;color:var(--ink)}
+/* 見た目は小さく、押せる範囲は広く(下は次の行と重なるため、上へ多めに広げる) */
+.tag-btn::after{content:"";position:absolute;inset:-12px -4px -8px}
+.tag-btn.is-refiled{animation:refiled 1.2s ease-out}
+@keyframes refiled{0%,35%{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 3px rgba(180,35,44,.18)}100%{box-shadow:0 0 0 0 rgba(180,35,44,0)}}
+.d-tagrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.refile-what{margin:0;font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rail .rail-item.is-drop-target{background:var(--tint);color:var(--accent);box-shadow:inset 2px 0 0 var(--accent)}
 .switch{display:flex;align-items:center;gap:10px;font-size:13px}
 .switch input{width:18px;height:18px;accent-color:var(--accent)}
 .diff{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
@@ -319,6 +333,8 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 #toast .hint{display:block;color:#c8c8c0;font-size:12px}
 #toast button{height:32px;padding:0 12px;border:0;border-radius:8px;background:#fff;color:var(--toast);font-weight:700;white-space:nowrap}
 #dropZone{position:fixed;inset:12px;z-index:90;display:grid;place-items:center;border:2px dashed var(--accent);border-radius:16px;background:rgba(247,247,245,.92);color:var(--accent);font-size:18px;font-weight:700;pointer-events:none}
+/* PCでは左の引き出しを覆わない(落とす先として見せる) */
+@media (min-width:900px){#dropZone{left:232px}}
 
 /* ---------- 幅ごとの切り替え ---------- */
 @media (max-width:1199px){
@@ -403,6 +419,7 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   #linkSheet #fCatField>.tagpick-head .lab{font-size:14px;color:var(--ink)}
   /* 指で押す札は44px前後の高さにする */
   .tags{gap:8px}
+  .tag-btn{height:28px;padding:0 8px 0 9px;font-size:13px}
   .tag{min-height:40px;padding:0 14px 0 12px;font-size:14px}
   #linkSheet .details-toggle{
     width:100%;
