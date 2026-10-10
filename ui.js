@@ -86,11 +86,17 @@ function renderChips() {
     `<button class="chip" type="button" data-drawer="…">引き出し・並び ›</button>`;
 }
 
+// リンクの札(いまの引き出し)。押すと、その場で掛け替えのシートが開く(計画書4.3)
+function tagBtnHtml(item) {
+  const name = item.projectName || '未分類';
+  return `<button class="tag-btn mood" type="button" data-refile="${escapeHtml(item.id)}" aria-label="引き出しを掛け替える(いまは${escapeHtml(name)})">${dot(name)}<span>${escapeHtml(name)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>`;
+}
+
 /* ============ めくる束 ============ */
 function cardHtml(item, i, cur, mem) {
   const v = view(item), r = reasonOf(item, mem);
   return `<article class="card${i === cur ? ' is-current' : ''}" data-id="${escapeHtml(item.id)}" data-index="${i}" aria-label="${i + 1}枚目">
-    <div class="card-meta"><span class="src">${escapeHtml(v.src)}</span><span class="mood">${dot(item.projectName)}${escapeHtml(item.projectName || '未分類')}</span></div>
+    <div class="card-meta"><span class="src">${escapeHtml(v.src)}</span>${tagBtnHtml(item)}</div>
     <span class="card-reason${r.hot ? ' hot' : ''}">${escapeHtml(r.text)}</span>
     <h3 class="card-title ${v.desc ? 'clamp3' : 'clamp6 text'}">${escapeHtml(v.title)}</h3>
     ${v.by ? `<span class="card-by">${escapeHtml(v.by)}</span>` : ''}
@@ -280,7 +286,7 @@ function quickSaveUrl(rawUrl, projectName = '未分類') {
   focusSavedItem(item.id);
   setTimeout(() => enrichSavedLink(item.id), 0);
   const later = isUncategorizedCategory(projectName);
-  toast(later ? 'いったん未分類に保存しました' : `「${projectName}」に入れました`, { action: { label: later ? '引き出しを選ぶ' : '変える', fn: () => openLinkSheet({ mode: 'edit', id: item.id }) }, ms: 5000 });
+  toast(later ? 'いったん未分類に保存しました' : `「${projectName}」に入れました`, { action: { label: later ? '引き出しを選ぶ' : '変える', fn: () => openRefile(item.id) }, ms: 5000 });
   return item;
 }
 // スマホの「探す・貼る」にURLを貼ったとき。入力欄のすぐ上に引き出しを並べ、押した引き出しへそのまま入れる
@@ -626,7 +632,7 @@ function letGo(id) {
 function currentDeckMem() { return deck(U.drawer, U.kind).mem || {}; }
 function linkDetail(item) {
   const v = view(item), r = reasonOf(item, currentDeckMem()), c = Number(item.clickCount || 0);
-  return `<div class="d"><div class="d-top"><span class="d-cat">${escapeHtml(v.src)}・${dot(item.projectName)}${escapeHtml(item.projectName || '未分類')}${isFavorite(item) ? '・★' : ''}</span><h2>${escapeHtml(v.title)}</h2>${v.by ? `<div class="d-facts"><span>${escapeHtml(v.by)}</span></div>` : ''}<div class="d-facts"><span>${escapeHtml(formatDate(item.addedAt))}に保存(${escapeHtml(r.text)})</span><span>${c ? `${c}回開いた` : 'まだ開いていない'}</span></div></div>
+  return `<div class="d"><div class="d-top"><div class="d-tagrow"><span class="d-cat">${escapeHtml(v.src)}${isFavorite(item) ? '・★' : ''}</span>${tagBtnHtml(item)}</div><h2>${escapeHtml(v.title)}</h2>${v.by ? `<div class="d-facts"><span>${escapeHtml(v.by)}</span></div>` : ''}<div class="d-facts"><span>${escapeHtml(formatDate(item.addedAt))}に保存(${escapeHtml(r.text)})</span><span>${c ? `${c}回開いた` : 'まだ開いていない'}</span></div></div>
     <div class="d-actions"><a class="btn primary" href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-open>開く</a><button class="btn" type="button" data-act="copyurl">URLをコピー</button><button class="btn" type="button" data-act="edit">編集</button><button class="btn" type="button" data-act="refetch">ページ情報を取り直す</button><button class="btn quiet" type="button" data-act="letgo">手放す</button></div>
     <div class="d-sec"><h3>自分メモ</h3><p class="d-note ${item.note ? '' : 'none'}">${escapeHtml(item.note || '') || 'まだありません。編集から自分用のメモを残せます。'}</p></div>
     <div class="d-sec"><h3>ページの説明</h3><p class="d-note ${item.description ? '' : 'none'}">${escapeHtml(item.description || '') || 'まだ取得していません。「ページ情報を取り直す」で取得できます。'}</p></div>
@@ -1121,6 +1127,41 @@ async function copyPrompt(id, btn) {
   }
 }
 
+/* ============ 札の掛け替え(計画書4.3) ============ */
+// 札を押すと、編集の画面を開かずに引き出しを選び直せる。選んだらすぐ掛け替えて閉じ、元に戻すを出す
+const R = { id: null };
+const refilePick = makeTagPick({ input: $('rCat'), list: $('rTags'), all: $('rCatAll'), kind: 'links', onPick: (name, { created }) => refile(R.id, name, { created }) });
+function openRefile(id) {
+  const item = find('link', id);
+  if (!item) return;
+  R.id = id;
+  $('refileWhat').textContent = view(item).title;
+  $('rCat').value = '';
+  refilePick.build(item.projectName || '未分類');
+  closeSheet($('detailSheet'));
+  showSheet($('refileSheet'));
+}
+function refile(id, name, { created = false } = {}) {
+  closeSheet($('refileSheet'));
+  const item = find('link', id);
+  const from = item?.projectName || '未分類';
+  if (!item || from === name) return;
+  item.projectName = name;
+  item.updatedAt = new Date().toISOString();
+  state.projects = normalizeProjects(state.projects, state.items);
+  save(); render();
+  $$(`[data-refile="${CSS.escape(id)}"]`).forEach(b => b.classList.add('is-refiled'));
+  toast(`「${name}」へ掛け替えました`, { action: { label: '元に戻す', fn: () => {
+    const it = find('link', id);
+    if (!it) return;
+    it.projectName = from;
+    it.updatedAt = new Date().toISOString();
+    state.projects = normalizeProjects(state.projects, state.items);
+    if (created) deleteEmptyCategory('links', name); // このとき作った引き出しが空になれば、一緒に片づける
+    save(); render(); toast('元に戻しました');
+  } }, ms: 5000 });
+}
+
 /* ============ 引き出しの整理(画面) ============ */
 let orgUndo = null, orgUndoTimer = null;
 function openMergeDialog(kind, fromName, preferredTarget) {
@@ -1348,6 +1389,9 @@ document.addEventListener('click', e => {
   const kindBtn = t.closest('.kinds [data-kind]');
   if (kindBtn) { U.kind = kindBtn.dataset.kind; render(); return; }
 
+  const rf = t.closest('[data-refile]');
+  if (rf) { openRefile(rf.dataset.refile); return; }
+
   const card = t.closest('#deckTrack .card');
   if (card) {
     const id = card.dataset.id, idx = Number(card.dataset.index);
@@ -1548,21 +1592,43 @@ function ensureDropZone() {
   el = document.createElement('div');
   el.id = 'dropZone';
   el.hidden = true;
-  el.textContent = 'ここに落とすとリンクを保存します';
+  el.textContent = hand() ? 'ここに落とすとリンクを保存します' : 'ここに落とすと保存・左の引き出しに落とすとそこへ入れます';
   document.body.appendChild(el);
   return el;
 }
 window.addEventListener('dragenter', e => { if (!dragOk(e)) return; dragDepth++; ensureDropZone().hidden = false; });
 window.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; const el = $('dropZone'); if (el) el.hidden = true; } });
 window.addEventListener('dragover', e => { if (dragOk(e)) e.preventDefault(); });
+const droppedUrl = e => extractFirstUrl((e.dataTransfer.getData('text/uri-list') || '').split(/\r?\n/).find(x => x && !x.startsWith('#')) || e.dataTransfer.getData('text/plain'));
 window.addEventListener('drop', e => {
   dragDepth = 0;
   const el = $('dropZone'); if (el) el.hidden = true;
   if (!dragOk(e)) return;
   e.preventDefault();
-  const uri = (e.dataTransfer.getData('text/uri-list') || '').split(/\r?\n/).find(x => x && !x.startsWith('#')) || e.dataTransfer.getData('text/plain');
-  const url = extractFirstUrl(uri);
+  const url = droppedUrl(e);
   if (url) openLinkSheet({ url });
+});
+// PC:リンクを左の引き出しへ落とすと、そこへ入れる(保存済みなら掛け替え、まだなら保存。計画書4.3)
+const railDrop = e => !U.organize && dragOk(e) && e.target.closest?.('#rail [data-rail^="cat:"]');
+$('rail').addEventListener('dragover', e => {
+  const r = railDrop(e);
+  $$('#rail .is-drop-target').forEach(n => n !== r && n.classList.remove('is-drop-target'));
+  if (!r) return;
+  e.preventDefault();
+  r.classList.add('is-drop-target');
+});
+$('rail').addEventListener('dragleave', e => e.target.closest?.('[data-rail]')?.classList.remove('is-drop-target'));
+$('rail').addEventListener('drop', e => {
+  const r = railDrop(e);
+  if (!r) return;
+  e.preventDefault(); e.stopPropagation();
+  dragDepth = 0;
+  const z = $('dropZone'); if (z) z.hidden = true;
+  r.classList.remove('is-drop-target');
+  const url = droppedUrl(e), name = r.dataset.rail.slice(4);
+  if (!url) return;
+  const dup = findDuplicate(url);
+  if (dup) refile(dup.id, name); else quickSaveUrl(url, name);
 });
 
 /* ============ スマホの外枠(mobile-app-shell.js の考え方をここへ) ============ */
