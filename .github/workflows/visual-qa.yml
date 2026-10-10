@@ -101,7 +101,7 @@ jobs:
       - name: Run kakekaeru acceptance QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/
-          QA_PHASES: P1
+          QA_PHASES: P1,P2
         run: node scripts/kakekaeru-qa.mjs
 
       - name: Collect server log

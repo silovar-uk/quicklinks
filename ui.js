@@ -287,7 +287,7 @@ function quickSaveUrl(rawUrl, projectName = '未分類') {
 function handIntentHtml(url) {
   const up = urlPreview(url);
   const cur = !['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) && !isUncategorizedCategory(U.drawer) ? [U.drawer] : [];
-  const names = [...new Set([...cur, ...categoryAssistOptions()])];
+  const names = [...new Set([...cur, ...drawerShortlist()])];
   const u = escapeHtml(url);
   return `<div class="hand-intent" data-url-intent>
     <div class="hand-card"><b>このURLを保存</b><small>${escapeHtml(up.path ? `${up.host} › ${up.path}` : up.host)}</small><span>入れる引き出しを押す・Enterでいったん未分類</span></div>
@@ -669,7 +669,7 @@ function detailAction(name, kind, id) {
 }
 
 /* ============ 保存・編集シート ============ */
-const F = { mode: 'add', id: null, cat: '', comboIdx: -1, bm: null, controller: null, seq: 0, lastUrl: '', descriptionSource: '', descriptionUpdatedAt: null, linkView: 'form' };
+const F = { mode: 'add', id: null, cat: '', bm: null, controller: null, seq: 0, lastUrl: '', descriptionSource: '', descriptionUpdatedAt: null };
 function recentCats() {
   const seen = [];
   state.items.slice().sort((a, b) => timeValue(b.addedAt) - timeValue(a.addedAt)).forEach(i => { const n = i.projectName || '未分類'; if (!seen.includes(n)) seen.push(n); });
@@ -681,26 +681,151 @@ function isCategoryBlank(name) {
 function isUncategorizedCategory(name) {
   return String(name || '').trim() === '未分類';
 }
+
+/* ============ 札の選び方(引き出し・カテゴリで共通。計画書4.2) ============ */
+// 引き出し・カテゴリを札として並べ、上の欄に打つと絞り込み、なければその名前で新しく作れる。
+// 札は開くたびに一度だけ並べ、打つたびには表示・非表示と「新しく作る」の札の文字だけを変える。
+// iPhoneの日本語入力は、変換中のタップで確定だけを行うことがある。そのあいだに札を作り直すと、押した札が消えるため
+const tagKey = value => candidateKey(fold(value));
+function tagChoices(kind) {
+  const c = organizerConfig[kind];
+  const names = [...new Set([...c.names(), ...(kind === 'links' ? moodCounts().map(([n]) => n) : [])])].filter(n => !isCategoryBlank(n));
+  const recent = (kind === 'links' ? recentCats() : recentPromptCats()).filter(n => names.includes(n));
+  return { names, recent, count: c.count };
+}
+// 打った名前を、すでにある名前へ寄せる(かなとカナ・全角と半角・空白や「・」の違いは同じ札とみなす)
+function resolveTagName(kind, raw) {
+  const name = normalizeSpaces(raw).slice(0, 40);
+  if (!name) return '';
+  return tagChoices(kind).names.find(n => tagKey(n) === tagKey(name)) || name;
+}
+function makeTagPick({ input, list, all, kind, onPick, onType }) {
+  let selected = '', expanded = false, hasRest = false;
+  const chips = () => [...list.querySelectorAll('.tag')];
+  function setActive(el) {
+    chips().forEach(c => c.classList.toggle('is-active', c === el));
+    if (el) input.setAttribute('aria-activedescendant', el.id); else input.removeAttribute('aria-activedescendant');
+  }
+  function filter() {
+    const raw = normalizeSpaces(input.value).slice(0, 40), key = tagKey(raw);
+    let exact = null, prefix = null, first = null;
+    chips().forEach(el => {
+      if (el.hasAttribute('data-new')) return;
+      const k = tagKey(el.dataset.name);
+      if (!key) { el.hidden = el.dataset.tier === 'rest' && !expanded; return; }
+      el.hidden = !k.includes(key);
+      if (el.hidden) return;
+      if (k === key) exact ||= el;
+      if (k.startsWith(key)) prefix ||= el;
+      first ||= el;
+    });
+    const nw = list.querySelector('[data-new]');
+    nw.hidden = !key || !!exact;
+    if (!nw.hidden) {
+      nw.dataset.name = raw;
+      nw.querySelector('.nm').textContent = `「${raw}」`;
+      nw.style.setProperty('--c', getProjectColor(raw).border);
+      // 似た札があれば「新しく作る」は後ろへ回し、Enterは似た札を選ぶ(打ちかけで似た引き出しを増やさない)。なければ先頭
+      nw.style.order = first ? '1' : '-1';
+    }
+    all.hidden = !!key || !hasRest;
+    all.textContent = expanded ? 'たたむ' : `すべて ${chips().length - 1}`;
+    all.setAttribute('aria-expanded', String(expanded));
+    setActive(key ? (exact || prefix || first || nw) : null);
+    onType?.();
+  }
+  function build(sel = selected) {
+    selected = String(sel || '').trim();
+    const { names, recent, count } = tagChoices(kind);
+    const tail = kind === 'links' ? ['未分類'] : [];
+    const pin = selected && !tail.includes(selected) ? [selected] : [];
+    const near = recent.filter(n => !pin.includes(n) && !tail.includes(n)).slice(0, 6);
+    const rest = names.filter(n => !pin.includes(n) && !near.includes(n) && !tail.includes(n)).sort((a, b) => a.localeCompare(b, 'ja'));
+    hasRest = rest.length > 0;
+    let i = 0;
+    const chip = (name, tier) => `<button type="button" class="tag" role="option" id="${list.id}-${i++}" data-name="${escapeHtml(name)}" data-tier="${tier}" aria-selected="${String(name === selected)}">${dot(name)}<span class="nm">${escapeHtml(name)}</span>${count(name) ? `<span class="n">${count(name)}</span>` : ''}</button>`;
+    list.innerHTML = `<button type="button" class="tag is-new" role="option" id="${list.id}-new" data-new hidden><span class="dot" aria-hidden="true"></span><span class="nm"></span><small>新しく作る</small></button>` +
+      [...pin.map(n => chip(n, 'pin')), ...near.map(n => chip(n, 'near')), ...tail.map(n => chip(n, 'tail')), ...rest.map(n => chip(n, 'rest'))].join('');
+    filter();
+  }
+  function pick(raw) {
+    const name = resolveTagName(kind, raw);
+    if (!name) return;
+    const created = !tagChoices(kind).names.includes(name);
+    // 先に欄を離れてから消す。iPhoneの日本語入力は、触れたまま値を消すと次から打てなくなる(WebKitの既知の不具合)
+    if (document.activeElement === input) input.blur();
+    input.value = '';
+    expanded = false;
+    build(name);
+    onPick(name, { created });
+  }
+  input.addEventListener('input', filter);
+  input.addEventListener('compositionend', filter);
+  // スマホで欄に触れたら、欄と札をシートの上端へ寄せる(キーボードの上で、札を見ながら打てるように)
+  const reveal = () => {
+    const body = input.closest('.sheet-body'), field = input.closest('.tagpick');
+    if (!hand() || document.activeElement !== input || !body || !field) return;
+    const d = field.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    if (Math.abs(d) > 4) body.scrollTop += d - 4;
+  };
+  input.addEventListener('focus', () => setTimeout(reveal, 60));
+  window.visualViewport?.addEventListener('resize', reveal);+  input.addEventListener('keydown', e => {
+    // 変換を確定するEnterでは決めない(Safariは確定のEnterを isComposing=false・keyCode 229 で送る)
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const a = list.querySelector('.tag.is-active');
+      if (a) pick(a.dataset.name); else input.blur();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const vis = chips().filter(el => !el.hidden);
+      if (!vis.length) return;
+      const at = vis.findIndex(el => el.classList.contains('is-active')), down = e.key === 'ArrowDown';
+      setActive(vis[at < 0 ? (down ? 0 : vis.length - 1) : (at + (down ? 1 : vis.length - 1)) % vis.length]);
+    } else if (e.key === 'Escape' && input.value) {
+      e.preventDefault(); e.stopPropagation();
+      input.value = ''; filter();
+    }
+  });
+  list.addEventListener('click', e => { const el = e.target.closest('.tag'); if (el) pick(el.dataset.name); });
+  all.addEventListener('click', () => { expanded = !expanded; filter(); });
+  // 打ちかけの名前でEnterを押したら選ばれる札(保存ボタンの文言と、押さずに保存したときの保存先に使う)
+  const pending = () => normalizeSpaces(input.value) ? (list.querySelector('.tag.is-active')?.dataset.name || resolveTagName(kind, input.value)) : '';
+  return { build, pick, pending, get selected() { return selected; } };
+}
+
+// 保存シートの引き出し。欄に打っただけで札を押していない名前も、保存ボタンの文言と保存先に反映する
+const linkPick = makeTagPick({
+  input: $('fCat'), list: $('fTags'), all: $('fCatAll'), kind: 'links',
+  onPick: name => {
+    F.cat = name;
+    updateSaveButton();
+    if (!hand() && $('linkSheet').open) $('fSave').focus();
+  },
+  onType: () => updateSaveButton()
+});
+function catToSave() { return linkPick.pending() || F.cat; }
 function saveLabel() {
   if (F.mode === 'edit') return '保存';
-  if (isCategoryBlank(F.cat)) return '保存';
-  if (isUncategorizedCategory(F.cat)) return '未分類に保存';
-  return `「${F.cat}」に保存`;
+  const cat = catToSave();
+  if (isCategoryBlank(cat)) return '引き出しを選ぶ';
+  if (isUncategorizedCategory(cat)) return '未分類に入れる';
+  return `「${cat}」に入れる`;
 }
-function closeCategoryAssist() {
-  const assist = $('categoryAssist');
-  if (assist) assist.hidden = true;
-  $('fCatField')?.classList.remove('assist-open');
-}
+function updateSaveButton() { $('fSave').textContent = saveLabel(); }
 function setCat(name) {
   F.cat = String(name || '').trim();
-  $('fCat').value = F.cat;
-  $$('#fRecent button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === F.cat)));
-  $('fSave').textContent = saveLabel();
-  $('fSave').disabled = false;
-  if (!isCategoryBlank(F.cat) && !hand()) closeCategoryAssist();
-  if (hand() && $('linkSheet').open && F.mode === 'add') renderCategoryAssist();
-  closeCombo();
+  linkPick.build(F.cat);
+  updateSaveButton();
+}
+// 引き出しを選ばずに保存を押したとき。保存はせず、選ぶ場所を示す(スマホではキーボードを出さない)
+function askForCat() {
+  const f = $('fCatField'), body = f.closest('.sheet-body');
+  f.classList.remove('is-asking'); void f.offsetWidth; f.classList.add('is-asking');
+  f.addEventListener('animationend', () => f.classList.remove('is-asking'), { once: true });
+  const d = f.getBoundingClientRect().top - body.getBoundingClientRect().top;
+  if (d < 0 || d + 120 > body.clientHeight) body.scrollTop += d - 8;
+  if (!hand()) $('fCat').focus();
 }
 
 function setDetailsOpen(open) {
@@ -713,97 +838,16 @@ function setDetailsOpen(open) {
   btn.querySelector('strong').textContent = expanded ? '詳細を閉じる' : '詳細を追加';
 }
 
+// URLが入ったら、ページの札(種類・ホスト・題名・URL)を出す。取得の知らせと重複の知らせは札の中に出す
 function renderSaveTargetCard() {
-  const box = $('fPage');
-  if (!box) return;
-  const url = $('fUrl').value.trim();
-  if (F.bm) {
-    box.hidden = false;
-    box.innerHTML = `<span class="save-target-kicker">保存するページ</span><b>${escapeHtml(F.bm.title || F.bm.url)}</b><span>${escapeHtml(F.bm.url)}</span>`;
-    return;
-  }
-  if (!hand() || !/^https?:\/\//.test(url)) {
-    box.hidden = true;
-    return;
-  }
-  const title = $('fTitle').value.trim() || hostOf(url) || url;
-  box.hidden = false;
-  box.innerHTML = `<span class="save-target-kicker">保存するページ</span><b>${escapeHtml(title)}</b><span>${escapeHtml(url)}</span>`;
-}
-
-function showMobileDestinationPicker() {
-  if (!hand() || F.mode !== 'add' || F.linkView === 'destination') return;
-  renderCategoryAssist();
-  const assist = $('categoryAssist');
-  assist.hidden = false;
-  $('fCatField').classList.add('assist-open');
-}
-
-function destinationCategoryNames() {
-  const recent = recentCats();
-  const counted = moodCounts().map(([name]) => name);
-  const known = state.projects || [];
-  return [...new Set([...recent, ...counted, ...known])]
-    .filter(name => !isCategoryBlank(name) && !isUncategorizedCategory(name));
-}
-function destinationSearchKey(value) {
-  return String(value || '').normalize('NFKC').toLocaleLowerCase('ja').replace(/\s+/g, ' ').trim();
-}
-function destinationRow(name, counts) {
-  const selected = F.cat === name;
-  return `<button class="destination-row${selected ? ' is-selected' : ''}" type="button" data-destination="${escapeHtml(name)}" aria-pressed="${String(selected)}"><span class="destination-name">${dot(name)}<span>${escapeHtml(name)}</span></span><span class="destination-meta">${Number(counts.get(name) || 0)}件${selected ? '<span class="destination-check" aria-label="選択中">✓</span>' : ''}</span></button>`;
-}
-function destinationSection(title, names, counts) {
-  if (!names.length) return '';
-  return `<section class="destination-section"><h3>${escapeHtml(title)}</h3><div class="destination-list">${names.map(name => destinationRow(name, counts)).join('')}</div></section>`;
-}
-function renderDestinationPicker(query = $('destinationSearch')?.value || '') {
-  const body = $('destinationBody');
-  if (!body) return;
-  const counts = new Map(moodCounts());
-  const all = destinationCategoryNames().sort((a, b) => a.localeCompare(b, 'ja'));
-  const recent = recentCats()
-    .filter(name => all.includes(name))
-    .slice(0, 6);
-  const raw = String(query || '').trim();
-  const key = destinationSearchKey(raw);
-
-  if (key) {
-    const matches = all.filter(name => destinationSearchKey(name).includes(key));
-    const exact = all.some(name => destinationSearchKey(name) === key) || isUncategorizedCategory(raw);
-    const create = !exact
-      ? `<button class="destination-create" type="button" data-create-destination="${escapeHtml(raw)}"><span class="destination-create-plus" aria-hidden="true">＋</span><span><strong>「${escapeHtml(raw)}」</strong>を新しい引き出しにする</span></button>`
-      : '';
-    body.innerHTML = `${destinationSection('検索結果', matches, counts)}${create}${!matches.length && !create ? '<div class="destination-empty">一致する引き出しがありません。</div>' : ''}`;
-    return;
-  }
-
-  const recentHtml = destinationSection('最近使った', recent, counts);
-  const allHtml = destinationSection('すべての引き出し', all, counts);
-  body.innerHTML = recentHtml + allHtml || '<div class="destination-empty">まだ引き出しがありません。上の検索欄に名前を入れると、そのまま新しく作れます。</div>';
-}
-function openDestinationPicker() {
-  if (!hand()) return;
-  F.linkView = 'destination';
-  closeCombo();
-  closeCategoryAssist();
-  $('destinationSearch').value = '';
-  $('destinationSearchClear').hidden = true;
-  renderDestinationPicker('');
-  $('destinationPicker').hidden = false;
-  $('linkSheet').classList.add('destination-mode');
-  $('destinationBody').scrollTop = 0;
-}
-function closeDestinationPicker() {
-  if (F.linkView !== 'destination') return;
-  F.linkView = 'form';
-  $('linkSheet').classList.remove('destination-mode');
-  $('destinationPicker').hidden = true;
-  if (hand() && F.mode === 'add') showMobileDestinationPicker();
-}
-function chooseDestination(name) {
-  setCat(name);
-  closeDestinationPicker();
+  const url = $('fUrl').value.trim(), ok = /^https?:\/\//.test(url);
+  $('fPage').hidden = !ok;
+  $('fPage').classList.toggle('is-add', F.mode === 'add');
+  $('fUrlEdit').hidden = !$('fUrlField').hidden;
+  if (!ok) return;
+  $('fPageKicker').textContent = `${sourceOf(url).src}・${hostOf(url) || url}`;
+  $('fPageTitle').textContent = $('fTitle').value.trim() || (F.bm && F.bm.title) || hostOf(url) || url;
+  $('fPageUrl').textContent = url;
 }
 function abortFetchController() { if (F.controller) { F.controller.abort(); F.controller = null; } }
 function setStatus(kind, html) {
@@ -850,7 +894,6 @@ async function startFetch() {
   if (filledTitle) $('fTitle').value = r.data.title;
   if (filledDescription) setDescriptionField(r.data.description, r.data.descriptionSource || r.data.source || r.data.provider || '');
   renderSaveTargetCard();
-  showMobileDestinationPicker();
   const fetched = [filledTitle && 'タイトル', filledDescription && 'ページの説明'].filter(Boolean).join('と');
   setStatus('ok', `<span class="grow">${fetched ? fetched + 'を取得しました。' : 'ページ情報を確認しました。'}自分メモは別に残せます。</span>`);
 }
@@ -926,24 +969,18 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   setDescriptionField(it ? it.description : '', it ? it.descriptionSource : '', it ? it.descriptionUpdatedAt : null);
   $('fFav').checked = it ? isFavorite(it) : false;
   $('fRefetch').hidden = mode !== 'edit';
-  $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true;
+  $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true; $('fUrlError').hidden = true;
   $('fPaste').hidden = mode === 'edit';
-  F.linkView = 'form';
-  $('linkSheet').classList.remove('destination-mode');
-  $('destinationPicker').hidden = true;
-  $('destinationSearch').value = '';
-  $('destinationSearchClear').hidden = true;
-  closeCategoryAssist();
+  // URLが入っていれば、URL欄はたたんでページの札だけを見せる(同じURLを2回見せない)
+  $('fUrlField').hidden = /^https?:\/\//.test($('fUrl').value.trim());
   setDetailsOpen(mode === 'edit');
-  $('fRecent').innerHTML = recentCats().map(c => `<button type="button" data-cat="${escapeHtml(c)}" aria-pressed="false">${dot(c)}${escapeHtml(c)}</button>`).join('');
+  $('fCat').value = '';
   setCat(it ? it.projectName : (!['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) ? U.drawer : ''));
-  $('fPage').hidden = !bm;
   showSheet($('linkSheet'));
   renderSaveTargetCard();
-  showMobileDestinationPicker();
   if (bm) handleBookmarklet(bm);
   else if (url) { checkDup(); startFetch(); }
-  // スマホでは、URLが空の新規保存だけキーボードを出す(URL入り・編集は、引き出しを押すだけのことが多い)
+  // スマホでは、URLが空の新規保存だけキーボードを出す(URL入り・編集は、札を押すだけのことが多い)
   if (mode === 'add' && !url && !bm) $('fUrl').focus(); else if (!hand()) $('fCat').focus();
 }
 async function enrichSavedLink(id) {
@@ -977,60 +1014,17 @@ async function enrichSavedLink(id) {
   render();
 }
 
-function categoryAssistOptions() {
-  const recent = recentCats().filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name));
-  const byCount = moodCounts().map(([name]) => name).filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name));
-  const known = (state.projects || []).filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name));
-  return [...new Set([...recent, ...byCount, ...known])].slice(0, 12);
-}
-function categoryAssistSuggestion() {
-  const url = $('fUrl').value.trim();
-  if (!/^https?:\/\//.test(url)) return null;
-  const host = hostOf(url);
-  if (!host) return null;
-  const sameHost = state.items.filter(item => !item.archived && hostOf(item.url) === host && !isUncategorizedCategory(item.projectName) && !isCategoryBlank(item.projectName));
-  if (sameHost.length < 2) return null;
-  const counts = new Map();
-  sameHost.forEach(item => counts.set(item.projectName, (counts.get(item.projectName) || 0) + 1));
-  const [name, count] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || [];
-  if (!name || count < 2 || count / sameHost.length < 2 / 3) return null;
-  return { name, count, total: sameHost.length, host };
-}
-function renderCategoryAssist() {
-  const suggestion = categoryAssistSuggestion();
-  const names = categoryAssistOptions().filter(name => name !== suggestion?.name);
-  const recent = new Set(recentCats().filter(name => !isUncategorizedCategory(name) && !isCategoryBlank(name)));
-  const counts = new Map(moodCounts());
-  const suggested = $('categoryAssistSuggested');
-  suggested.hidden = !suggestion;
-  suggested.innerHTML = suggestion
-    ? `<button class="category-assist-prediction${F.cat === suggestion.name ? ' is-selected' : ''}" type="button" data-assist-cat="${escapeHtml(suggestion.name)}" aria-pressed="${String(F.cat === suggestion.name)}"><span class="category-assist-kicker">たぶんここ</span><span class="category-assist-name">${dot(suggestion.name)}<span>${escapeHtml(suggestion.name)}</span></span><span class="n">${escapeHtml(suggestion.host)} の保存先 ${suggestion.count}/${suggestion.total}件</span></button>`
-    : '';
-  const box = $('categoryAssistList');
-  box.innerHTML = names.length
-    ? names.map(name => `<button class="category-assist-choice${recent.has(name) ? ' is-recent' : ''}${F.cat === name ? ' is-selected' : ''}" type="button" data-assist-cat="${escapeHtml(name)}" role="listitem" aria-pressed="${String(F.cat === name)}"><span class="category-assist-name">${dot(name)}<span>${escapeHtml(name)}</span></span><span class="n">${Number(counts.get(name) || 0)}件${recent.has(name) ? '・最近' : ''}</span></button>`).join('')
-    : (!suggestion ? '<div class="category-assist-empty">まだ引き出しがありません。新しく作るか、「今は決めない」で保存できます。</div>' : '');
-  $('categoryAssistMore').textContent = (names.length || suggestion) ? 'ほかの引き出しを探す・新しく作る' : '引き出しを作る';
-}
-function openCategoryAssist() {
-  closeCombo();
-  renderCategoryAssist();
-  const assist = $('categoryAssist');
-  assist.hidden = false;
-  $('fCatField').classList.add('assist-open');
-  requestAnimationFrame(() => {
-    $('fCatField').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    const first = assist.querySelector('[data-assist-cat], #categoryAssistMore');
-    first?.focus({ preventScroll: true });
-  });
+// 手元の一行にURLを貼ったときに並べる引き出し(最近・件数の多い順。未分類は別の札で出す)
+function drawerShortlist() {
+  const ok = name => !isUncategorizedCategory(name) && !isCategoryBlank(name);
+  return [...new Set([...recentCats().filter(ok), ...moodCounts().map(([name]) => name).filter(ok), ...(state.projects || []).filter(ok)])].slice(0, 12);
 }
 function saveLink() {
   const url = $('fUrl').value.trim();
-  if (!/^https?:\/\//.test(url)) { setStatus('bad', '<span class="grow">http:// か https:// で始まるURLを入れてください。</span>'); $('fUrl').focus(); return; }
-  if (isCategoryBlank(F.cat)) {
-    openCategoryAssist();
-    return;
-  }
+  if (!/^https?:\/\//.test(url)) { $('fUrlField').hidden = false; $('fUrlError').hidden = false; renderSaveTargetCard(); $('fUrl').focus(); return; }
+  // 欄に打っただけで札を押していない名前も、そのまま使う(なければ新しく作る)
+  if (linkPick.pending()) linkPick.pick(linkPick.pending());
+  if (isCategoryBlank(F.cat)) { askForCat(); return; }
   const title = $('fTitle').value.trim() || hostOf(url);
   const projectName = F.cat;
   let item;
@@ -1058,59 +1052,32 @@ function saveLink() {
   if (el) { if (!hand()) el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
   toast(F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
 }
-function comboOptions() {
-  const q = fold($('fCat').value.trim());
-  const all = moodCounts().filter(([n]) => !q || fold(n).includes(q));
-  const exact = moodCounts().some(([n]) => fold(n) === q);
-  return { all, create: q && !exact ? $('fCat').value.trim() : '' };
-}
-function renderCombo() {
-  const { all, create } = comboOptions();
-  const box = $('fCatList');
-  box.innerHTML = all.map(([n, c], i) => `<div class="opt" role="option" id="opt-${i}" data-cat="${escapeHtml(n)}" aria-selected="false">${dot(n)}${escapeHtml(n)}<span class="n">${c}件</span></div>`).join('') + (create ? `<div class="opt new" role="option" id="opt-new" data-cat="${escapeHtml(create)}" aria-selected="false">＋ 新しい引き出し「${escapeHtml(create)}」を作る</div>` : '');
-  box.hidden = !box.children.length;
-  $('fCat').setAttribute('aria-expanded', String(!box.hidden));
-  F.comboIdx = -1;
-}
-function closeCombo() { $('fCatList').hidden = true; $('fCat').setAttribute('aria-expanded', 'false'); }
-function moveCombo(d) {
-  const opts = $$('#fCatList .opt');
-  if (!opts.length) return;
-  F.comboIdx = (F.comboIdx + d + opts.length) % opts.length;
-  opts.forEach((o, i) => o.setAttribute('aria-selected', String(i === F.comboIdx)));
-  opts[F.comboIdx].scrollIntoView({ block: 'nearest' });
-}
 
 /* ============ プロンプトの保存シート ============ */
-const P = { mode: 'add', id: null };
+const P = { mode: 'add', id: null, cat: '' };
 function recentPromptCats() {
   const seen = [];
   state.promptMemos.slice().sort((a, b) => timeValue(b.updatedAt) - timeValue(a.updatedAt)).forEach(p => { const n = p.categoryName || '未分類'; if (!seen.includes(n)) seen.push(n); });
   return seen.slice(0, 6);
 }
-function renderPromptCombo() {
-  const q = fold($('pCat').value.trim());
-  const names = [...new Set((state.promptCategories || []).map(v => v))].filter(n => !q || fold(n).includes(q));
-  const exact = names.some(n => fold(n) === q);
-  const box = $('pCatList');
-  box.innerHTML = names.map((n, i) => `<div class="opt" role="option" id="popt-${i}" data-cat="${escapeHtml(n)}" aria-selected="false">${dot(n)}${escapeHtml(n)}</div>`).join('') + (q && !exact ? `<div class="opt new" role="option" data-cat="${escapeHtml($('pCat').value.trim())}">＋ 新しいカテゴリ「${escapeHtml($('pCat').value.trim())}」を作る</div>` : '');
-  box.hidden = !box.children.length;
-}
+const promptPick = makeTagPick({ input: $('pCat'), list: $('pTags'), all: $('pCatAll'), kind: 'prompts', onPick: name => { P.cat = name; } });
 function openPromptSheet({ mode = 'add', id = null } = {}) {
   Object.assign(P, { mode, id });
   const p = id ? find('prompt', id) : null;
   $('promptSheetTitle').textContent = mode === 'edit' ? 'プロンプトを編集' : 'プロンプトを保存';
-  $('pCat').value = p ? p.categoryName : (!['ALL'].includes(U.drawer) && U.view === 'prompts' ? '' : '');
+  $('pCat').value = '';
+  P.cat = p ? p.categoryName : '';
+  promptPick.build(P.cat);
   $('pTitle').value = p ? p.title : '';
   $('pBody').value = p ? p.body : '';
   $('pDelete').hidden = mode !== 'edit';
-  $('pRecent').innerHTML = recentPromptCats().map(c => `<button type="button" data-pcat="${escapeHtml(c)}">${dot(c)}${escapeHtml(c)}</button>`).join('');
   showSheet($('promptSheet'));
   if (mode === 'add' || !hand()) $('pTitle').focus();
 }
 function savePrompt() {
   const title = $('pTitle').value.trim() || '無題のプロンプト';
-  const categoryName = $('pCat').value.trim() || '未分類';
+  // 欄に打っただけの名前もそのまま使う。選ばなければ未分類
+  const categoryName = promptPick.pending() || P.cat || '未分類';
   const body = $('pBody').value;
   if (P.mode === 'edit') {
     const p = find('prompt', P.id);
@@ -1420,8 +1387,6 @@ document.addEventListener('click', e => {
   const actBtn = t.closest('[data-act]');
   if (actBtn && U.sel) { closeSheet(actBtn.closest('dialog')); detailAction(actBtn.dataset.act, U.sel.kind, U.sel.id); return; }
 
-  const rc = t.closest('#fRecent [data-cat]'); if (rc) { setCat(rc.dataset.cat); return; }
-  const opt = t.closest('#fCatList .opt'); if (opt) { setCat(opt.dataset.cat); return; }
   if (t.closest('#fRetry')) { F.lastUrl = ''; F.mode === 'edit' ? refetchInSheet() : startFetch(); return; }
   if (t.closest('#fRefetch')) { refetchInSheet(); return; }
   if (t.closest('#dApply')) { applyDiff(); return; }
@@ -1430,8 +1395,6 @@ document.addEventListener('click', e => {
   if (t.closest('#careRun')) { startCareRun(); return; }
   if (t.closest('#careUndo')) { undoCare(); return; }
 
-  const pRecent = t.closest('#pRecent [data-pcat]'); if (pRecent) { $('pCat').value = pRecent.dataset.pcat; return; }
-  const pOpt = t.closest('#pCatList .opt'); if (pOpt) { $('pCat').value = pOpt.dataset.cat; $('pCatList').hidden = true; return; }
   if (t.closest('#pDelete')) { if (P.id) deletePromptNow(P.id); return; }
   if (t.closest('#promptAddButton')) { openPromptSheet({ mode: 'add' }); return; }
 });
@@ -1513,98 +1476,26 @@ $('mSearchInput').addEventListener('keydown', e => {
   quickSaveUrl(intentUrl);
 });
 
-$('fUrl').addEventListener('input', () => { renderSaveTargetCard(); if (F.mode === 'add' && hand()) showMobileDestinationPicker(); });
+$('fUrl').addEventListener('input', () => { $('fUrlError').hidden = true; renderSaveTargetCard(); });
 $('fUrl').addEventListener('change', () => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') startFetch(); });
-$('fUrl').addEventListener('paste', () => setTimeout(() => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') { showMobileDestinationPicker(); startFetch(); } }, 0));
+$('fUrl').addEventListener('paste', () => setTimeout(() => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') startFetch(); }, 0));
 $('fPaste').addEventListener('click', async () => {
   try {
     const text = await navigator.clipboard.readText();
     const m = extractFirstUrl(text);
-    if (m) { $('fUrl').value = m; checkDup(); startFetch(); } else toast('クリップボードにURLがありませんでした');
+    if (m) { $('fUrl').value = m; checkDup(); renderSaveTargetCard(); startFetch(); } else toast('クリップボードにURLがありませんでした');
   } catch { toast('ここでは読み取れません。URL欄に貼り付けてください'); }
 });
 // スマホのURL欄は「完了」キー。押したらキーボードを閉じて引き出しを見せる(閉じるとchangeが走り、重複の確認と取得が始まる)
 $('fUrl').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && hand()) { e.preventDefault(); e.target.blur(); } });
-$('fCat').addEventListener('click', renderCombo);
-$('fCat').addEventListener('input', () => {
-  F.cat = $('fCat').value.trim();
-  $('fSave').textContent = saveLabel();
-  $('fSave').disabled = false;
-  if (!isCategoryBlank(F.cat)) closeCategoryAssist();
-  renderCombo();
-});
-$('fCat').addEventListener('keydown', e => {
-  if (e.isComposing) return;
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if ($('fCatList').hidden) renderCombo(); moveCombo(e.key === 'ArrowDown' ? 1 : -1); }
-  else if (e.key === 'Enter') { e.preventDefault(); const o = $$('#fCatList .opt')[F.comboIdx]; setCat(o ? o.dataset.cat : $('fCat').value); $('fTitle').focus(); }
-  else if (e.key === 'Escape' && !$('fCatList').hidden) { e.preventDefault(); e.stopPropagation(); closeCombo(); }
-});
-$('fCat').addEventListener('blur', () => setTimeout(closeCombo, 150));
 $('fSave').addEventListener('click', saveLink);
-$('categoryAssist').addEventListener('click', e => {
-  const btn = e.target.closest('[data-assist-cat]');
-  if (!btn) return;
-  setCat(btn.dataset.assistCat);
-  if (hand()) {
-    renderCategoryAssist();
-    return;
-  }
-  saveLink();
-});
-$('categoryAssistMore').addEventListener('click', () => {
-  if (hand()) {
-    openDestinationPicker();
-    return;
-  }
-  closeCategoryAssist();
-  $('fCat').focus();
-  renderCombo();
-});
-$('categoryAssistUncategorized').addEventListener('click', () => {
-  setCat('未分類');
-  if (hand()) { renderCategoryAssist(); return; }
-  saveLink();
-});
-$('destinationBack').addEventListener('click', closeDestinationPicker);
-$('destinationSearch').addEventListener('input', e => {
-  const value = e.target.value;
-  $('destinationSearchClear').hidden = !value;
-  renderDestinationPicker(value);
-});
-$('destinationSearchClear').addEventListener('click', () => {
-  $('destinationSearch').value = '';
-  $('destinationSearchClear').hidden = true;
-  renderDestinationPicker('');
-  $('destinationSearch').focus();
-});
-$('destinationBody').addEventListener('click', e => {
-  const existing = e.target.closest('[data-destination]');
-  if (existing) {
-    chooseDestination(existing.dataset.destination);
-    return;
-  }
-  const create = e.target.closest('[data-create-destination]');
-  if (create) chooseDestination(create.dataset.createDestination);
-});
 $('fDetailsToggle').addEventListener('click', () => setDetailsOpen($('fDetailsToggle').getAttribute('aria-expanded') !== 'true'));
+$('fUrlEdit').addEventListener('click', () => { $('fUrlField').hidden = false; renderSaveTargetCard(); $('fUrl').focus(); });
+$('fTitle').addEventListener('input', renderSaveTargetCard);
 $('linkForm').addEventListener('submit', e => e.preventDefault());
-$('linkSheet').addEventListener('cancel', e => {
-  if (F.linkView !== 'destination') return;
-  e.preventDefault();
-  closeDestinationPicker();
-});
 // closeイベントは非同期に届く。開き直した後に前の回のcloseが届いても、新しい回の取得は止めない
-$('linkSheet').addEventListener('close', () => {
-  abortFetchController();
-  closeCategoryAssist();
-  F.linkView = 'form';
-  $('linkSheet').classList.remove('destination-mode');
-  $('destinationPicker').hidden = true;
-});
+$('linkSheet').addEventListener('close', () => { abortFetchController(); });
 
-$('pCat').addEventListener('click', renderPromptCombo);
-$('pCat').addEventListener('input', renderPromptCombo);
-$('pCat').addEventListener('blur', () => setTimeout(() => { $('pCatList').hidden = true; }, 150));
 $('pSave').addEventListener('click', savePrompt);
 $('promptForm').addEventListener('submit', e => e.preventDefault());
 

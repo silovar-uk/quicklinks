@@ -129,12 +129,11 @@ const checks = [
     assert.notEqual((await active(page)).id, 'fUrl', 'EnterでURL欄から抜けない');
     await page.locator('#fStatus').waitFor({ state: 'visible', timeout: 3000 }); await context.close();
   }),
-  check('P1', 'スマホ:引き出しの提案で「ほかの引き出し」を押すと、引き出しを探す欄が出る(10/4の全画面の選び方)', async b => {
+  check('P1', 'スマホ:引き出し欄に触れると、そのまま打てる(2026-10 札の選び方)', async b => {
     const { page, context } = await open(b, SE);
-    await page.locator('#bottomAdd').click(); await page.locator('#fUrl').fill(NEW_URL('assist'));
-    await page.locator('#fSave').click(); await page.locator('#categoryAssist:not([hidden])').waitFor();
-    await page.locator('#categoryAssistMore').click();
-    await page.locator('#destinationSearch').waitFor({ state: 'visible' }); await context.close();
+    await page.locator('#bottomAdd').click(); await page.locator('#fUrl').fill(NEW_URL('assist')); await page.locator('#fUrl').press('Enter');
+    await page.locator('#fCat').click();
+    assert.equal((await active(page)).id, 'fCat', '引き出し欄にフォーカスが入らない'); await context.close();
   }),
   check('P1', 'PC:URL入りで保存シートを開くと、これまでどおり引き出し欄から打てる', async b => {
     const { page, context } = await open(b, PC);
