@@ -82,11 +82,11 @@ function renderChips() {
   $('chips').hidden = U.view !== 'links';
   const activeLinks = state.items.filter(i => !i.archived).length;
   $('chips').innerHTML = `<button class="chip" type="button" data-drawer="ALL" aria-pressed="${U.drawer === 'ALL'}">ぜんぶ ${activeLinks}</button><button class="chip" type="button" data-drawer="UNOPENED" aria-pressed="${U.drawer === 'UNOPENED'}">まだ開いていない ${state.items.filter(i => !i.archived && !Number(i.clickCount || 0)).length}</button>` +
-    moodCounts().slice(0, 12).map(([n, c]) => `<button class="chip" type="button" data-drawer="${escapeHtml(n)}" aria-pressed="${U.drawer === n}">${escapeHtml(n)} ${c}</button>`).join('') +
+    (U.born ? [moodCounts().find(([n]) => n === U.born) || [U.born, 0], ...moodCounts().filter(([n]) => n !== U.born).slice(0, 11)] : moodCounts().slice(0, 12)).map(([n, c]) => `<button class="chip" type="button" data-drawer="${escapeHtml(n)}" aria-pressed="${U.drawer === n}">${escapeHtml(n)} ${c}</button>`).join('') +
     `<button class="chip" type="button" data-drawer="…">引き出し・並び ›</button>`;
 }
 
-// リンクの札(いまの引き出し)。押すと、その場で掛け替えのシートが開く(計画書4.3)
+// リンクの札(いまの引き出し)。押すと、その場で掛け替えのシートが開く(計画書4.3)。mood は束・一覧と同じ「引き出し名」の目印
 function tagBtnHtml(item) {
   const name = item.projectName || '未分類';
   return `<button class="tag-btn mood" type="button" data-refile="${escapeHtml(item.id)}" aria-label="引き出しを掛け替える(いまは${escapeHtml(name)})">${dot(name)}<span>${escapeHtml(name)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>`;
@@ -224,7 +224,7 @@ function urlIntentHtml(url, { compact = false } = {}) {
   }
   return `<div class="url-intent ${compact ? 'compact' : ''}" data-url-intent>
     <div class="url-intent-mark" aria-hidden="true">＋</div>
-    <div class="url-intent-copy"><b>このURLを保存</b><span>Enterでいったん未分類へ保存</span><small>${escapeHtml(label)}</small></div>
+    <div class="url-intent-copy"><b>このURLを保存</b><span>Enterでいったん未分類へ保存・続けて「 #名前」でその引き出しへ</span><small>${escapeHtml(label)}</small></div>
     <div class="url-intent-actions"><button class="btn primary" type="button" data-url-quick-save="${escapeHtml(url)}">いったん保存</button><button class="btn" type="button" data-url-detail-save="${escapeHtml(url)}">引き出しを選ぶ</button></div>
   </div>`;
 }
@@ -247,6 +247,29 @@ function focusSavedItem(id) {
     el.scrollIntoView({ block: 'center' });
     el.classList.add('flash');
   }
+}
+
+/* ============ 引き出しが生まれる(計画書4.4) ============ */
+// まだない引き出しか。保存の前に確かめ、生まれたら知らせて光らせる
+const isNewDrawer = name => !isCategoryBlank(name) && !isUncategorizedCategory(name) && !tagChoices('links').names.includes(name);
+// 生まれた引き出しを、上の列(スマホ)と左の引き出し(PC)の先頭近くに出して、ひと呼吸だけ光らせる
+function markBorn(name) {
+  U.born = name;
+  clearTimeout(markBorn.t);
+  markBorn.t = setTimeout(() => { U.born = ''; }, 2500);
+}
+// 「URL #引き出し」を一行で書いたら、その引き出しへ入れる(なければ作る)。URLの中の#は対象外(前に空白が要る)
+function urlWithDrawer(value) {
+  const m = String(value || '').trim().match(/^(\S+)\s+[#＃]\s*(\S.*)$/);
+  const url = m && exactInputUrl(m[1]);
+  return url ? { url, name: resolveTagName('links', m[2]) } : null;
+}
+function saveUrlTo({ url, name }) {
+  const dup = findDuplicate(url);
+  if (!dup) { quickSaveUrl(url, name); return; }
+  clearUniversalInput();
+  if ((dup.projectName || '未分類') === name) { render(); toast(`すでに「${name}」に入っています`); return; }
+  refile(dup.id, name);
 }
 
 function quickSaveUrl(rawUrl, projectName = '未分類') {
@@ -280,24 +303,37 @@ function quickSaveUrl(rawUrl, projectName = '未分類') {
     clickHistory: [],
     archived: false
   };
+  const born = isNewDrawer(projectName);
+  if (born) markBorn(projectName);
   state.items.unshift(item);
   state.projects = normalizeProjects(state.projects, state.items);
   save();
   focusSavedItem(item.id);
   setTimeout(() => enrichSavedLink(item.id), 0);
   const later = isUncategorizedCategory(projectName);
-  toast(later ? 'いったん未分類に保存しました' : `「${projectName}」に入れました`, { action: { label: later ? '引き出しを選ぶ' : '変える', fn: () => openRefile(item.id) }, ms: 5000 });
+  toast(later ? 'いったん未分類に保存しました' : born ? `新しい引き出し「${projectName}」に入れました` : `「${projectName}」に入れました`, { action: { label: later ? '引き出しを選ぶ' : '変える', fn: () => openRefile(item.id) }, ms: 5000 });
   return item;
 }
-// スマホの「探す・貼る」にURLを貼ったとき。入力欄のすぐ上に引き出しを並べ、押した引き出しへそのまま入れる
-function handIntentHtml(url) {
+// スマホの「探す・貼る」にURLを貼ったとき。入力欄のすぐ上に引き出しを並べ、押した引き出しへそのまま入れる。
+// 「URL #名前」と打ったときは、その名前を先頭に出し、Enterでそこへ入れる
+function handIntentHtml(url, picked = '') {
   const up = urlPreview(url);
   const cur = !['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) && !isUncategorizedCategory(U.drawer) ? [U.drawer] : [];
-  const names = [...new Set([...cur, ...drawerShortlist()])];
+  const names = [...new Set([...(picked ? [picked] : []), ...cur, ...drawerShortlist()])];
   const u = escapeHtml(url);
+  const hint = picked ? `Enterで「${escapeHtml(picked)}」へ${isNewDrawer(picked) ? '(新しい引き出し)' : ''}` : '入れる引き出しを押す・Enterでいったん未分類・「 #名前」で指定';
   return `<div class="hand-intent" data-url-intent>
-    <div class="hand-card"><b>このURLを保存</b><small>${escapeHtml(up.path ? `${up.host} › ${up.path}` : up.host)}</small><span>入れる引き出しを押す・Enterでいったん未分類</span></div>
-    <div class="hand-drawers" role="group" aria-label="入れる引き出し">${names.map(n => `<button type="button" data-url-save-to="${escapeHtml(n)}" data-url="${u}">${dot(n)}${escapeHtml(n)}</button>`).join('')}<button type="button" data-url-quick-save="${u}">未分類</button><button type="button" data-url-detail-save="${u}">詳しく…</button></div>
+    <div class="hand-card"><b>このURLを保存</b><small>${escapeHtml(up.path ? `${up.host} › ${up.path}` : up.host)}</small><span>${hint}</span></div>
+    <div class="hand-drawers" role="group" aria-label="入れる引き出し">${names.map(n => `<button type="button" class="${n === picked ? `is-picked${isNewDrawer(n) ? ' is-new' : ''}` : ''}" data-url-save-to="${escapeHtml(n)}" data-url="${u}"${n === picked && isNewDrawer(n) ? ` style="--c:${escapeHtml(getProjectColor(n).border)}"` : ''}>${dot(n)}${escapeHtml(n)}</button>`).join('')}<button type="button" data-url-quick-save="${u}">未分類</button><button type="button" data-url-detail-save="${u}">詳しく…</button></div>
+  </div>`;
+}
+// PCの万能入力に「URL #名前」と打ったときのカード
+function drawerIntentHtml({ url, name }) {
+  const up = urlPreview(url), dup = findDuplicate(url), born = !dup && isNewDrawer(name);
+  return `<div class="url-intent" data-url-intent>
+    <div class="url-intent-mark" aria-hidden="true">${dot(name)}</div>
+    <div class="url-intent-copy"><b>${dup ? `保存済み・「${escapeHtml(name)}」へ掛け替える` : `「${escapeHtml(name)}」に入れる`}${born ? '<span class="born-badge">新しい引き出し</span>' : ''}</b><span>Enterで${dup ? '掛け替え' : '保存'}</span><small>${escapeHtml(up.path ? `${up.host} › ${up.path}` : up.host)}</small></div>
+    <div class="url-intent-actions"><button class="btn primary" type="button" data-url-save-drawer="${escapeHtml(name)}" data-url="${escapeHtml(url)}">${dup ? '掛け替える' : '入れる'}</button></div>
   </div>`;
 }
 // 引き出しを押したら、カードをその引き出しへ吸い込ませてから保存する(動きを減らす設定では待たない)
@@ -322,12 +358,13 @@ function renderLib() {
   if (!showLib) return;
   const sel = $('sortSelect');
   if (q) {
-    const intentUrl = exactInputUrl(q);
-    if (intentUrl) {
+    const withDrawer = urlWithDrawer(q);
+    const intentUrl = withDrawer ? '' : exactInputUrl(q);
+    if (withDrawer || intentUrl) {
       $('libTitle').textContent = '保存';
       $('libCount').textContent = '';
       sel.hidden = true;
-      $('lib').innerHTML = urlIntentHtml(intentUrl);
+      $('lib').innerHTML = withDrawer ? drawerIntentHtml(withDrawer) : urlIntentHtml(intentUrl);
       $('lib').classList.add('list1');
       return;
     }
@@ -763,6 +800,7 @@ function makeTagPick({ input, list, all, kind, onPick, onType }) {
     input.value = '';
     expanded = false;
     build(name);
+    if (created) list.querySelector(`[data-name="${CSS.escape(name)}"]`)?.classList.add('is-born');
     onPick(name, { created });
   }
   input.addEventListener('input', filter);
@@ -1031,6 +1069,8 @@ function saveLink() {
   // 欄に打っただけで札を押していない名前も、そのまま使う(なければ新しく作る)
   if (linkPick.pending()) linkPick.pick(linkPick.pending());
   if (isCategoryBlank(F.cat)) { askForCat(); return; }
+  const born = isNewDrawer(F.cat);
+  if (born) markBorn(F.cat);
   const title = $('fTitle').value.trim() || hostOf(url);
   const projectName = F.cat;
   let item;
@@ -1056,7 +1096,7 @@ function saveLink() {
   }
   const el = $('item-' + item.id);
   if (el) { if (!hand()) el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
-  toast(F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
+  toast(born ? `新しい引き出し「${projectName}」に入れました` : F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
 }
 
 /* ============ プロンプトの保存シート ============ */
@@ -1146,18 +1186,20 @@ function refile(id, name, { created = false } = {}) {
   const item = find('link', id);
   const from = item?.projectName || '未分類';
   if (!item || from === name) return;
+  const born = created || isNewDrawer(name);
+  if (born) markBorn(name);
   item.projectName = name;
   item.updatedAt = new Date().toISOString();
   state.projects = normalizeProjects(state.projects, state.items);
   save(); render();
   $$(`[data-refile="${CSS.escape(id)}"]`).forEach(b => b.classList.add('is-refiled'));
-  toast(`「${name}」へ掛け替えました`, { action: { label: '元に戻す', fn: () => {
+  toast(born ? `新しい引き出し「${name}」へ掛け替えました` : `「${name}」へ掛け替えました`, { action: { label: '元に戻す', fn: () => {
     const it = find('link', id);
     if (!it) return;
     it.projectName = from;
     it.updatedAt = new Date().toISOString();
     state.projects = normalizeProjects(state.projects, state.items);
-    if (created) deleteEmptyCategory('links', name); // このとき作った引き出しが空になれば、一緒に片づける
+    if (born) deleteEmptyCategory('links', name); // このとき作った引き出しが空になれば、一緒に片づける
     save(); render(); toast('元に戻しました');
   } }, ms: 5000 });
 }
@@ -1265,6 +1307,11 @@ function renderMobileResults() {
     $('mResults').innerHTML = ids.length ? `<div class="group-head">めくる束のつづき</div><div class="grid">${ids.map(id => itemHtml(find('link', id))).join('')}</div>` : '';
     return;
   }
+  const withDrawer = urlWithDrawer(q);
+  if (withDrawer) {
+    $('mResults').innerHTML = findDuplicate(withDrawer.url) ? urlIntentHtml(withDrawer.url, { compact: true }) : handIntentHtml(withDrawer.url, withDrawer.name);
+    return;
+  }
   const intentUrl = exactInputUrl(q);
   if (intentUrl) {
     $('mResults').innerHTML = findDuplicate(intentUrl) ? urlIntentHtml(intentUrl, { compact: true }) : handIntentHtml(intentUrl);
@@ -1290,6 +1337,7 @@ render = function () {
   $('desk').dataset.view = U.view;
   renderRail();
   renderChips();
+  if (U.born) $$(`#rail [data-rail="cat:${CSS.escape(U.born)}"], #chips [data-drawer="${CSS.escape(U.born)}"]`).forEach(el => el.classList.add('is-born'));
   renderDeck();
   renderLib();
   renderPrompts();
@@ -1307,6 +1355,8 @@ document.addEventListener('click', e => {
   const closeBtn = t.closest('[data-close]');
   if (closeBtn) { closeSheet(closeBtn.closest('dialog')); return; }
 
+  const saveDrawer = t.closest('[data-url-save-drawer]');
+  if (saveDrawer) { saveUrlTo({ url: saveDrawer.dataset.url, name: saveDrawer.dataset.urlSaveDrawer }); return; }
   const saveTo = t.closest('[data-url-save-to]');
   if (saveTo) { dropIntoDrawer(saveTo); return; }
   const quickUrl = t.closest('[data-url-quick-save]');
@@ -1469,7 +1519,8 @@ $('searchInput').addEventListener('input', e => {
   render();
 });
 $('searchInput').addEventListener('keydown', e => {
-  if (e.isComposing) return;
+  // 変換を確定するEnterは除外(Safariは確定のEnterを isComposing=false・keyCode 229 で送る)
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === 'Escape') { e.preventDefault(); if (U.query) { U.query = ''; e.target.value = ''; U.active = -1; render(); } else e.target.blur(); return; }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
@@ -1483,6 +1534,8 @@ $('searchInput').addEventListener('keydown', e => {
   }
   if (e.key === 'Enter') {
     e.preventDefault();
+    const withDrawer = urlWithDrawer(e.target.value);
+    if (withDrawer) { saveUrlTo(withDrawer); return; }
     const intentUrl = exactInputUrl(e.target.value);
     if (intentUrl) {
       const dup = findDuplicate(intentUrl);
@@ -1512,7 +1565,9 @@ $('mSearchInput').addEventListener('input', renderMobileResults);
 // 引き出しを押してもキーボードを下げない(吸い込みの動きの途中で画面が動かないように)
 $('mResults').addEventListener('mousedown', e => { if (e.target.closest('.hand-drawers button')) e.preventDefault(); });
 $('mSearchInput').addEventListener('keydown', e => {
-  if (e.isComposing || e.key !== 'Enter') return;
+  if (e.isComposing || e.keyCode === 229 || e.key !== 'Enter') return;
+  const withDrawer = urlWithDrawer(e.target.value);
+  if (withDrawer) { e.preventDefault(); closeSheet($('searchSheet')); saveUrlTo(withDrawer); return; }
   const intentUrl = exactInputUrl(e.target.value);
   if (!intentUrl) return;
   e.preventDefault();

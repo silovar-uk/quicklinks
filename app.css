@@ -298,6 +298,15 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 @keyframes refiled{0%,35%{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 3px rgba(180,35,44,.18)}100%{box-shadow:0 0 0 0 rgba(180,35,44,0)}}
 .d-tagrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 .refile-what{margin:0;font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---------- 引き出しが生まれる(計画書4.4) ---------- */
+.tag.is-born{animation:born .42s cubic-bezier(.2,.8,.3,1.25)}
+@keyframes born{0%{transform:scale(.86);opacity:.5}65%{transform:scale(1.06);opacity:1}100%{transform:none}}
+.chip.is-born,.rail-item.is-born{animation:bornGlow 2.4s ease-out}
+@keyframes bornGlow{0%,45%{background:var(--tint2);color:var(--accent)}100%{background:transparent}}
+.born-badge{display:inline-block;margin-left:8px;padding:1px 7px;border:1px dashed var(--accent);border-radius:999px;color:var(--accent);font-size:11px;font-weight:700;vertical-align:1px}
+.url-intent-mark .dot{width:12px;height:12px;flex-basis:12px}
+.hand-drawers button.is-picked{border-color:var(--accent);background:var(--tint);color:var(--accent);font-weight:700}
+.hand-drawers button.is-picked.is-new{border-style:dashed;border-color:var(--c,var(--accent))}
 #rail .rail-item.is-drop-target{background:var(--tint);color:var(--accent);box-shadow:inset 2px 0 0 var(--accent)}
 .switch{display:flex;align-items:center;gap:10px;font-size:13px}
 .switch input{width:18px;height:18px;accent-color:var(--accent)}
