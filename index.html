@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261010-kakekaeru-p1">
+<link rel="stylesheet" href="./app.css?v=20261010-kakekaeru-p2">
 </head>
 <body>
 <div id="app">
@@ -75,33 +75,26 @@
 <dialog id="linkSheet" class="bottom link-save-sheet" aria-labelledby="linkSheetTitle">
   <div class="sheet-head"><h2 id="linkSheetTitle" tabindex="-1" autofocus>リンクを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <form class="sheet-body" id="linkForm" novalidate>
-    <div id="fPage" class="page-card" hidden></div>
-    <div class="field">
+    <div class="field" id="fUrlField">
       <label class="lab" for="fUrl">URL</label>
       <div class="url-row"><input id="fUrl" class="inp" inputmode="url" enterkeyhint="done" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="https://…"><button class="btn" type="button" id="fPaste">貼る</button></div>
+      <p id="fUrlError" class="field-error" role="alert" hidden>http:// か https:// で始まるURLを入れてください。</p>
     </div>
-    <div id="fStatus" class="status" role="status" aria-live="polite" aria-busy="false" hidden></div>
-    <div id="fDup" class="dup" hidden></div>
+    <div id="fPage" class="page-card" hidden>
+      <span class="page-kicker" id="fPageKicker"></span>
+      <b class="page-title" id="fPageTitle"></b>
+      <span class="page-url" id="fPageUrl"></span>
+      <div class="page-foot">
+        <div id="fStatus" class="status" role="status" aria-live="polite" aria-busy="false" hidden></div>
+        <button class="btn quiet page-fix" type="button" id="fUrlEdit">URLを直す</button>
+      </div>
+      <div id="fDup" class="dup" hidden></div>
+    </div>
     <div id="fDiff" class="diff" hidden></div>
-    <div class="field" id="fCatField">
-      <label class="lab" for="fCat">保存先 <span class="aside">引き出しを選ぶ・新しく作る</span></label>
-      <div class="recent" id="fRecent" aria-label="最近入れた引き出し"></div>
-      <div class="combo">
-        <input id="fCat" class="inp" role="combobox" enterkeyhint="next" aria-expanded="false" aria-controls="fCatList" aria-autocomplete="list" autocomplete="off" placeholder="引き出しを選ぶか、新しい名前を入れる">
-        <div id="fCatList" class="combo-list" role="listbox" aria-label="引き出しの候補" hidden></div>
-      </div>
-      <div id="categoryAssist" class="category-assist-inline" aria-live="polite" hidden>
-        <div class="category-assist-copy">
-          <strong>おすすめ</strong>
-          <span>候補を選んでから保存します。過去の保存先から「たぶんここ」も出します。</span>
-        </div>
-        <div id="categoryAssistSuggested" class="category-assist-suggested" hidden></div>
-        <div id="categoryAssistList" class="category-assist-list" role="list" aria-label="おすすめの引き出し"></div>
-        <div class="category-assist-actions">
-          <button id="categoryAssistMore" class="category-assist-more" type="button">ほかの引き出しを探す・新しく作る</button>
-          <button id="categoryAssistUncategorized" class="category-assist-skip" type="button">今は決めない</button>
-        </div>
-      </div>
+    <div class="field tagpick" id="fCatField">
+      <div class="tagpick-head"><label class="lab" for="fCat">入れる引き出し</label><button class="tagpick-all" type="button" id="fCatAll" aria-expanded="false" aria-controls="fTags" hidden>すべて</button></div>
+      <input id="fCat" class="inp tagpick-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="fTags" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="名前で探す・新しく作る">
+      <div class="tags" id="fTags" role="listbox" aria-label="入れる引き出し"></div>
     </div>
     <button class="details-toggle" type="button" id="fDetailsToggle" aria-expanded="false" aria-controls="fDetails">
       <span class="details-toggle-copy"><strong>詳細を追加</strong><small>タイトル・自分メモ・お気に入り</small></span>
@@ -124,33 +117,15 @@
     </div>
   </form>
   <div class="sheet-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="fSave">保存</button></div>
-  <section id="destinationPicker" class="destination-picker" aria-labelledby="destinationPickerTitle" hidden>
-    <div class="destination-head">
-      <button id="destinationBack" class="destination-back" type="button" aria-label="リンク保存に戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-      <h2 id="destinationPickerTitle">保存先を選ぶ</h2>
-      <span class="destination-head-spacer" aria-hidden="true"></span>
-    </div>
-    <div class="destination-search-shell">
-      <div class="destination-search" role="search">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-        <input id="destinationSearch" type="search" placeholder="引き出しを検索・新しく作る" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="引き出しを検索。見つからなければ新しく作れます">
-        <button id="destinationSearchClear" class="destination-search-clear" type="button" aria-label="検索を消す" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button>
-      </div>
-    </div>
-    <div id="destinationBody" class="destination-body"></div>
-  </section>
 </dialog>
 
 <dialog id="promptSheet" class="bottom" aria-labelledby="promptSheetTitle">
   <div class="sheet-head"><h2 id="promptSheetTitle" tabindex="-1" autofocus>プロンプトを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <form class="sheet-body" id="promptForm" novalidate>
-    <div class="field">
-      <label class="lab" for="pCat">カテゴリ <span class="aside">選ばなければ未分類</span></label>
-      <div class="recent" id="pRecent" aria-label="最近入れたカテゴリ"></div>
-      <div class="combo">
-        <input id="pCat" class="inp" role="combobox" aria-expanded="false" aria-controls="pCatList" aria-autocomplete="list" autocomplete="off" placeholder="カテゴリを選ぶか、新しい名前を入れる">
-        <div id="pCatList" class="combo-list" role="listbox" aria-label="カテゴリの候補" hidden></div>
-      </div>
+    <div class="field tagpick" id="pCatField">
+      <div class="tagpick-head"><label class="lab" for="pCat">カテゴリ <span class="aside">選ばなければ未分類</span></label><button class="tagpick-all" type="button" id="pCatAll" aria-expanded="false" aria-controls="pTags" hidden>すべて</button></div>
+      <input id="pCat" class="inp tagpick-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="pTags" enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="名前で探す・新しく作る">
+      <div class="tags" id="pTags" role="listbox" aria-label="カテゴリ"></div>
     </div>
     <div class="field"><label class="lab" for="pTitle">タイトル</label><input id="pTitle" class="inp" autocomplete="off"></div>
     <div class="field"><label class="lab" for="pBody">本文</label><textarea id="pBody" class="inp" style="min-height:160px"></textarea></div>
@@ -181,7 +156,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20261004-youtube-oembed2"></script>
-<script src="./ui.js?v=20261010-kakekaeru-p1"></script>
+<script src="./ui.js?v=20261010-kakekaeru-p2"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>
