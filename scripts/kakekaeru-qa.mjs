@@ -462,6 +462,94 @@ const checks = [
     assert.equal(await page.evaluate(() => document.querySelector('#linkSheet').open), false, '保存シートが開いた');
     await drop(NEW_URL('dropped'), 'ごはん');
     assert.equal((await itemOf(page, NEW_URL('dropped')))?.projectName, 'ごはん', '新しいURLが保存されない'); await context.close();
+  }),
+
+  // P4 離「名前を書けば、引き出しが生まれる」
+  check('P4', 'まだない名前を打つと、点線の札に「名前から決まる色」の点が出る(名前を変えると色も変わる)', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await openAdd(page);
+    const colorOf = async name => { await page.locator('#fCat').fill(name); return page.locator('#fTags [data-new] .dot').evaluate(el => getComputedStyle(el).backgroundColor); };
+    const expect = name => page.evaluate(n => { const d = document.createElement('span'); d.style.color = getProjectColor(n).border; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }, name);
+    const a = await colorOf('うみ'), b2 = await colorOf('やま');
+    assert.equal(a, await expect('うみ')); assert.equal(b2, await expect('やま'));
+    assert.notEqual(a, b2, '名前が違っても同じ色'); await context.close();
+  }),
+  check('P4', '作った札は生まれる動きで出る(動きを減らす設定では動かない)', async b => {
+    const a = await open(b, SE, mobile);
+    await openAdd(a.page); await a.page.locator('#fCat').fill('生まれたて'); await a.page.locator('#fCat').press('Enter');
+    assert.equal(await a.page.locator('#fTags [data-name="生まれたて"]').evaluate(el => el.classList.contains('is-born') && getComputedStyle(el).animationName), 'born'); await a.context.close();
+    const r = await open(b, SE, { ...mobile, reducedMotion: 'reduce' });
+    await openAdd(r.page); await r.page.locator('#fCat').fill('生まれたて'); await r.page.locator('#fCat').press('Enter');
+    assert.equal(await r.page.locator('#fTags [data-name="生まれたて"]').evaluate(el => getComputedStyle(el).animationName), 'none'); await r.context.close();
+  }),
+  check('P4', 'スマホ:新しい引き出しに保存すると、上の引き出しの列の先頭に出て光り、「新しい引き出し「◯◯」に入れました」と知らせる', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      await page.locator('#searchOpen').click(); await page.locator('#mSearchInput').fill(`${NEW_URL('born-' + name)} #はじめての棚`);
+      await page.locator('#mSearchInput').press('Enter');
+      await page.waitForFunction(() => !document.querySelector('#searchSheet').open, null, { timeout: 3000 });
+      assert.equal((await itemOf(page, NEW_URL('born-' + name)))?.projectName, 'はじめての棚', `${name}: 保存先`);
+      const first = page.locator('#chips [data-drawer]:not([data-drawer="ALL"]):not([data-drawer="UNOPENED"])').first();
+      assert.equal(await first.getAttribute('data-drawer'), 'はじめての棚', `${name}: 列の先頭にない`);
+      assert.equal(await first.evaluate(el => el.classList.contains('is-born')), true, `${name}: 光らない`);
+      assert.match(await page.locator('#toast').innerText(), /新しい引き出し「はじめての棚」に入れました/);
+      await context.close();
+    });
+  }),
+  check('P4', 'PC:「URL #名前」でEnter → その引き出しに保存。カードは「「名前」に入れる」と「新しい引き出し」を示し、左の引き出しが光る', async b => {
+    const { page, context } = await open(b, PC);
+    const url = NEW_URL('pc-hash');
+    await page.locator('#searchInput').fill(`${url} #PCで生まれた`);
+    await page.locator('#lib [data-url-intent]').waitFor();
+    const card = await page.locator('#lib [data-url-intent]').innerText();
+    assert.match(card, /「PCで生まれた」に入れる/); assert.match(card, /新しい引き出し/);
+    await page.locator('#searchInput').press('Enter');
+    assert.equal((await itemOf(page, url))?.projectName, 'PCで生まれた');
+    assert.equal(await page.locator('#rail [data-rail="cat:PCで生まれた"]').evaluate(el => el.classList.contains('is-born')), true, '左の引き出しが光らない');
+    assert.equal(await page.locator('#searchInput').inputValue(), '', '入力欄が空にならない'); await context.close();
+  }),
+  check('P4', 'スマホ:全角の「＃名前」でも、すでにある引き出しへ寄せて入れる(「URL ＃シゴト」→ しごと)。札の列の先頭はその引き出し', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const url = NEW_URL('zenkaku');
+    await page.locator('#searchOpen').click(); await page.locator('#mSearchInput').fill(`${url} ＃シゴト`);
+    assert.equal(await page.locator('.hand-drawers [data-url-save-to]').first().getAttribute('data-url-save-to'), 'しごと');
+    await page.locator('#mSearchInput').press('Enter');
+    await page.waitForFunction(() => !document.querySelector('#searchSheet').open, null, { timeout: 3000 });
+    assert.equal((await itemOf(page, url))?.projectName, 'しごと'); await context.close();
+  }),
+  check('P4', '保存済みのURLに「#名前」を付けてEnterすると、その引き出しへ掛け替わる', async b => {
+    const { page, context } = await open(b, PC);
+    const target = (await stored(page)).items.find(x => x.projectName !== 'まなび');
+    await page.locator('#searchInput').fill(`${target.url} #まなび`);
+    assert.match(await page.locator('#lib [data-url-intent]').innerText(), /掛け替える/);
+    await page.locator('#searchInput').press('Enter');
+    assert.equal((await stored(page)).items.find(x => x.id === target.id).projectName, 'まなび');
+    assert.match(await page.locator('#toast').innerText(), /「まなび」へ掛け替えました/); await context.close();
+  }),
+  check('P4', '「URL #名前」でも、変換を確定するEnter(keyCode 229)では保存しない', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      const url = NEW_URL('ime-' + name);
+      await page.locator('#searchOpen').click(); await page.locator('#mSearchInput').fill(`${url} #へんかん`);
+      await page.locator('#mSearchInput').evaluate(el => {
+        const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        Object.defineProperty(e, 'keyCode', { get: () => 229 });
+        el.dispatchEvent(e);
+      });
+      await page.waitForTimeout(200);
+      assert.equal(await itemOf(page, url), undefined, `${name}: 確定のEnterで保存された`);
+      assert.equal(await page.evaluate(() => document.querySelector('#searchSheet').open), true, `${name}: シートが閉じた`);
+      await context.close();
+    });
+  }),
+  check('P4', 'URLの中の#(ページ内の位置)は引き出しとみなさない', async b => {
+    const { page, context } = await open(b, PC);
+    const url = 'https://qa-kakekaeru.test/doc#section-2';
+    await page.locator('#searchInput').fill(url);
+    assert.match(await page.locator('#lib [data-url-intent]').innerText(), /このURLを保存/);
+    await page.locator('#searchInput').press('Enter');
+    const saved = await itemOf(page, url);
+    assert.equal(saved?.projectName, '未分類', `保存先 ${saved?.projectName}`); await context.close();
   })
 ];
 

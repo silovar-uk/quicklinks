@@ -101,8 +101,28 @@ jobs:
       - name: Run kakekaeru acceptance QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/
-          QA_PHASES: P1,P2,P3
+          QA_PHASES: P1,P2,P3,P4
         run: node scripts/kakekaeru-qa.mjs
+
+      # PR checks the local build; on main, verify that GitHub Pages really serves P4.
+      - name: Run kakekaeru QA on published GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          LOCAL_URL: https://silovar-uk.github.io/quicklinks/
+          QA_PHASES: P1,P2,P3,P4
+        run: |
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent --show-error --location -H 'Cache-Control: no-cache' "${LOCAL_URL}?ci=${GITHUB_SHA}" | grep -q '20261010-kakekaeru-p4'; then
+              echo 'Published P4 is available'
+              break
+            fi
+            if [ "$attempt" -eq 36 ]; then
+              echo 'GitHub Pages did not publish P4 in time' >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          node scripts/kakekaeru-qa.mjs
 
       - name: Collect server log
         if: always()
