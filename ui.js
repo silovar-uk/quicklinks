@@ -235,9 +235,20 @@ function clearUniversalInput() {
   $('searchInput').value = '';
 }
 
+// スマホ:保存・掛け替えのあとも、一覧で見ていたカードを同じ高さに残す(上にカードが増えても押し下げない)。
+// 束が見えているあいだは束が基準なので、何もしない
+function keepPlace(fn) {
+  const c = $('center'), top = c.getBoundingClientRect().top;
+  const watching = hand() && U.view === 'links' && ($('deck').hidden || $('deck').getBoundingClientRect().bottom <= top);
+  const anchor = watching ? [...c.querySelectorAll('#lib .item')].find(el => el.getBoundingClientRect().bottom > top) : null;
+  const id = anchor?.id, y = anchor?.getBoundingClientRect().top;
+  fn();
+  const now = id && document.getElementById(id);
+  if (now) c.scrollTop += now.getBoundingClientRect().top - y;
+}
 function focusSavedItem(id) {
   // スマホでは、保存しても見ている引き出し・位置を動かさない。一覧に出ていれば光らせるだけ
-  if (hand()) { render(); $('item-' + id)?.classList.add('flash'); return; }
+  if (hand()) { keepPlace(render); $('item-' + id)?.classList.add('flash'); return; }
   U.view = 'links';
   U.drawer = 'ALL';
   U.kind = 'all';
@@ -675,7 +686,8 @@ function linkDetail(item) {
     <div class="d-sec"><h3>ページの説明</h3><p class="d-note ${item.description ? '' : 'none'}">${escapeHtml(item.description || '') || 'まだ取得していません。「ページ情報を取り直す」で取得できます。'}</p></div>
     <div class="d-sec"><h3>URL</h3><div class="d-url">${escapeHtml(item.url)}</div></div></div>`;
 }
-function showSheet(el) { if (!el.open) el.showModal(); }
+// 開くたびに中のスクロールを先頭へ戻す(前回の位置のまま開くと、開いた瞬間にずれて見える)
+function showSheet(el) { if (!el.open) { el.showModal(); el.querySelector('.sheet-body')?.scrollTo(0, 0); } }
 function closeSheet(el) { if (el && el.open) el.close(); }
 function openDetail(kind, id) {
   const it = find(kind, id);
@@ -885,7 +897,8 @@ function setDetailsOpen(open) {
 // URLが入ったら、ページの札(種類・ホスト・題名・URL)を出す。取得の知らせと重複の知らせは札の中に出す
 function renderSaveTargetCard() {
   const url = $('fUrl').value.trim(), ok = /^https?:\/\//.test(url);
-  $('fPage').hidden = !ok;
+  // スマホの新規では、URLを打っているあいだは札を出さない(URL欄と同じ場所に、決まってから入れ替わる)
+  $('fPage').hidden = !ok || (hand() && F.mode === 'add' && !$('fUrlField').hidden);
   $('fPage').classList.toggle('is-add', F.mode === 'add');
   $('fUrlEdit').hidden = !$('fUrlField').hidden;
   if (!ok) return;
@@ -1015,6 +1028,8 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   $('fRefetch').hidden = mode !== 'edit';
   $('fDiff').hidden = true; $('fDup').hidden = true; $('fStatus').hidden = true; $('fUrlError').hidden = true;
   $('fPaste').hidden = mode === 'edit';
+  $('fPaste').textContent = hand() ? 'コピーしたURLを貼る' : '貼る';
+  $('linkSheet').classList.toggle('is-add', mode === 'add');
   // URLが入っていれば、URL欄はたたんでページの札だけを見せる(同じURLを2回見せない)
   $('fUrlField').hidden = /^https?:\/\//.test($('fUrl').value.trim());
   setDetailsOpen(mode === 'edit');
@@ -1024,8 +1039,8 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   renderSaveTargetCard();
   if (bm) handleBookmarklet(bm);
   else if (url) { checkDup(); startFetch(); }
-  // スマホでは、URLが空の新規保存だけキーボードを出す(URL入り・編集は、札を押すだけのことが多い)
-  if (mode === 'add' && !url && !bm) $('fUrl').focus(); else if (!hand()) $('fCat').focus();
+  // スマホではキーボードを呼ばない(貼るボタンと引き出しを押すだけで済む。打つ欄は、押したときだけキーボードを出す)
+  if (!hand()) $(mode === 'add' && !url && !bm ? 'fUrl' : 'fCat').focus();
 }
 async function enrichSavedLink(id) {
   const item = find('link', id);
@@ -1090,7 +1105,7 @@ function saveLink() {
     U.view = 'links';
     if (F.mode !== 'edit') { U.drawer = 'ALL'; U.kind = 'all'; }
   }
-  save(); render();
+  save(); keepPlace(render);
   if (F.mode !== 'edit' && (looksPlaceholder(item.title, item.url) || !item.description)) {
     setTimeout(() => enrichSavedLink(item.id), 0);
   }
@@ -1191,7 +1206,7 @@ function refile(id, name, { created = false } = {}) {
   item.projectName = name;
   item.updatedAt = new Date().toISOString();
   state.projects = normalizeProjects(state.projects, state.items);
-  save(); render();
+  save(); keepPlace(render);
   $$(`[data-refile="${CSS.escape(id)}"]`).forEach(b => b.classList.add('is-refiled'));
   toast(born ? `新しい引き出し「${name}」へ掛け替えました` : `「${name}」へ掛け替えました`, { action: { label: '元に戻す', fn: () => {
     const it = find('link', id);
@@ -1575,14 +1590,23 @@ $('mSearchInput').addEventListener('keydown', e => {
   quickSaveUrl(intentUrl);
 });
 
+// URLが決まったら(貼る・Enter・欄を離れる)、重複の確認と取得を始める。
+// スマホの新規では、URL欄をたたんでページの札を同じ場所に出す(打つ欄が消えるので、キーボードも閉じる)
+function acceptUrl() {
+  if (hand() && F.mode === 'add' && /^https?:\/\//.test($('fUrl').value.trim())) {
+    if (document.activeElement === $('fUrl')) $('fUrl').blur();
+    $('fUrlField').hidden = true;
+  }
+  checkDup(); renderSaveTargetCard(); if (F.mode === 'add') startFetch();
+}
 $('fUrl').addEventListener('input', () => { $('fUrlError').hidden = true; renderSaveTargetCard(); });
-$('fUrl').addEventListener('change', () => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') startFetch(); });
-$('fUrl').addEventListener('paste', () => setTimeout(() => { checkDup(); renderSaveTargetCard(); if (F.mode === 'add') startFetch(); }, 0));
+$('fUrl').addEventListener('change', acceptUrl);
+$('fUrl').addEventListener('paste', () => setTimeout(acceptUrl, 0));
 $('fPaste').addEventListener('click', async () => {
   try {
     const text = await navigator.clipboard.readText();
     const m = extractFirstUrl(text);
-    if (m) { $('fUrl').value = m; checkDup(); renderSaveTargetCard(); startFetch(); } else toast('クリップボードにURLがありませんでした');
+    if (m) { $('fUrl').value = m; acceptUrl(); } else toast('クリップボードにURLがありませんでした');
   } catch { toast('ここでは読み取れません。URL欄に貼り付けてください'); }
 });
 // スマホのURL欄は「完了」キー。押したらキーボードを閉じて引き出しを見せる(閉じるとchangeが走り、重複の確認と取得が始まる)

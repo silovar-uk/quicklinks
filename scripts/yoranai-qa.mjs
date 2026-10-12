@@ -105,15 +105,16 @@ const checks = [
     assert.ok(Math.abs(m.app - SE.height) <= 1, `拡大につられて外枠が ${Math.round(m.app)}px に縮んだ`);
     assert.equal(m.kb, false, '拡大しただけでキーボードが出た扱いになった'); await context.close();
   }),
-  check('P1', 'ピンチでの拡大は残す(viewportで拡大を禁止しない)', async b => {
+  check('P1', 'ピンチでの拡大は残す(iPhone以外ではviewportで拡大を禁止しない)', async b => {
     const { page, context } = await open(b, SE);
     const v = await page.evaluate(() => document.querySelector('meta[name="viewport"]').content);
     assert.doesNotMatch(v, /maximum-scale|user-scalable\s*=\s*(no|0)/i, `viewport: ${v}`); await context.close();
   }),
-  check('P1', 'スマホ:＋はURL欄から打てる。URL入り・編集のシートはキーボードを勝手に出さない', async b => {
+  // 2026-10「揺らさずに、仕舞う」P1:＋でもキーボードを呼ばない(「コピーしたURLを貼る」から始める)
+  check('P1', 'スマホ:＋・URL入り・編集のシートは、どれもキーボードを勝手に出さない', async b => {
     const { page, context } = await open(b, SE);
     await page.locator('#bottomAdd').click(); await page.locator('#linkSheet[open]').waitFor();
-    assert.equal((await active(page)).id, 'fUrl', '＋でURL欄にフォーカスが入らない'); await closeAll(page);
+    assert.ok(!['INPUT', 'TEXTAREA'].includes((await active(page)).tag), `＋で ${(await active(page)).id} にフォーカスが入る`); await closeAll(page);
     await page.evaluate(u => { location.hash = '#save=' + encodeURIComponent(u); }, NEW_URL('shared'));
     await page.locator('#linkSheet[open]').waitFor();
     assert.ok(!['INPUT', 'TEXTAREA'].includes((await active(page)).tag), `共有から開くと ${(await active(page)).id} にフォーカスが入る`); await closeAll(page);
