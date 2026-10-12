@@ -165,6 +165,130 @@ const checks = [
       assert.ok(Math.abs(after - before.top) <= 2, `${name}: 見ていたカードが動いた(${Math.round(before.top)} → ${Math.round(after)})`);
       await context.close();
     });
+  }),
+
+  // P2 守「新しい引き出しは、＋の札から」
+  check('P2', 'スマホ:打つ欄は出さず、札を3列で全部並べる。先頭は「＋ 新しい引き出し」、続いて最近使った順、未分類は最後', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      await openAdd(page); await pasteUrl(page, NEW_URL('tiles-' + name));
+      assert.equal(await page.locator('#fCat').isVisible(), false, `${name}: 名前の欄が出ている`);
+      assert.equal(await page.locator('#fCatAll').isVisible(), false, `${name}: 「すべて」が出ている`);
+      const tiles = await page.locator('#fTags .tag:visible').evaluateAll(els => els.map(el => el.hasAttribute('data-add') ? '＋' : el.dataset.name));
+      assert.equal(tiles.length, DRAWERS.length + 1, `${name}: 並んだ札 ${tiles.length}`);
+      assert.deepEqual(tiles.slice(0, 3), ['＋', 'しごと', 'まなび'], `${name}: 並び ${tiles.slice(0, 3)}`);
+      assert.equal(tiles.at(-1), '未分類', `${name}: 未分類が最後にない`);
+      const cols = await page.locator('#fTags').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+      assert.equal(cols, 3, `${name}: ${cols}列`);
+      const small = await page.locator('#fTags .tag:visible').evaluateAll(els => els.filter(el => el.getBoundingClientRect().height < 44).length);
+      assert.equal(small, 0, `${name}: 44pxより低い札が${small}個`);
+      await context.close();
+    });
+  }),
+  check('P2', 'スマホ:札は引き出しの色の地で見分けられる(名前から決まる色)', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await openAdd(page);
+    const r = await page.locator('#fTags [data-name="まなび"]').evaluate(el => { const d = document.createElement('span'); d.style.color = getProjectColor('まなび').bg; document.body.append(d); const want = getComputedStyle(d).color; d.remove(); return { got: getComputedStyle(el).backgroundColor, want }; });
+    assert.equal(r.got, r.want); await context.close();
+  }),
+  check('P2', 'スマホ:「＋ 新しい引き出し」で名前のカードが画面の上に開き、そのまま打てる(欄は上から300px以内・16px以上)', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      await openAdd(page); await pasteUrl(page, NEW_URL('name-' + name));
+      await page.locator('#fTags [data-add]').click();
+      await page.locator('#nameSheet[open]').waitFor();
+      assert.equal((await active(page)).id, 'nName', `${name}: 名前の欄にフォーカスが入らない`);
+      const r = await box(page, '#nName');
+      assert.ok(r.bottom <= 300, `${name}: 欄が低い(${Math.round(r.top)}〜${Math.round(r.bottom)})`);
+      assert.ok(await page.locator('#nName').evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 16, `${name}: 16px未満`);
+      await page.setViewportSize({ width: 375, height: 300 }); await page.waitForTimeout(300);
+      // 似た名前と色見本が出ている、いちばん背の高い状態でも、決めるボタンが見える
+      await page.locator('#nName').fill('AI'); await page.waitForTimeout(100);
+      const ok = await box(page, '#nOk');
+      assert.ok(ok.top >= 0 && ok.bottom <= 300, `${name}: キーボード相当で決めるボタンが隠れる(${Math.round(ok.top)}〜${Math.round(ok.bottom)})`);
+      await context.close();
+    });
+  }),
+  check('P2', '名前を書くと、その色の札が先に見える。似た名前(含む・含まれる)があれば先に示し、押せばそれを使う', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await openAdd(page); await pasteUrl(page, NEW_URL('like'));
+    await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('AI');
+    assert.match(await page.locator('#nPreview').innerText(), /AI[\s\S]*新しく作る/);
+    const like = await page.locator('#nLikeTags [data-like]').evaluateAll(els => els.map(el => el.dataset.like));
+    assert.deepEqual(like.sort(), ['AIツール', 'AI記事'], `似た名前 ${like}`);
+    assert.equal(await page.locator('#nOk').innerText(), '「AI」を作る');
+    await page.locator('#nLikeTags [data-like="AI記事"]').click();
+    assert.equal(await page.evaluate(() => document.querySelector('#nameSheet').open), false, 'カードが閉じない');
+    assert.equal(await page.evaluate(() => F.cat), 'AI記事'); await context.close();
+  }),
+  check('P2', 'かな・カナ・空白の違いは同じ名前とみなす(「シゴト」→ すでにある「しごと」を使う)', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await openAdd(page); await pasteUrl(page, NEW_URL('kana'));
+    await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('シゴト');
+    assert.match(await page.locator('#nPreview').innerText(), /しごと[\s\S]*すでにあります/);
+    assert.equal(await page.locator('#nOk').innerText(), '「しごと」を選ぶ');
+    await page.locator('#nName').press('Enter');
+    assert.equal(await page.evaluate(() => F.cat), 'しごと');
+    assert.equal(await page.evaluate(() => organizerConfig.links.names().includes('シゴト')), false, '似た引き出しが増えた'); await context.close();
+  }),
+  check('P2', '変換を確定するEnter(keyCode 229)では決めない。もう一度のEnterで決まり、生まれた札が「＋」の次に選ばれて出る', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      await openAdd(page); await pasteUrl(page, NEW_URL('ime-' + name));
+      await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('へんかん');
+      await page.locator('#nName').evaluate(el => { const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }); Object.defineProperty(e, 'keyCode', { get: () => 229 }); el.dispatchEvent(e); });
+      assert.equal(await page.evaluate(() => document.querySelector('#nameSheet').open), true, `${name}: 確定のEnterで決まった`);
+      await page.locator('#nName').press('Enter');
+      assert.equal(await page.evaluate(() => document.querySelector('#nameSheet').open), false, `${name}: Enterで決まらない`);
+      assert.equal(await typing(page), false, `${name}: 決めたあともキーボードが残る`);
+      const second = page.locator('#fTags .tag:visible').nth(1);
+      assert.equal(await second.getAttribute('data-name'), 'へんかん', `${name}: 生まれた札が「＋」の次にない`);
+      assert.equal(await second.getAttribute('aria-selected'), 'true', `${name}: 選ばれていない`);
+      assert.equal(await second.evaluate(el => el.classList.contains('is-born')), true, `${name}: 生まれる動きがない`);
+      await context.close();
+    });
+  }),
+  check('P2', 'スマホの編集:いまの引き出しが「＋」の次に選ばれて見え、「＋」から作った引き出しで保存できる', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await openEditFirst(page);
+    const id = await page.evaluate(() => F.id);
+    const cur = (await stored(page)).items.find(x => x.id === id).projectName;
+    const second = page.locator('#fTags .tag:visible').nth(1);
+    assert.equal(await second.getAttribute('data-name'), cur); assert.equal(await second.getAttribute('aria-selected'), 'true');
+    await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('編集で作った'); await page.locator('#nName').press('Enter');
+    await page.locator('#fSave').click();
+    await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+    assert.equal((await stored(page)).items.find(x => x.id === id).projectName, '編集で作った'); await context.close();
+  }),
+  check('P2', 'スマホのプロンプト:カテゴリも同じ札と名前のカードで作れる', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await page.locator('#seg [data-seg="prompts"]').click(); await page.locator('#promptAddButton').click(); await page.locator('#promptSheet[open]').waitFor();
+    assert.equal(await page.locator('#pTags [data-add]').innerText(), '＋ 新しいカテゴリ');
+    await page.locator('#pTags [data-add]').click(); await page.locator('#nName').fill('しらべもの'); await page.locator('#nName').press('Enter');
+    await page.locator('#pTitle').fill('QAのプロンプト'); await page.locator('#pBody').fill('本文');
+    await page.locator('#pSave').click();
+    assert.equal((await stored(page)).promptMemos.find(x => x.title === 'QAのプロンプト')?.categoryName, 'しらべもの'); await context.close();
+  }),
+  check('P2', 'スマホの掛け替え:「＋」から新しい引き出しを作ると、すぐ掛け替わる。元に戻すと空の引き出しも片づく', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const card = page.locator('#deckTrack .card.is-current');
+    const id = await card.getAttribute('data-id');
+    await card.locator('[data-refile]').click(); await page.locator('#refileSheet[open]').waitFor();
+    await page.locator('#rTags [data-add]').click();
+    assert.equal(await page.locator('#nOk').innerText(), '作る');
+    await page.locator('#nName').fill('掛け替え先'); assert.equal(await page.locator('#nOk').innerText(), '「掛け替え先」を作って掛け替える');
+    await page.locator('#nOk').click();
+    await page.waitForFunction(() => !document.querySelector('#refileSheet').open, null, { timeout: 3000 });
+    assert.equal((await stored(page)).items.find(x => x.id === id).projectName, '掛け替え先');
+    assert.match(await page.locator('#toast').innerText(), /新しい引き出し「掛け替え先」へ掛け替えました/);
+    await page.locator('#toast button').click();
+    assert.equal((await stored(page)).projects.includes('掛け替え先'), false, '空の引き出しが残った'); await context.close();
+  }),
+  check('P2', 'PCは今までどおり:名前の欄に打って選ぶ。「＋ 新しい引き出し」の札は出さない', async b => {
+    const { page, context } = await open(b, PC);
+    await openAdd(page);
+    assert.equal(await page.locator('#fCat').isVisible(), true, 'PCで名前の欄がない');
+    assert.equal(await page.locator('#fTags [data-add]').isVisible(), false, 'PCで「＋」の札が出る'); await context.close();
   })
 ];
 
