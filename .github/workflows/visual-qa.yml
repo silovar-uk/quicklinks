@@ -107,7 +107,7 @@ jobs:
       - name: Run shimau acceptance QA
         env:
           LOCAL_URL: http://127.0.0.1:4173/
-          QA_PHASES: P1,P2,P3
+          QA_PHASES: P1,P2,P3,P4
         run: node scripts/shimau-qa.mjs
 
       # PR checks the local build; on main, wait until GitHub Pages serves this commit's ui.js?v=, then check it there.
@@ -129,7 +129,7 @@ jobs:
             sleep 10
           done
           QA_PHASES=P1,P2,P3,P4 node scripts/kakekaeru-qa.mjs
-          QA_PHASES=P1,P2,P3 node scripts/shimau-qa.mjs
+          QA_PHASES=P1,P2,P3,P4 node scripts/shimau-qa.mjs
 
       - name: Collect server log
         if: always()
