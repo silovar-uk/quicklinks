@@ -3,13 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- iPhone・iPadのSafariだけ、入力欄に触れたときの自動拡大を止める。ピンチでの拡大はiOSが残す(Androidには入れない) -->
+<script>if (/iP(hone|od|ad)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) document.querySelector('meta[name="viewport"]').content += ', maximum-scale=1';</script>
 <meta name="theme-color" content="#b4232c">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <link rel="icon" type="image/png" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261010-kakekaeru-p4">
+<link rel="stylesheet" href="./app.css?v=20261012-shimau-p1">
 </head>
 <body>
 <div id="app">
@@ -75,6 +77,7 @@
 <dialog id="linkSheet" class="bottom link-save-sheet" aria-labelledby="linkSheetTitle">
   <div class="sheet-head"><h2 id="linkSheetTitle" tabindex="-1" autofocus>リンクを保存</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <form class="sheet-body" id="linkForm" novalidate>
+    <div class="slot" id="fSlot">
     <div class="field" id="fUrlField">
       <label class="lab" for="fUrl">URL</label>
       <div class="url-row"><input id="fUrl" class="inp" inputmode="url" enterkeyhint="done" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="https://…"><button class="btn" type="button" id="fPaste">貼る</button></div>
@@ -89,6 +92,7 @@
         <button class="btn quiet page-fix" type="button" id="fUrlEdit">URLを直す</button>
       </div>
       <div id="fDup" class="dup" hidden></div>
+    </div>
     </div>
     <div id="fDiff" class="diff" hidden></div>
     <div class="field tagpick" id="fCatField">
@@ -168,7 +172,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20261004-youtube-oembed2"></script>
-<script src="./ui.js?v=20261010-kakekaeru-p4"></script>
+<script src="./ui.js?v=20261012-shimau-p1"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>

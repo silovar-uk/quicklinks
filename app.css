@@ -316,6 +316,7 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 .diff-item .was{color:var(--muted);font-size:12px}
 .diff-item label{display:flex;gap:8px;align-items:flex-start}
 .diff-item input{margin-top:3px;accent-color:var(--accent)}
+.slot{display:grid;gap:14px;align-content:start}
 .page-card{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);min-width:0}
 .page-kicker{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .page-title{font-size:14px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -425,6 +426,12 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   #linkSheet .sheet-foot [data-close]{display:none}
   #linkSheet .sheet-foot .btn.primary{flex:1;height:48px;border-radius:12px;font-size:15px}
   #linkSheet .page-card{padding:12px 14px;border-radius:12px;background:var(--sheet);box-shadow:0 4px 16px rgba(0,0,0,.04)}
+  /* ＋で開いたとき:キーボードは出さず「コピーしたURLを貼る」を大きく出す。打つ欄はその下 */
+  #linkSheet.is-add .url-row{flex-direction:column-reverse}
+  #linkSheet.is-add .url-row .inp{flex:none}
+  #linkSheet.is-add #fPaste{height:48px;border-color:var(--accent);color:var(--accent);font-size:15px}
+  /* URLの欄とページの札は同じ場所に入れ替わって出る。入れ替わっても下の引き出しは動かない */
+  #linkSheet.is-add .slot{min-height:150px}
   #linkSheet #fCatField>.tagpick-head .lab{font-size:14px;color:var(--ink)}
   /* 指で押す札は44px前後の高さにする */
   .tags{gap:8px}

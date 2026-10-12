@@ -95,7 +95,7 @@ const checks = [
       await context.close();
     });
   }),
-  check('P1', 'ピンチ拡大は残す(viewportで拡大を禁止しない)', async b => {
+  check('P1', 'ピンチ拡大は残す(iPhone以外ではviewportで拡大を禁止しない。iPhoneは揺らさずに、仕舞うP1で自動拡大だけ止める)', async b => {
     const { page, context } = await open(b, SE);
     const v = await page.evaluate(() => document.querySelector('meta[name="viewport"]').content);
     assert.doesNotMatch(v, /maximum-scale|user-scalable\s*=\s*(no|0)/i, `viewport: ${v}`); await context.close();
@@ -141,10 +141,12 @@ const checks = [
       await context.close();
     });
   }),
-  check('P1', 'スマホ:＋はこれまでどおりURL欄から打てる', async b => {
+  // 2026-10「揺らさずに、仕舞う」P1:スマホの＋ではキーボードを呼ばず、「コピーしたURLを貼る」から始める
+  check('P1', 'スマホ:＋ではキーボードを出さず、「コピーしたURLを貼る」から始める', async b => {
     const { page, context } = await open(b, SE, mobile);
     await openAdd(page);
-    assert.equal((await active(page)).id, 'fUrl'); await context.close();
+    assert.notEqual((await active(page)).tag, 'INPUT', '＋でキーボードを出した');
+    assert.equal(await page.locator('#fPaste').isVisible(), true); await context.close();
   }),
   check('P1', 'キーボード相当(375×300):短いシートでも中でスクロールでき、文書ごと動かない', async () => {
     await eachEngine(async (b, name) => {
