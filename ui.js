@@ -347,17 +347,19 @@ function drawerIntentHtml({ url, name }) {
     <div class="url-intent-actions"><button class="btn primary" type="button" data-url-save-drawer="${escapeHtml(name)}" data-url="${escapeHtml(url)}">${dup ? '掛け替える' : '入れる'}</button></div>
   </div>`;
 }
-// 引き出しを押したら、カードをその引き出しへ吸い込ませてから保存する(動きを減らす設定では待たない)
+// カードを押した引き出しへ吸い込ませる(0.28秒)。押した引き出しは小さく弾む。動きを減らす設定では動かさない
+async function flyInto(card, target) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const a = card.getBoundingClientRect(), b = target.getBoundingClientRect();
+  target.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 240, delay: 180 });
+  await card.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${b.left + b.width / 2 - (a.left + a.width / 2)}px, ${b.top + b.height / 2 - (a.top + a.height / 2)}px) scale(.15)`, opacity: 0 }], { duration: 280, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }).finished;
+}
+// 引き出しを押したら、カードをその引き出しへ吸い込ませてから保存する
 async function dropIntoDrawer(btn) {
   const strip = btn.closest('.hand-drawers');
   if (strip.dataset.busy) return; // 二度押しで二重に入れない
   strip.dataset.busy = '1';
-  const card = strip.previousElementSibling;
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const a = card.getBoundingClientRect(), b = btn.getBoundingClientRect();
-    btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 240, delay: 180 });
-    await card.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${b.left + b.width / 2 - (a.left + a.width / 2)}px, ${b.top + b.height / 2 - (a.top + a.height / 2)}px) scale(.15)`, opacity: 0 }], { duration: 280, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }).finished;
-  }
+  await flyInto(strip.previousElementSibling, btn);
   closeSheet($('searchSheet'));
   quickSaveUrl(btn.dataset.url, btn.dataset.urlSaveTo);
 }
@@ -758,7 +760,7 @@ function resolveTagName(kind, raw) {
   if (!name) return '';
   return tagChoices(kind).names.find(n => tagKey(n) === tagKey(name)) || name;
 }
-function makeTagPick({ input, list, all, kind, words, onPick, onType }) {
+function makeTagPick({ input, list, all, kind, words, keep, canPick, onPick, onType }) {
   let selected = '', expanded = false, hasRest = false, i = 0;
   const count = organizerConfig[kind].count;
   const chips = () => [...list.querySelectorAll('.tag:not([data-add])')];
@@ -819,6 +821,13 @@ function makeTagPick({ input, list, all, kind, words, onPick, onType }) {
     // 先に欄を離れてから消す。iPhoneの日本語入力は、触れたまま値を消すと次から打てなくなる(WebKitの既知の不具合)
     if (document.activeElement === input) input.blur();
     input.value = '';
+    // 押したらすぐ入れる場面(スマホの新規)では並べ直さない。押した札をその場に残して、飛び込む先にする(新しい名前は「＋」の次に生まれる)
+    if (keep?.()) {
+      let el = list.querySelector(`.tag[data-name="${CSS.escape(name)}"]:not([data-new])`);
+      if (!el) { list.querySelector('[data-add]').insertAdjacentHTML('afterend', chip(name, 'pin')); el = list.querySelector('[data-add]').nextElementSibling; el.classList.add('is-born'); }
+      onPick(name, { created, el });
+      return;
+    }
     build(name);
     if (created) list.querySelector(`[data-name="${CSS.escape(name)}"]`)?.classList.add('is-born');
     onPick(name, { created });
@@ -845,7 +854,7 @@ function makeTagPick({ input, list, all, kind, words, onPick, onType }) {
   });
   list.addEventListener('click', e => {
     const el = e.target.closest('.tag');
-    if (!el) return;
+    if (!el || canPick?.() === false) return;
     // 「＋ 新しい引き出し」:スマホは名前のカードを開く(画面の上で書く)。PCは名前の欄へ
     if (el.hasAttribute('data-add')) { if (hand()) openNameSheet({ kind, words: words(), done: pick }); else input.focus(); return; }
     pick(el.dataset.name);
@@ -904,10 +913,14 @@ $('nOk').addEventListener('click', commitName);
 $('nLikeTags').addEventListener('click', e => { const b = e.target.closest('[data-like]'); if (b) finishName(b.dataset.like); });
 
 // 保存シートの引き出し。欄に打っただけで札を押していない名前も、保存ボタンの文言と保存先に反映する
+const pressToSave = () => hand() && F.mode === 'add'; // スマホの新規は、引き出しを押せばそのまま入る(保存ボタンはない)
 const linkPick = makeTagPick({
   input: $('fCat'), list: $('fTags'), all: $('fCatAll'), kind: 'links',
-  words: () => ({ title: '新しい引き出し', make: 'を作る', use: 'を選ぶ' }),
-  onPick: name => {
+  words: () => (pressToSave() ? { title: '新しい引き出し', make: 'を作って入れる', use: 'に入れる' } : { title: '新しい引き出し', make: 'を作る', use: 'を選ぶ' }),
+  keep: pressToSave,
+  canPick: () => !pressToSave() || /^https?:\/\//.test($('fUrl').value.trim()) || askForUrl(),
+  onPick: (name, { el } = {}) => {
+    if (pressToSave()) { fileInto(name, el); return; }
     F.cat = name;
     updateSaveButton();
     if (!hand() && $('linkSheet').open) $('fSave').focus();
@@ -927,6 +940,29 @@ function setCat(name) {
   F.cat = String(name || '').trim();
   linkPick.build(F.cat);
   updateSaveButton();
+}
+// スマホの新規:押した引き出しへページの札を飛び込ませて、そのまま保存する。数はひとつ増やして見せる。
+// 保存済みのURLなら、新しく足さずに、その引き出しへ掛け替える
+async function fileInto(name, tile) {
+  if (F.filing) return; // 二度押し・飛んでいるあいだの別の札では、入れ先を変えない
+  F.filing = true;
+  F.cat = name;
+  const n = tile?.querySelector('.n');
+  if (n) n.textContent = Number(n.textContent) + 1; else tile?.insertAdjacentHTML('beforeend', '<span class="n">1</span>');
+  if (tile) await flyInto($('fPage'), tile);
+  F.filing = false;
+  const dup = findDuplicate($('fUrl').value.trim());
+  if (!dup) saveLink();
+  else { closeSheet($('linkSheet')); if ((dup.projectName || '未分類') === name) toast(`すでに「${name}」に入っています`); else refile(dup.id, name); }
+  $('fPage').getAnimations().forEach(a => a.cancel()); // 次に開いたとき、札が消えたままにならないように
+}
+// URLがまだないのに引き出しを押したとき。保存はせず、貼る場所を示す(キーボードは出さない)
+function askForUrl() {
+  const s = $('fSlot');
+  s.classList.remove('is-asking'); void s.offsetWidth; s.classList.add('is-asking');
+  s.addEventListener('animationend', () => s.classList.remove('is-asking'), { once: true });
+  toast('先にURLを貼ってください');
+  return false;
 }
 // 引き出しを選ばずに保存を押したとき。保存はせず、選ぶ場所を示す(スマホではキーボードを出さない)
 function askForCat() {
@@ -953,6 +989,7 @@ function renderSaveTargetCard() {
   const url = $('fUrl').value.trim(), ok = /^https?:\/\//.test(url);
   // スマホの新規では、URLを打っているあいだは札を出さない(URL欄と同じ場所に、決まってから入れ替わる)
   $('fPage').hidden = !ok || (hand() && F.mode === 'add' && !$('fUrlField').hidden);
+  $('linkSheet').classList.toggle('no-url', !ok);
   $('fPage').classList.toggle('is-add', F.mode === 'add');
   $('fUrlEdit').hidden = !$('fUrlField').hidden;
   if (!ok) return;
@@ -1165,7 +1202,8 @@ function saveLink() {
   }
   const el = $('item-' + item.id);
   if (el) { if (!hand()) el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
-  toast(born ? `新しい引き出し「${projectName}」に入れました` : F.mode === 'edit' ? '保存しました' : `保存しました：${projectName}`);
+  if (F.mode === 'edit') toast('保存しました');
+  else toast(born ? `新しい引き出し「${projectName}」に入れました` : `「${projectName}」に入れました`, { action: { label: '変える', fn: () => openRefile(item.id) }, ms: 5000 });
 }
 
 /* ============ プロンプトの保存シート ============ */

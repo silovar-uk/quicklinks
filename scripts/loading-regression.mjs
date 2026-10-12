@@ -122,12 +122,9 @@ async function testDirectSuccess(browser) {
     // スマホ幅では自分メモは「詳細を追加」の中にある(10/4の段階表示)
     if (await page.locator('#fDetailsToggle').isVisible()) await page.locator('#fDetailsToggle').click();
     await page.locator('#fNote').fill('Personal note');
-    // 引き出しを選ばずに保存を押すと、保存せずに選ぶ場所を示す(2026-10 札の選び方)
-    assert.equal(await page.locator('#fSave').innerText(), '引き出しを選ぶ');
-    await page.locator('#fSave').click();
-    assert.equal(await page.locator('#linkSheet[open]').count(), 1, 'regular save keeps the form open until a drawer is chosen');
+    // スマホの新規は保存ボタンがなく、引き出しを押すとそのまま保存する(2026-10「揺らさずに、仕舞う」P3)
+    assert.equal(await page.locator('#linkSheet[open]').count(), 1, 'the form stays open until a drawer is chosen');
     await page.locator('#fTags [data-name="未分類"]').click();
-    await page.locator('#fSave').click();
     await page.locator('#linkSheet[open]').waitFor({ state: 'detached' }).catch(() => {});
     const saved = await page.evaluate(() => {
       const data = JSON.parse(localStorage.getItem('quick-links-mobile-localstorage-v1') || '{}');
