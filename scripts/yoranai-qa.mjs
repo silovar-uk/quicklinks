@@ -143,10 +143,11 @@ const checks = [
     await page.locator('#linkSheet[open]').waitFor();
     assert.equal((await active(page)).id, 'fCat', 'PCで引き出し欄にフォーカスが入らない'); await context.close();
   }),
-  check('P1', 'キーボード相当(375×300):保存シートは見える範囲に収まり、保存ボタンがキーボードの上に残る', async () => {
+  // 2026-10「揺らさずに、仕舞う」P3:＋の新規は保存ボタンがない(引き出しを押せば入る)ため、保存ボタンのある編集で確かめる
+  check('P1', 'キーボード相当(375×300):編集シートは見える範囲に収まり、保存ボタンがキーボードの上に残る', async () => {
     await eachEngine(async (browser, name) => {
       const { page, context } = await open(browser, SE);
-      await page.locator('#bottomAdd').click(); await page.locator('#linkSheet[open]').waitFor();
+      await page.locator('#lib .item .item-more').first().click(); await page.locator('#detailSheet [data-act="edit"]').click(); await page.locator('#linkSheet[open]').waitFor();
       await keyboardUp(page);
       const metrics = await page.evaluate(() => ({ innerHeight, width: innerWidth, vvHeight: visualViewport?.height, vvScale: visualViewport?.scale, shellHeight: document.documentElement.style.getPropertyValue('--shell-h'), small: matchMedia('(max-height: 420px)').matches, sheet: !!document.querySelector('dialog[open]'), focused: document.activeElement?.id }));
       assert.equal(await kbOpen(page), true, `${name}: キーボードが出た扱いにならない ${JSON.stringify(metrics)}`);

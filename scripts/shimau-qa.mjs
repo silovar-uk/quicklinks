@@ -209,9 +209,10 @@ const checks = [
       await context.close();
     });
   }),
+  // 名前のカードの確認は、選んでから保存する編集で見る(新規はP3から押せば保存になるため)
   check('P2', '名前を書くと、その色の札が先に見える。似た名前(含む・含まれる)があれば先に示し、押せばそれを使う', async b => {
     const { page, context } = await open(b, SE, mobile);
-    await openAdd(page); await pasteUrl(page, NEW_URL('like'));
+    await openEditFirst(page);
     await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('AI');
     assert.match(await page.locator('#nPreview').innerText(), /AI[\s\S]*新しく作る/);
     const like = await page.locator('#nLikeTags [data-like]').evaluateAll(els => els.map(el => el.dataset.like));
@@ -223,7 +224,7 @@ const checks = [
   }),
   check('P2', 'かな・カナ・空白の違いは同じ名前とみなす(「シゴト」→ すでにある「しごと」を使う)', async b => {
     const { page, context } = await open(b, SE, mobile);
-    await openAdd(page); await pasteUrl(page, NEW_URL('kana'));
+    await openEditFirst(page);
     await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('シゴト');
     assert.match(await page.locator('#nPreview').innerText(), /しごと[\s\S]*すでにあります/);
     assert.equal(await page.locator('#nOk').innerText(), '「しごと」を選ぶ');
@@ -234,7 +235,7 @@ const checks = [
   check('P2', '変換を確定するEnter(keyCode 229)では決めない。もう一度のEnterで決まり、生まれた札が「＋」の次に選ばれて出る', async () => {
     await eachEngine(async (b, name) => {
       const { page, context } = await open(b, SE, mobile);
-      await openAdd(page); await pasteUrl(page, NEW_URL('ime-' + name));
+      await openEditFirst(page);
       await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('へんかん');
       await page.locator('#nName').evaluate(el => { const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }); Object.defineProperty(e, 'keyCode', { get: () => 229 }); el.dispatchEvent(e); });
       assert.equal(await page.evaluate(() => document.querySelector('#nameSheet').open), true, `${name}: 確定のEnterで決まった`);
@@ -289,6 +290,115 @@ const checks = [
     await openAdd(page);
     assert.equal(await page.locator('#fCat').isVisible(), true, 'PCで名前の欄がない');
     assert.equal(await page.locator('#fTags [data-add]').isVisible(), false, 'PCで「＋」の札が出る'); await context.close();
+  }),
+
+  // P3 破「押せば、入る」
+  check('P3', 'スマホの新規:保存ボタンはなく、札を押すとページの札がそこへ飛び込み、1件だけ保存される。知らせは「「◯◯」に入れました」と「変える」', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      const url = NEW_URL('press-' + name);
+      await openAdd(page); await pasteUrl(page, url);
+      await page.locator('#fStatus.ok').waitFor({ timeout: 15000 });
+      assert.equal(await page.locator('#fSave').isVisible(), false, `${name}: 保存ボタンが出ている`);
+      assert.match(await page.locator('#fCatField .lab').innerText(), /押すと、そこへ保存/, `${name}: 押せば保存と分からない`);
+      await page.locator('#fTags [data-name="まなび"]').click();
+      const flying = await page.evaluate(() => document.querySelector('#fPage').getAnimations().length);
+      assert.ok(flying > 0, `${name}: 飛び込む動きがない`);
+      await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+      const saved = await itemsOf(page, url);
+      assert.equal(saved.length, 1, `${name}: 保存件数 ${saved.length}`); assert.equal(saved[0].projectName, 'まなび');
+      assert.equal(saved[0].title, '架空のページの題名', `${name}: 取得した題名で保存されない`);
+      assert.match(await page.locator('#toast').innerText(), /「まなび」に入れました[\s\S]*変える/);
+      await context.close();
+    });
+  }),
+  check('P3', '二度押ししても1件だけ。飛んでいるあいだに別の札を押しても、最初に押した引き出しに入る', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const url = NEW_URL('twice'), url2 = NEW_URL('race');
+    await openAdd(page); await pasteUrl(page, url);
+    await page.locator('#fTags [data-name="まなび"]').dblclick();
+    await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+    await page.waitForTimeout(400);
+    assert.equal((await itemsOf(page, url)).length, 1, '二度押しで2件入った');
+    await openAdd(page); await pasteUrl(page, url2);
+    await page.evaluate(() => { document.querySelector('#fTags [data-name="まなび"]').click(); document.querySelector('#fTags [data-name="ごはん"]').click(); });
+    await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+    const saved = await itemsOf(page, url2);
+    assert.equal(saved.length, 1); assert.equal(saved[0].projectName, 'まなび', `あとから押した札に入った(${saved[0].projectName})`); await context.close();
+  }),
+  check('P3', 'URLがまだないと札は薄く、押しても保存しない(貼る場所を示し、キーボードは出さない)', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    await openAdd(page);
+    assert.ok(await page.locator('#fTags [data-name="まなび"]').evaluate(el => parseFloat(getComputedStyle(el).opacity)) < 0.6, '札が薄くならない');
+    const before = (await stored(page)).items.length;
+    await page.locator('#fTags [data-name="まなび"]').click();
+    assert.equal((await stored(page)).items.length, before, 'URLなしで保存された');
+    assert.equal(await page.evaluate(() => document.querySelector('#linkSheet').open), true, 'シートが閉じた');
+    assert.equal(await typing(page), false, 'キーボードを出した');
+    assert.match(await page.locator('#toast').innerText(), /先にURLを貼ってください/);
+    await page.locator('#fTags [data-add]').click();
+    assert.equal(await page.evaluate(() => document.querySelector('#nameSheet').open), false, 'URLなしで名前のカードが開いた'); await context.close();
+  }),
+  check('P3', '「＋」で書いた新しい引き出しに、そのまま入る。知らせは「新しい引き出し「◯◯」に入れました」、上の列の先頭で光る', async () => {
+    await eachEngine(async (b, name) => {
+      const { page, context } = await open(b, SE, mobile);
+      const url = NEW_URL('born-' + name);
+      await openAdd(page); await pasteUrl(page, url);
+      await page.locator('#fTags [data-add]').click(); await page.locator('#nName').fill('はじめての棚');
+      assert.equal(await page.locator('#nOk').innerText(), '「はじめての棚」を作って入れる', `${name}: ボタンの文言`);
+      await page.locator('#nName').press('Enter');
+      await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+      assert.equal((await itemsOf(page, url))[0]?.projectName, 'はじめての棚', `${name}: 保存先`);
+      assert.match(await page.locator('#toast').innerText(), /新しい引き出し「はじめての棚」に入れました/);
+      const first = page.locator('#chips [data-drawer]:not([data-drawer="ALL"]):not([data-drawer="UNOPENED"])').first();
+      assert.equal(await first.getAttribute('data-drawer'), 'はじめての棚', `${name}: 列の先頭にない`);
+      assert.equal(await first.evaluate(el => el.classList.contains('is-born')), true, `${name}: 光らない`);
+      await context.close();
+    });
+  }),
+  check('P3', '保存済みのURLなら、新しく足さずに押した引き出しへ掛け替える', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const url = 'https://qa-shimau.test/a/5';
+    const before = (await itemsOf(page, url))[0];
+    const to = before.projectName === 'ごはん' ? 'まなび' : 'ごはん';
+    await openAdd(page); await pasteUrl(page, url);
+    assert.match(await page.locator('#fDup').innerText(), /保存済み/);
+    await page.locator(`#fTags [data-name="${to}"]`).click();
+    await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+    const after = await itemsOf(page, url);
+    assert.equal(after.length, 1, '重ねて保存された'); assert.equal(after[0].projectName, to);
+    assert.match(await page.locator('#toast').innerText(), new RegExp(`「${to}」へ掛け替えました`)); await context.close();
+  }),
+  check('P3', '動きを減らす設定では、飛び込まずにすぐ保存する', async b => {
+    const { page, context } = await open(b, SE, { ...mobile, reducedMotion: 'reduce' });
+    const url = NEW_URL('reduce');
+    await openAdd(page); await pasteUrl(page, url);
+    await page.locator('#fTags [data-name="まなび"]').click();
+    assert.equal(await page.evaluate(() => document.querySelector('#linkSheet').open), false, 'すぐ閉じない');
+    assert.equal((await itemsOf(page, url)).length, 1); await context.close();
+  }),
+  check('P3', '「変える」で掛け替えのシートが開く。次の＋では、ページの札が消えたままにならない', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const url = NEW_URL('change');
+    await openAdd(page); await pasteUrl(page, url);
+    await page.locator('#fTags [data-name="まなび"]').click();
+    await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+    await page.locator('#toast button').click();
+    await page.locator('#refileSheet[open]').waitFor();
+    assert.equal(await page.locator('#rTags [aria-selected="true"]').getAttribute('data-name'), 'まなび');
+    await page.locator('#rTags [data-name="ごはん"]').click();
+    assert.equal((await itemsOf(page, url))[0].projectName, 'ごはん');
+    await openAdd(page); await pasteUrl(page, NEW_URL('again'));
+    assert.equal(await page.locator('#fPage').evaluate(el => getComputedStyle(el).opacity), '1', '札が消えたまま'); await context.close();
+  }),
+  check('P3', '自分メモを書いてから札を押せば、メモごと保存される', async b => {
+    const { page, context } = await open(b, SE, mobile);
+    const url = NEW_URL('note');
+    await openAdd(page); await pasteUrl(page, url);
+    await page.locator('#fDetailsToggle').click(); await page.locator('#fNote').fill('あとで読む理由');
+    await page.locator('#fTags [data-name="まなび"]').click();
+    await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+    assert.equal((await itemsOf(page, url))[0].note, 'あとで読む理由'); await context.close();
   })
 ];
 

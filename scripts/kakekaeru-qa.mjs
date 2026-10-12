@@ -306,8 +306,9 @@ const checks = [
       await context.close();
     });
   }),
-  check('P2', '引き出しなしで保存を押すと、保存せずに選ぶ場所を示す(ボタン名は「引き出しを選ぶ」。スマホはキーボードを出さない)', async b => {
-    for (const [vp, extra, label] of [[SE, mobile, 'スマホ'], [PC, {}, 'PC']]) {
+  // 2026-10「揺らさずに、仕舞う」P3:スマホの新規は保存ボタンがなく、引き出しを押すまで保存しない(shimau-qa P3)
+  check('P2', 'PC:引き出しなしで保存を押すと、保存せずに選ぶ場所を示す(ボタン名は「引き出しを選ぶ」)', async b => {
+    for (const [vp, extra, label] of [[PC, {}, 'PC']]) {
       const { page, context } = await open(b, vp, extra);
       const url = NEW_URL('ask-' + label);
       await openAdd(page); await page.locator('#fUrl').fill(url); await page.locator('#fUrl').press('Enter');

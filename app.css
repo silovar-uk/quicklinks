@@ -284,6 +284,8 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 /* まだない名前は点線の札。名前から決まる色(引き出しの色)を先に見せる */
 .tag.is-new{border-style:dashed;border-color:var(--c,var(--line2));color:var(--ink2)}
 .tag.is-new small{color:var(--muted);font-size:11px;font-weight:500}
+.tap-hint{display:none}
+.slot.is-asking{animation:ask .9s ease-out;border-radius:12px}
 /* 「＋ 新しい引き出し」の札はスマホだけ(PCは名前の欄に打つ) */
 .tag-add{display:none}
 /* 名前のカード:画面の上に出す。キーボードが来ても、欄は押し上げられない高さにある */
@@ -449,6 +451,10 @@ dialog.top{margin:calc(12px + env(safe-area-inset-top,0px)) auto auto;width:min(
   #linkSheet.is-add #fPaste{height:48px;border-color:var(--accent);color:var(--accent);font-size:15px}
   /* URLの欄とページの札は同じ場所に入れ替わって出る。入れ替わっても下の引き出しは動かない */
   #linkSheet.is-add .slot{min-height:150px}
+  /* スマホの新規は、引き出しを押せばそのまま保存する(保存ボタンは出さない)。URLがまだなければ札は薄く */
+  #linkSheet.is-add .sheet-foot{display:none}
+  #linkSheet.is-add .tap-hint{display:inline}
+  #linkSheet.is-add.no-url #fTags .tag{opacity:.45}
   #linkSheet #fCatField>.tagpick-head .lab{font-size:14px;color:var(--ink)}
   /* 指で押す札は44px前後の高さにする */
   .tag-btn{height:28px;padding:0 8px 0 9px;font-size:13px}
