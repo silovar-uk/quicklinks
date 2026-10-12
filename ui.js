@@ -1664,8 +1664,22 @@ $('searchInput').addEventListener('keydown', e => {
   }
 });
 $('searchClear').addEventListener('click', () => { U.query = ''; $('searchInput').value = ''; U.active = -1; render(); $('searchInput').focus(); });
+// スマホの＋:押したその場でクリップボードを読みにいく。iOSは指のそばに「ペースト」を出し、押せばURLが入る(キーボードは出さない)。
+// 読めなかったとき(「ペースト」を押さなかった・URLがない)は、「コピーしたURLを貼る」から始める
+function addFromHand() {
+  const read = navigator.clipboard?.readText?.(); // タップの処理の中で呼ぶ(あとからでは読めない)
+  openLinkSheet();
+  if (!read) return;
+  $('linkSheet').classList.add('is-waiting');
+  read.then(text => {
+    if (!$('linkSheet').open || F.mode !== 'add' || $('fUrl').value.trim()) return; // 待つあいだに閉じた・自分で打ち始めた
+    const url = extractFirstUrl(text);
+    if (url) { $('fUrl').value = url; acceptUrl(); }
+    else if (String(text).trim()) toast('コピーした中にURLがありませんでした');
+  }, () => {}).finally(() => $('linkSheet').classList.remove('is-waiting'));
+}
 $('addButton').addEventListener('click', () => openLinkSheet());
-$('bottomAdd').addEventListener('click', () => openLinkSheet());
+$('bottomAdd').addEventListener('click', () => (hand() ? addFromHand() : openLinkSheet()));
 $('manageButton').addEventListener('click', () => switchView(U.view === 'manage' ? 'links' : 'manage'));
 $('searchOpen').addEventListener('click', () => { showSheet($('searchSheet')); const i = $('mSearchInput'); i.value = ''; i.focus(); renderMobileResults(); });
 $('mSearchInput').addEventListener('input', renderMobileResults);

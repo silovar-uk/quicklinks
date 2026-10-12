@@ -61,7 +61,8 @@ async function open(browser, viewport, extra = {}, { path = '', clip } = {}) {
       const fake = () => { window.__qaClipCalls.push({ t: performance.now(), inClick: !!window.__qaInClick }); return c === 'deny' ? Promise.reject(new DOMException('not allowed', 'NotAllowedError')) : Promise.resolve(c); };
       try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { readText: fake, writeText: () => Promise.resolve() } }); } catch { /* 差し替えられない環境 */ }
       // ＋を押した処理の中で呼ばれたかを見る(クリックの処理中だけ印を立てる)
-      document.addEventListener('click', () => { window.__qaInClick = true; queueMicrotask(() => { window.__qaInClick = false; }); }, true);
+      // (マイクロタスクは各リスナーのあとに走るため、クリックの処理が全部終わるまで setTimeout で待ってから印を外す)
+      document.addEventListener('click', () => { window.__qaInClick = true; setTimeout(() => { window.__qaInClick = false; }, 0); }, true);
     }, clip);
   }
   const page = await context.newPage();
@@ -399,6 +400,53 @@ const checks = [
     await page.locator('#fTags [data-name="まなび"]').click();
     await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
     assert.equal((await itemsOf(page, url))[0].note, 'あとで読む理由'); await context.close();
+  }),
+
+  // P4 離「＋で、もう貼れている」
+  check('P4', 'スマホの＋は、押したその場でクリップボードを読む。URLならページの札が出て、そのまま引き出しを押せる(＋・ペースト・引き出しの3手。キーボードは一度も出ない)', async () => {
+    await eachEngine(async (b, name) => {
+      const url = NEW_URL('clip-' + name);
+      const { page, context } = await open(b, SE, mobile, { clip: `見て ${url} です` });
+      await page.locator('#bottomAdd').click();
+      await page.locator('#fPage:not([hidden])').waitFor({ timeout: 3000 });
+      const calls = await page.evaluate(() => window.__qaClipCalls);
+      assert.equal(calls.length, 1, `${name}: クリップボードを読んだ回数 ${calls.length}`);
+      assert.equal(calls[0].inClick, true, `${name}: ＋の処理の外で読んだ(iOSでは読めない)`);
+      assert.match(await page.locator('#fPageUrl').innerText(), /qa-shimau\.test\/new\/clip/, `${name}: URLが入らない`);
+      assert.equal(await page.locator('#fUrlField').isVisible(), false, `${name}: URL欄がたたまれない`);
+      assert.equal(await typing(page), false, `${name}: キーボードを出した`);
+      await page.locator('#fTags [data-name="まなび"]').click();
+      await page.waitForFunction(() => !document.querySelector('#linkSheet').open, null, { timeout: 3000 });
+      assert.equal((await itemsOf(page, url))[0]?.projectName, 'まなび', `${name}: 保存されない`);
+      await context.close();
+    });
+  }),
+  check('P4', '「ペースト」を押さなかったときは、「コピーしたURLを貼る」から始められる(案内は消え、キーボードは出さない)', async b => {
+    const { page, context } = await open(b, SE, mobile, { clip: 'deny' });
+    await page.locator('#bottomAdd').click(); await page.locator('#linkSheet[open]').waitFor();
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('#fPaste').isVisible(), true);
+    assert.equal(await page.locator('.paste-hint').isVisible(), false, '「ペースト」の案内が残る');
+    assert.equal(await page.locator('#fPage').isVisible(), false);
+    assert.equal(await typing(page), false); await context.close();
+  }),
+  check('P4', 'コピーした中にURLがないときは、そう知らせて「コピーしたURLを貼る」から始める', async b => {
+    const { page, context } = await open(b, SE, mobile, { clip: 'ただの文章です' });
+    await page.locator('#bottomAdd').click(); await page.locator('#linkSheet[open]').waitFor();
+    await page.locator('#toast:not([hidden])').waitFor();
+    assert.match(await page.locator('#toast').innerText(), /URLがありませんでした/);
+    assert.equal(await page.locator('#fPaste').isVisible(), true); await context.close();
+  }),
+  check('P4', 'PCの保存ボタンと、URL入りで開くとき(共有の #save=・貼り付け)は、クリップボードを読まない', async b => {
+    const pc = await open(b, PC, {}, { clip: NEW_URL('pc') });
+    await pc.page.locator('#addButton').click(); await pc.page.locator('#linkSheet[open]').waitFor();
+    assert.equal((await pc.page.evaluate(() => window.__qaClipCalls)).length, 0, 'PCでクリップボードを読んだ');
+    assert.equal((await active(pc.page)).id, 'fUrl', 'PCはURL欄から打てない'); await pc.context.close();
+    const sp = await open(b, SE, mobile, { clip: NEW_URL('other') });
+    await sp.page.evaluate(u => { location.hash = '#save=' + encodeURIComponent(u); }, NEW_URL('shared'));
+    await sp.page.locator('#linkSheet[open]').waitFor();
+    assert.equal((await sp.page.evaluate(() => window.__qaClipCalls)).length, 0, '共有から開いたのにクリップボードを読んだ');
+    assert.match(await sp.page.locator('#fPageUrl').innerText(), /shared/); await sp.context.close();
   })
 ];
 
