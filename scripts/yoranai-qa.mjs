@@ -130,11 +130,12 @@ const checks = [
     assert.notEqual((await active(page)).id, 'fUrl', 'EnterでURL欄から抜けない');
     await page.locator('#fStatus').waitFor({ state: 'visible', timeout: 3000 }); await context.close();
   }),
-  check('P1', 'スマホ:引き出し欄に触れると、そのまま打てる(2026-10 札の選び方)', async b => {
+  // 2026-10「揺らさずに、仕舞う」P2:スマホは「＋ 新しい引き出し」を押すと、名前のカードにそのまま打てる
+  check('P1', 'スマホ:「＋ 新しい引き出し」を押すと、名前のカードにそのまま打てる', async b => {
     const { page, context } = await open(b, SE);
     await page.locator('#bottomAdd').click(); await page.locator('#fUrl').fill(NEW_URL('assist')); await page.locator('#fUrl').press('Enter');
-    await page.locator('#fCat').click();
-    assert.equal((await active(page)).id, 'fCat', '引き出し欄にフォーカスが入らない'); await context.close();
+    await page.locator('#fTags [data-add]').click();
+    assert.equal((await active(page)).id, 'nName', '名前のカードにフォーカスが入らない'); await context.close();
   }),
   check('P1', 'PC:URL入りで保存シートを開くと、これまでどおり引き出し欄から打てる', async b => {
     const { page, context } = await open(b, PC);

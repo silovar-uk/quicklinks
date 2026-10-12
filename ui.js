@@ -725,10 +725,10 @@ function detailAction(name, kind, id) {
 
 /* ============ 保存・編集シート ============ */
 const F = { mode: 'add', id: null, cat: '', bm: null, controller: null, seq: 0, lastUrl: '', descriptionSource: '', descriptionUpdatedAt: null };
-function recentCats() {
+function recentCats(limit = 6) {
   const seen = [];
   state.items.slice().sort((a, b) => timeValue(b.addedAt) - timeValue(a.addedAt)).forEach(i => { const n = i.projectName || '未分類'; if (!seen.includes(n)) seen.push(n); });
-  return seen.slice(0, 6);
+  return seen.slice(0, limit);
 }
 function isCategoryBlank(name) {
   return !String(name || '').trim();
@@ -738,25 +738,31 @@ function isUncategorizedCategory(name) {
 }
 
 /* ============ 札の選び方(引き出し・カテゴリで共通。計画書4.2) ============ */
-// 引き出し・カテゴリを札として並べ、上の欄に打つと絞り込み、なければその名前で新しく作れる。
+// 引き出し・カテゴリを札として並べ、上の欄に打つと絞り込み、なければその名前で新しく作れる(PC)。
+// スマホは打たずに選ぶ:欄を出さず、札を3列で全部並べ、新しい名前は先頭の「＋」から名前のカードで書く(計画書「揺らさずに、仕舞う」P2)。
 // 札は開くたびに一度だけ並べ、打つたびには表示・非表示と「新しく作る」の札の文字だけを変える。
 // iPhoneの日本語入力は、変換中のタップで確定だけを行うことがある。そのあいだに札を作り直すと、押した札が消えるため
 const tagKey = value => candidateKey(fold(value));
 function tagChoices(kind) {
   const c = organizerConfig[kind];
   const names = [...new Set([...c.names(), ...(kind === 'links' ? moodCounts().map(([n]) => n) : [])])].filter(n => !isCategoryBlank(n));
-  const recent = (kind === 'links' ? recentCats() : recentPromptCats()).filter(n => names.includes(n));
+  const limit = hand() ? Infinity : 6; // スマホは最近使った順に全部を並べる
+  const recent = (kind === 'links' ? recentCats(limit) : recentPromptCats(limit)).filter(n => names.includes(n));
   return { names, recent, count: c.count };
 }
+// 札の色(名前から決まる引き出しの色)。スマホの札は、この色の地で見分けられるようにする
+const tileStyle = name => { const c = getProjectColor(name); return escapeHtml(`--c:${c.border};--bg:${c.bg};--tx:${c.text}`); };
 // 打った名前を、すでにある名前へ寄せる(かなとカナ・全角と半角・空白や「・」の違いは同じ札とみなす)
 function resolveTagName(kind, raw) {
   const name = normalizeSpaces(raw).slice(0, 40);
   if (!name) return '';
   return tagChoices(kind).names.find(n => tagKey(n) === tagKey(name)) || name;
 }
-function makeTagPick({ input, list, all, kind, onPick, onType }) {
-  let selected = '', expanded = false, hasRest = false;
-  const chips = () => [...list.querySelectorAll('.tag')];
+function makeTagPick({ input, list, all, kind, words, onPick, onType }) {
+  let selected = '', expanded = false, hasRest = false, i = 0;
+  const count = organizerConfig[kind].count;
+  const chips = () => [...list.querySelectorAll('.tag:not([data-add])')];
+  const chip = (name, tier) => `<button type="button" class="tag" role="option" id="${list.id}-${i++}" data-name="${escapeHtml(name)}" data-tier="${tier}" aria-selected="${String(name === selected)}" style="${tileStyle(name)}">${dot(name)}<span class="nm">${escapeHtml(name)}</span>${count(name) ? `<span class="n">${count(name)}</span>` : ''}</button>`;
   function setActive(el) {
     chips().forEach(c => c.classList.toggle('is-active', c === el));
     if (el) input.setAttribute('aria-activedescendant', el.id); else input.removeAttribute('aria-activedescendant');
@@ -791,16 +797,19 @@ function makeTagPick({ input, list, all, kind, onPick, onType }) {
   }
   function build(sel = selected) {
     selected = String(sel || '').trim();
-    const { names, recent, count } = tagChoices(kind);
+    expanded = hand(); // スマホは打たずに選ぶので、はじめから全部を並べる
+    const { names, recent } = tagChoices(kind);
     const tail = kind === 'links' ? ['未分類'] : [];
     const pin = selected && !tail.includes(selected) ? [selected] : [];
-    const near = recent.filter(n => !pin.includes(n) && !tail.includes(n)).slice(0, 6);
+    const near = recent.filter(n => !pin.includes(n) && !tail.includes(n));
     const rest = names.filter(n => !pin.includes(n) && !near.includes(n) && !tail.includes(n)).sort((a, b) => a.localeCompare(b, 'ja'));
     hasRest = rest.length > 0;
-    let i = 0;
-    const chip = (name, tier) => `<button type="button" class="tag" role="option" id="${list.id}-${i++}" data-name="${escapeHtml(name)}" data-tier="${tier}" aria-selected="${String(name === selected)}">${dot(name)}<span class="nm">${escapeHtml(name)}</span>${count(name) ? `<span class="n">${count(name)}</span>` : ''}</button>`;
+    i = 0;
+    // 並び:スマホは「＋」・いま・最近使った順(全部)・残り・未分類。PCは いま・最近の6つ・未分類・残り(「すべて」で開く)
+    const tiers = hand() ? [[pin, 'pin'], [near, 'near'], [rest, 'rest'], [tail, 'tail']] : [[pin, 'pin'], [near, 'near'], [tail, 'tail'], [rest, 'rest']];
     list.innerHTML = `<button type="button" class="tag is-new" role="option" id="${list.id}-new" data-new hidden><span class="dot" aria-hidden="true"></span><span class="nm"></span><small>新しく作る</small></button>` +
-      [...pin.map(n => chip(n, 'pin')), ...near.map(n => chip(n, 'near')), ...tail.map(n => chip(n, 'tail')), ...rest.map(n => chip(n, 'rest'))].join('');
+      `<button type="button" class="tag tag-add" data-add><span class="nm">＋ ${escapeHtml(words().title).replace('新しい', '新しい<wbr>')}</span></button>` +
+      tiers.flatMap(([ns, tier]) => ns.map(n => chip(n, tier))).join('');
     filter();
   }
   function pick(raw) {
@@ -810,22 +819,13 @@ function makeTagPick({ input, list, all, kind, onPick, onType }) {
     // 先に欄を離れてから消す。iPhoneの日本語入力は、触れたまま値を消すと次から打てなくなる(WebKitの既知の不具合)
     if (document.activeElement === input) input.blur();
     input.value = '';
-    expanded = false;
     build(name);
     if (created) list.querySelector(`[data-name="${CSS.escape(name)}"]`)?.classList.add('is-born');
     onPick(name, { created });
   }
   input.addEventListener('input', filter);
   input.addEventListener('compositionend', filter);
-  // スマホで欄に触れたら、欄と札をシートの上端へ寄せる(キーボードの上で、札を見ながら打てるように)
-  const reveal = () => {
-    const body = input.closest('.sheet-body'), field = input.closest('.tagpick');
-    if (!hand() || document.activeElement !== input || !body || !field) return;
-    const d = field.getBoundingClientRect().top - body.getBoundingClientRect().top;
-    if (Math.abs(d) > 4) body.scrollTop += d - 4;
-  };
-  input.addEventListener('focus', () => setTimeout(reveal, 60));
-  window.visualViewport?.addEventListener('resize', reveal);+  input.addEventListener('keydown', e => {
+  input.addEventListener('keydown', e => {
     // 変換を確定するEnterでは決めない(Safariは確定のEnterを isComposing=false・keyCode 229 で送る)
     if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter') {
@@ -843,16 +843,70 @@ function makeTagPick({ input, list, all, kind, onPick, onType }) {
       input.value = ''; filter();
     }
   });
-  list.addEventListener('click', e => { const el = e.target.closest('.tag'); if (el) pick(el.dataset.name); });
+  list.addEventListener('click', e => {
+    const el = e.target.closest('.tag');
+    if (!el) return;
+    // 「＋ 新しい引き出し」:スマホは名前のカードを開く(画面の上で書く)。PCは名前の欄へ
+    if (el.hasAttribute('data-add')) { if (hand()) openNameSheet({ kind, words: words(), done: pick }); else input.focus(); return; }
+    pick(el.dataset.name);
+  });
   all.addEventListener('click', () => { expanded = !expanded; filter(); });
   // 打ちかけの名前でEnterを押したら選ばれる札(保存ボタンの文言と、押さずに保存したときの保存先に使う)
   const pending = () => normalizeSpaces(input.value) ? (list.querySelector('.tag.is-active')?.dataset.name || resolveTagName(kind, input.value)) : '';
   return { build, pick, pending, get selected() { return selected; } };
 }
 
+/* ============ 名前のカード(スマホの「＋ 新しい引き出し」。計画書「揺らさずに、仕舞う」P2) ============ */
+// iOSの「写真」の「新規アルバム」と同じ型で、名前を書く小さなカードを画面の上に出す。
+// 欄が画面の上半分にあるので、キーボードが来ても押し上げられず、画面は動かない
+const N = { kind: 'links', words: null, done: null };
+function openNameSheet({ kind, words, done }) {
+  Object.assign(N, { kind, words, done });
+  $('nameTitle').textContent = words.title;
+  $('nName').value = '';
+  renderNameSheet();
+  showSheet($('nameSheet'));
+  $('nName').focus(); // タップの処理の中でフォーカスする(iOSはそうしないとキーボードを出さない)
+}
+// 書いている名前に似た、すでにある名前(含む・含まれる)。似た引き出しを増やさないように先に見せる
+function likeNames(kind, raw) {
+  const key = tagKey(raw);
+  if (!key) return [];
+  const { names, count } = tagChoices(kind);
+  return names.filter(n => { const k = tagKey(n); return !isUncategorizedCategory(n) && k !== key && (k.includes(key) || (k.length > 1 && key.includes(k))); })
+    .sort((a, b) => tagKey(b).startsWith(key) - tagKey(a).startsWith(key) || count(b) - count(a)).slice(0, 3);
+}
+function renderNameSheet() {
+  const raw = normalizeSpaces($('nName').value).slice(0, 40);
+  const name = raw ? resolveTagName(N.kind, raw) : '';
+  const exists = !!name && tagChoices(N.kind).names.includes(name);
+  const count = organizerConfig[N.kind].count;
+  // 書いた名前が、その色の札になって先に見える(すでにあれば、その札)
+  $('nPreview').innerHTML = name ? `<span class="tag${exists ? '' : ' is-new'}" style="${tileStyle(name)}">${dot(name)}<span class="nm">${escapeHtml(name)}</span><small>${exists ? `すでにあります・${count(name)}件` : '新しく作る'}</small></span>` : '';
+  const like = likeNames(N.kind, raw);
+  $('nLike').hidden = !like.length;
+  $('nLikeTags').innerHTML = like.map(n => `<button type="button" class="tag" data-like="${escapeHtml(n)}" style="${tileStyle(n)}">${dot(n)}<span class="nm">${escapeHtml(n)}</span><span class="n">${count(n)}</span></button>`).join('');
+  $('nOk').disabled = !name;
+  $('nOk').textContent = name ? `「${name}」${exists ? N.words.use : N.words.make}` : '作る';
+}
+function finishName(name) {
+  if (!name) return;
+  $('nName').blur(); // 欄を離れてから閉じる(iOSの日本語入力は、触れたまま消すと次から打てなくなる)
+  closeSheet($('nameSheet'));
+  N.done?.(name);
+}
+const commitName = () => { const raw = normalizeSpaces($('nName').value); if (raw) finishName(resolveTagName(N.kind, raw)); };
+$('nName').addEventListener('input', renderNameSheet);
+$('nName').addEventListener('compositionend', renderNameSheet);
+// 変換を確定するEnterでは決めない(Safariは確定のEnterを isComposing=false・keyCode 229 で送る)
+$('nName').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); commitName(); } });
+$('nOk').addEventListener('click', commitName);
+$('nLikeTags').addEventListener('click', e => { const b = e.target.closest('[data-like]'); if (b) finishName(b.dataset.like); });
+
 // 保存シートの引き出し。欄に打っただけで札を押していない名前も、保存ボタンの文言と保存先に反映する
 const linkPick = makeTagPick({
   input: $('fCat'), list: $('fTags'), all: $('fCatAll'), kind: 'links',
+  words: () => ({ title: '新しい引き出し', make: 'を作る', use: 'を選ぶ' }),
   onPick: name => {
     F.cat = name;
     updateSaveButton();
@@ -1116,12 +1170,12 @@ function saveLink() {
 
 /* ============ プロンプトの保存シート ============ */
 const P = { mode: 'add', id: null, cat: '' };
-function recentPromptCats() {
+function recentPromptCats(limit = 6) {
   const seen = [];
   state.promptMemos.slice().sort((a, b) => timeValue(b.updatedAt) - timeValue(a.updatedAt)).forEach(p => { const n = p.categoryName || '未分類'; if (!seen.includes(n)) seen.push(n); });
-  return seen.slice(0, 6);
+  return seen.slice(0, limit);
 }
-const promptPick = makeTagPick({ input: $('pCat'), list: $('pTags'), all: $('pCatAll'), kind: 'prompts', onPick: name => { P.cat = name; } });
+const promptPick = makeTagPick({ input: $('pCat'), list: $('pTags'), all: $('pCatAll'), kind: 'prompts', words: () => ({ title: '新しいカテゴリ', make: 'を作る', use: 'を選ぶ' }), onPick: name => { P.cat = name; } });
 function openPromptSheet({ mode = 'add', id = null } = {}) {
   Object.assign(P, { mode, id });
   const p = id ? find('prompt', id) : null;
@@ -1185,7 +1239,7 @@ async function copyPrompt(id, btn) {
 /* ============ 札の掛け替え(計画書4.3) ============ */
 // 札を押すと、編集の画面を開かずに引き出しを選び直せる。選んだらすぐ掛け替えて閉じ、元に戻すを出す
 const R = { id: null };
-const refilePick = makeTagPick({ input: $('rCat'), list: $('rTags'), all: $('rCatAll'), kind: 'links', onPick: (name, { created }) => refile(R.id, name, { created }) });
+const refilePick = makeTagPick({ input: $('rCat'), list: $('rTags'), all: $('rCatAll'), kind: 'links', words: () => ({ title: '新しい引き出し', make: 'を作って掛け替える', use: 'へ掛け替える' }), onPick: (name, { created }) => refile(R.id, name, { created }) });
 function openRefile(id) {
   const item = find('link', id);
   if (!item) return;

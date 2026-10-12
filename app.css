@@ -284,6 +284,23 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
 /* まだない名前は点線の札。名前から決まる色(引き出しの色)を先に見せる */
 .tag.is-new{border-style:dashed;border-color:var(--c,var(--line2));color:var(--ink2)}
 .tag.is-new small{color:var(--muted);font-size:11px;font-weight:500}
+/* 「＋ 新しい引き出し」の札はスマホだけ(PCは名前の欄に打つ) */
+.tag-add{display:none}
+/* 名前のカード:画面の上に出す。キーボードが来ても、欄は押し上げられない高さにある */
+dialog.top{margin:calc(12px + env(safe-area-inset-top,0px)) auto auto;width:min(440px,calc(100% - 24px));border-radius:16px}
+.name-card{display:grid;gap:10px;padding:16px}
+.name-card h2{margin:0;font-size:16px}
+.name-preview:empty{display:none}
+/* カードの中の札は細い1行にする(キーボードが来ても、決めるボタンまで上半分に収まるように) */
+.name-card .tags{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none}
+.name-card .tag{min-height:34px;flex:0 0 auto;flex-direction:row;align-items:center;gap:6px;padding:0 12px;border-radius:999px;background:var(--bg,var(--sheet));border-color:var(--c,var(--line2))}
+.name-card .tag .dot{display:inline-block}
+.name-card .tag small{color:var(--muted);font-size:11px;font-weight:500}
+.name-like{display:flex;align-items:center;gap:8px;min-width:0}
+.name-like .lab{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--muted)}
+.name-foot{display:flex;gap:8px}
+.name-foot .btn{height:44px;flex:1}
+.name-foot .btn.primary{flex:2;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tagpick.is-asking{animation:ask .9s ease-out}
 @keyframes ask{0%,45%{box-shadow:0 0 0 3px rgba(180,35,44,.28)}100%{box-shadow:0 0 0 0 rgba(180,35,44,0)}}
 .field-error{margin:0;color:var(--bad);font-size:12px}
@@ -434,9 +451,17 @@ textarea.inp{height:auto;min-height:92px;padding:9px 12px;line-height:1.65;resiz
   #linkSheet.is-add .slot{min-height:150px}
   #linkSheet #fCatField>.tagpick-head .lab{font-size:14px;color:var(--ink)}
   /* 指で押す札は44px前後の高さにする */
-  .tags{gap:8px}
   .tag-btn{height:28px;padding:0 8px 0 9px;font-size:13px}
-  .tag{min-height:40px;padding:0 14px 0 12px;font-size:14px}
+  /* スマホの札の選び方:打つ欄は出さず、3列の札で全部を並べる。札は引き出しの色の地で見分ける。新しい名前は先頭の「＋」から */
+  .tagpick-input,.tagpick-all{display:none!important}
+  .tags{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .tag{min-height:52px;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;padding:6px 10px;border-radius:12px;border-color:var(--c,var(--line2));background:var(--bg,var(--sheet));font-size:14px;text-align:left}
+  .tag .dot{display:none}
+  .tag .nm{max-width:100%;color:var(--tx,var(--ink));font-weight:700}
+  .tag .n{font-size:11px}
+  .tag[aria-selected="true"]{border-color:var(--accent);background:var(--bg,var(--tint));box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .tag.tag-add{display:flex;align-items:center;border:1.5px dashed var(--accent);background:var(--sheet)}
+  .tag.tag-add .nm{color:var(--accent);white-space:normal;word-break:keep-all;line-height:1.3}
   #linkSheet .details-toggle{
     width:100%;
     min-height:58px;

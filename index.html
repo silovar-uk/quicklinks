@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/quicklinks/apple-touch-icon.png?v=20260814">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Quick Links</title>
-<link rel="stylesheet" href="./app.css?v=20261012-shimau-p1">
+<link rel="stylesheet" href="./app.css?v=20261012-shimau-p2">
 </head>
 <body>
 <div id="app">
@@ -149,6 +149,16 @@
   </div>
 </dialog>
 
+<dialog id="nameSheet" class="top" aria-labelledby="nameTitle">
+  <div class="name-card">
+    <h2 id="nameTitle">新しい引き出し</h2>
+    <input id="nName" class="inp" type="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="名前を書く(例:行きたい)" aria-labelledby="nameTitle">
+    <div class="name-preview" id="nPreview" aria-live="polite"></div>
+    <div class="name-like" id="nLike" hidden><span class="lab">似ている</span><div class="tags" id="nLikeTags"></div></div>
+    <div class="name-foot"><button class="btn" type="button" data-close>やめる</button><button class="btn primary" type="button" id="nOk" disabled>作る</button></div>
+  </div>
+</dialog>
+
 <dialog id="detailSheet" class="side" aria-labelledby="detailSheetTitle">
   <div class="sheet-head"><h2 id="detailSheetTitle" tabindex="-1" autofocus>詳細</h2><button class="x" type="button" data-close aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button></div>
   <div class="sheet-body" id="detailSheetBody" style="padding:0"></div>
@@ -172,7 +182,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="./core.js?v=20261004-youtube-oembed2"></script>
-<script src="./ui.js?v=20261012-shimau-p1"></script>
+<script src="./ui.js?v=20261012-shimau-p2"></script>
 <script src="./sync.js?v=20261003-sync-recovery"></script>
 </body>
 </html>
