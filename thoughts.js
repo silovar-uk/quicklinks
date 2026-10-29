@@ -77,7 +77,11 @@ function init(){
  const wrap=el('div',{class:'ql-discovery'}),card=el('div',{id:'ql-discovery-card',class:'ql-discovery-card'}),nav=el('div',{class:'ql-discovery-nav'});
  const prev=el('button',{id:'ql-discovery-prev',type:'button',class:'btn'},'← 戻す'),count=el('span',{id:'ql-discovery-count'}),next=el('button',{id:'ql-discovery-next',type:'button',class:'btn'},'次へ →');
  prev.onclick=()=>{position=Math.max(0,position-1);renderCard()};next.onclick=()=>{position=Math.min(queue.length-1,position+1);renderCard()};
- nav.append(prev,count,next);wrap.append(tools,card,nav);head.after(wrap);
+ nav.append(prev,count,next);wrap.append(tools,card,nav);
+ const disclosure=el('details',{class:'ql-discovery-disclosure'});
+ const summary=el('summary',{},'思ったことも一緒にめくる · 表示バランスを調整');
+ disclosure.append(summary,wrap);
+ deck.after(disclosure);
  const listPanel=el('section',{class:'ql-thoughts-panel'});listPanel.innerHTML='<div class="ql-list-head"><h2>思ったこと</h2><button type="button" class="btn" id="ql-new-thought">＋ 残す</button></div><div id="ql-thought-list"></div>';
  deck.after(listPanel);$('ql-new-thought').onclick=()=>openEditor();
  const dialog=el('dialog',{id:'ql-thought-dialog',class:'ql-thought-dialog'});
@@ -91,7 +95,7 @@ function init(){
  };
  const mode=$('ql-discovery-mode'),period=$('ql-discovery-period'),ratio=$('ql-ratio');
  mode.value=settings.mode;period.value=settings.period;ratio.value=settings.ratio;
- const changed=()=>{settings={mode:mode.value,period:period.value,ratio:Number(ratio.value)};localStorage.setItem(SETTINGS,JSON.stringify(settings));$('ql-ratio-value').textContent=settings.ratio+'%';$('ql-ratio-label').hidden=settings.mode!=='mixed';deck.classList.toggle('ql-original',settings.mode==='links');rebuild()};
+ const changed=()=>{settings={mode:mode.value,period:period.value,ratio:Number(ratio.value)};localStorage.setItem(SETTINGS,JSON.stringify(settings));$('ql-ratio-value').textContent=settings.ratio+'%';$('ql-ratio-label').hidden=settings.mode!=='mixed';rebuild()};
  mode.onchange=changed;period.onchange=changed;ratio.oninput=changed;
  changed();renderList();
  const observer=new MutationObserver(()=>{const visible=!deck.hidden;launch.hidden=!visible;listPanel.hidden=!visible});
