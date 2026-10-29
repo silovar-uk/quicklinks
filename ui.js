@@ -109,6 +109,7 @@ function renderDeck() {
   $('deck').hidden = !show;
   if (!show) return;
   const mk = deck(U.drawer, U.kind);
+  if (window.QLThoughts?.renderMixedDeck?.({ U, mk, cardHtml, findLink: id => find('link', id), markShown })) return;
   const n = mk.order.length, pos = Math.min(mk.pos, Math.max(0, n - 1));
   $('deckCount').textContent = n ? `今日の束 ${pos + 1} / ${n}` : '';
   $$('.kinds [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === U.kind)));
@@ -124,6 +125,7 @@ function renderDeck() {
 }
 // 「いまの1枚」を決めて表示だけ直す。スクロールはしない(自分からスクロールし直すと途中で引き戻す)
 function markCurrent(p) {
+  if (window.QLThoughts?.isMixed?.(U)) return window.QLThoughts.markCurrent(p);
   const key = `${U.drawer}|${U.kind}`;
   const mk = deck(U.drawer, U.kind);
   const n = mk.order.length;
@@ -138,6 +140,7 @@ function markCurrent(p) {
   return p;
 }
 function setPos(p, { smooth = true } = {}) {
+  if (window.QLThoughts?.isMixed?.(U)) { window.QLThoughts.setPos(p, smooth); return; }
   p = markCurrent(p);
   const track = $('deckTrack'), card = track.children[p];
   if (card) track.scrollTo({ left: card.offsetLeft - 16, behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto' });
@@ -1447,6 +1450,7 @@ render = function () {
   if (U.born) $$(`#rail [data-rail="cat:${CSS.escape(U.born)}"], #chips [data-drawer="${CSS.escape(U.born)}"]`).forEach(el => el.classList.add('is-born'));
   renderDeck();
   renderLib();
+  window.QLThoughts?.renderLibrary?.({ U, state, itemHtml, highlight });
   renderPrompts();
   $('manage').hidden = U.view !== 'manage' || !!U.query.trim();
   if (!$('manage').hidden) renderManage();
@@ -1551,13 +1555,14 @@ document.addEventListener('click', e => {
 
   const card = t.closest('#deckTrack .card');
   if (card) {
+    if (window.QLThoughts?.handleDeckCard?.(e, card, setPos)) return;
     const id = card.dataset.id, idx = Number(card.dataset.index);
     if (t.closest('[data-open]')) { setPos(idx); return; }
     if (t.closest('[data-letgo]')) { letGo(id); return; }
     if (t.closest('[data-refetch]')) { const item = find('link', id); if (item) refetchQuiet(item); return; }
     if (t.closest('[data-more]')) { openDetail('link', id); return; }
     const mk = deck(U.drawer, U.kind);
-    if (mk.pos !== idx) setPos(idx);
+    if ((window.QLThoughts?.isMixed?.(U) ? window.QLThoughts.currentPos() : mk.pos) !== idx) setPos(idx);
     return;
   }
 
@@ -1614,11 +1619,11 @@ $('deckTrack').addEventListener('scroll', () => {
     let best = 0, dist = Infinity;
     cards.forEach((c, i) => { const d = Math.abs(c.offsetLeft - 16 - track.scrollLeft); if (d < dist) { dist = d; best = i; } });
     const mk = deck(U.drawer, U.kind);
-    if (mk.pos !== best) markCurrent(best);
+    if ((window.QLThoughts?.isMixed?.(U) ? window.QLThoughts.currentPos() : mk.pos) !== best) markCurrent(best);
   }, 120);
 });
-$('deckPrev').addEventListener('click', () => { const mk = deck(U.drawer, U.kind); setPos(mk.pos - 1); });
-$('deckNext').addEventListener('click', () => { const mk = deck(U.drawer, U.kind); setPos(mk.pos + 1); });
+$('deckPrev').addEventListener('click', () => { const mk = deck(U.drawer, U.kind); setPos((window.QLThoughts?.isMixed?.(U) ? window.QLThoughts.currentPos() : mk.pos) - 1); });
+$('deckNext').addEventListener('click', () => { const mk = deck(U.drawer, U.kind); setPos((window.QLThoughts?.isMixed?.(U) ? window.QLThoughts.currentPos() : mk.pos) + 1); });
 $('sortSelect').addEventListener('change', e => { state.linkSort = e.target.value; save(); render(); });
 $('searchInput').addEventListener('input', e => {
   U.query = e.target.value;
