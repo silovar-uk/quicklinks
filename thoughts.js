@@ -204,6 +204,9 @@
       if (/^https?:\/\//i.test(query)) return;
       const matches = notes.filter(n => (n.body + ' ' + (n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(query));
       if (!matches.length) return;
+      root.querySelector('.empty')?.remove();
+      const count = parseInt(byId('libCount').textContent,10) || 0;
+      byId('libCount').textContent = (count + matches.length) + '件';
       const block = document.createElement('div');
       block.innerHTML = `<div class="group-head">思ったこと <span class="n">${matches.length}件</span></div>
         <div class="grid">${matches.map(thoughtItemHtml).join('')}</div>`;
@@ -244,6 +247,19 @@
         `<div class="month">${h(date)}に保存 <span class="n">${items.length}件</span></div>
         <div class="grid">${items.map(e=>e.kind==='link'?itemHtml(e.item):thoughtItemHtml(e.item)).join('')}</div>`).join('');
     } else root.innerHTML = `<div class="grid" style="margin-top:12px">${records.map(e=>e.kind==='link'?itemHtml(e.item):thoughtItemHtml(e.item)).join('')}</div>`;
+  }
+
+  function renderMobileSearch(query) {
+    const root = byId('mResults');
+    if (!root || !query || /^https?:\\/\\//i.test(query)) return;
+    const needle = query.trim().toLocaleLowerCase();
+    const matches = notes.filter(n => (n.body + ' ' + (n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(needle));
+    if (!matches.length) return;
+    root.querySelector('.empty')?.remove();
+    const group = document.createElement('div');
+    group.innerHTML = `<div class="group-head">思ったこと <span class="n">${matches.length}件</span></div>
+      <div class="grid">${matches.map(thoughtItemHtml).join('')}</div>`;
+    root.append(group);
   }
 
   function openEditor(id=null,append=false) {
@@ -324,6 +340,7 @@
       listMode=button.dataset.qlList;renderListButtons();refresh();
     });
     byId('lib').addEventListener('click',onListClick);
+    byId('mResults').addEventListener('click',onListClick);
     function renderListButtons() {
       listToggle.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.qlList===listMode)));
     }
@@ -351,7 +368,7 @@
   }
 
   window.QLThoughts={isMixed,renderMixedDeck,renderLibrary,markCurrent,setPos,
-    currentPos:()=>position,handleDeckCard};
+    currentPos:()=>position,handleDeckCard,renderMobileSearch};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
 })();
