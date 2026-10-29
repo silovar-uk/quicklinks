@@ -251,7 +251,7 @@
 
   function renderMobileSearch(query) {
     const root = byId('mResults');
-    if (!root || !query || /^https?:\\/\\//i.test(query)) return;
+    if (!root || !query || /^https?:/i.test(query)) return;
     const needle = query.trim().toLocaleLowerCase();
     const matches = notes.filter(n => (n.body + ' ' + (n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(needle));
     if (!matches.length) return;
