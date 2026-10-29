@@ -1431,6 +1431,7 @@ function renderMobileResults() {
   $('mResults').innerHTML = (links.length ? `<div class="group-head">リンク <span class="n">${links.length}件</span></div><div class="grid">${links.slice(0, 20).map(l => itemHtml(l, q)).join('')}</div>` : '') +
     (prompts.length ? `<div class="group-head">プロンプト <span class="n">${prompts.length}件</span></div>${prompts.slice(0, 20).map(p => rowHtml(p, q)).join('')}` : '') ||
     `<div class="empty"><b>見つかりませんでした</b>ひらがなでも探せます。</div>`;
+  window.QLThoughts?.renderMobileSearch?.(q);
 }
 
 /* ============ 画面の切り替え(スクロール位置を保つ) ============ */
