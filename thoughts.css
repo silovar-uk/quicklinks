@@ -44,3 +44,44 @@
   .lib-head .ql-list-toggle + select{order:4;margin-left:auto}
   .ql-thought-foot .btn{font-size:11px}
 }
+
+/* Thoughts are softly tinted paper, not a separate visual component.
+   Links retain their original white cards and familiar hierarchy. */
+:root{
+  --ql-thought-paper:#f3f5f1;
+  --ql-thought-edge:#dce3d9;
+  --ql-thought-active:#b2c1ad;
+  --ql-thought-ink:#50644f;
+}
+#deckTrack .card.ql-thought-card,
+#lib .item.ql-thought-item,
+#mResults .item.ql-thought-item{
+  background:var(--ql-thought-paper);
+  border-color:var(--ql-thought-edge);
+}
+#deckTrack .card.ql-thought-card.is-current{
+  border-color:var(--ql-thought-active);
+  box-shadow:0 5px 17px rgba(55,76,54,.08);
+}
+#lib .item.ql-thought-item:hover,
+#mResults .item.ql-thought-item:hover{
+  border-color:var(--ql-thought-active);
+  box-shadow:0 2px 10px rgba(55,76,54,.06);
+}
+.ql-thought-card .card-meta .src,
+.ql-thought-item .item-meta .src{
+  color:var(--ql-thought-ink);
+}
+.ql-thought-card .card-reason,
+.ql-thought-item .item-meta,
+.ql-thought-item .item-foot .by{
+  color:#576257;
+}
+.ql-thought-item .ql-thought-open:hover{
+  background:transparent;
+}
+@media (prefers-contrast:more){
+  #deckTrack .card.ql-thought-card,
+  #lib .item.ql-thought-item,
+  #mResults .item.ql-thought-item{border-width:2px;border-color:#596e57}
+}
