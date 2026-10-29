@@ -1,8 +1,46 @@
-/* Thoughts and shared discovery */
-.ql-save-entry{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}.ql-discovery{padding:12px 0 18px}.ql-discovery-tools{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.ql-discovery-tools label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}.ql-discovery-tools select{padding:8px;border:1px solid var(--line2);border-radius:8px;background:var(--sheet);max-width:190px}.ql-discovery-tools input{width:140px;accent-color:var(--accent)}.ql-discovery-card{background:var(--sheet);border:1px solid var(--line2);border-radius:16px;padding:22px;min-height:160px}.ql-card-head{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.ql-card-title{font-size:19px;font-weight:650;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:15px 0}.ql-card-sub{white-space:pre-wrap;color:var(--muted)}.ql-card-actions,.ql-discovery-nav,.ql-list-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ql-discovery-nav{justify-content:flex-end;margin-top:10px}.ql-open{color:var(--accent);font-weight:600}.ql-thoughts-panel{margin:24px 0}.ql-list-head{display:flex;align-items:center;justify-content:space-between}.ql-list-item{padding:15px 0;border-bottom:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}.ql-list-item small{display:block;color:var(--muted);margin:6px 0}.ql-thought-dialog{border:1px solid var(--line);border-radius:18px;padding:0;width:min(540px,calc(100% - 28px));max-height:90dvh}.ql-thought-dialog::backdrop{background:#0008}.ql-thought-form{padding:20px;display:grid;gap:16px}.ql-thought-form h2{margin:0}.ql-thought-form textarea{width:100%;padding:12px;min-height:130px;border:1px solid var(--line2);border-radius:10px;font-size:16px}.ql-form-actions{display:flex;justify-content:flex-end;gap:8px}#deck:not(.ql-original) .track,#deck:not(.ql-original) .deck-nav,#deck:not(.ql-original) .deck-count{display:none!important}#deck.ql-original .ql-discovery-card,#deck.ql-original .ql-discovery-nav{display:none}@media(max-width:600px){.ql-save-entry>*{flex:1}.ql-discovery-tools{gap:8px}.ql-discovery-tools label{flex:1}.ql-discovery-tools select{width:100%}.ql-card-title{font-size:17px}}
-/* Restore the original top deck as the primary browsing experience. */
-#deck .track,#deck .deck-nav,#deck .deck-count{display:revert!important}
-.ql-discovery-disclosure{margin:12px 0 20px;border:1px solid var(--line);border-radius:12px;background:var(--sheet);overflow:hidden}
-.ql-discovery-disclosure>summary{padding:13px 16px;font-weight:600;cursor:pointer;list-style-position:inside}
-.ql-discovery-disclosure .ql-discovery{padding:12px 16px 16px;border-top:1px solid var(--line)}
-.ql-save-entry{margin:10px 0 14px}
+/* Quick Links: separate capture, unified discovery and chronological library. */
+.ql-save-entry{display:flex;gap:8px;flex-wrap:wrap;margin:10px 16px 14px}
+.ql-save-entry .btn{min-height:34px}
+.ql-filter-panel{border-top:1px solid var(--line);margin:0 16px 10px;padding-top:7px}
+.ql-filter-panel>summary{display:list-item;width:max-content;max-width:100%;padding:4px 2px;font-size:12px;color:var(--ink2);cursor:pointer}
+.ql-filter-panel>summary::marker{color:var(--muted)}
+.ql-filter-hint{color:var(--muted);margin-left:7px}
+.ql-discovery-tools{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:10px 0}
+.ql-discovery-tools label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.ql-discovery-tools select{padding:7px 9px;border:1px solid var(--line2);border-radius:7px;background:var(--sheet);max-width:190px}
+.ql-discovery-tools input{width:140px;accent-color:var(--accent)}
+.ql-filter-caption{margin:8px 0 4px;font-size:11px;color:var(--muted)}
+/* All cards use the pre-existing .card and .track components. */
+.ql-thought-card .card-title{overflow-wrap:anywhere;white-space:pre-wrap}
+.ql-thought-card .card-actions{flex-wrap:wrap}
+.ql-thought-card .card-meta .mood{font-size:12px}
+.ql-thought-card .card-desc{white-space:pre-wrap}
+/* Keep the original shelf; add only a compact kind filter. */
+.ql-list-toggle{display:flex;gap:3px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--sheet);margin-left:auto;flex:0 0 auto}
+.ql-list-toggle button{border:0;background:none;padding:4px 8px;border-radius:6px;font-size:11px;white-space:nowrap;color:var(--ink2)}
+.ql-list-toggle button[aria-pressed="true"]{background:var(--ink);color:white}
+.lib-head .ql-list-toggle + select{margin-left:0}
+.ql-thought-item .ql-thought-open{display:flex;width:100%;border:0;background:transparent;text-align:left;cursor:pointer;flex:1}
+.ql-thought-item .item-title{overflow-wrap:anywhere;white-space:pre-wrap}
+.ql-thought-item .item-desc{white-space:pre-wrap}
+.ql-thought-foot{display:flex;flex-wrap:wrap;gap:6px;padding:5px 10px 9px;align-items:center}
+.ql-thought-foot .by{margin-right:auto}
+.ql-thought-foot .btn{font-size:11px;padding:3px 6px;height:auto}
+.ql-thought-dialog{border:1px solid var(--line);border-radius:18px;padding:0;width:min(540px,calc(100% - 28px));max-height:90dvh}
+.ql-thought-dialog::backdrop{background:#0008}
+.ql-thought-form{padding:20px;display:grid;gap:16px}
+.ql-thought-form h2{margin:0;font-size:17px}
+.ql-thought-form textarea{width:100%;padding:12px;min-height:130px;border:1px solid var(--line2);border-radius:10px;font-size:16px}
+.ql-form-actions{display:flex;justify-content:flex-end;gap:8px}
+@media (max-width:600px){
+  .ql-save-entry{margin:8px 12px 12px}
+  .ql-save-entry .btn{flex:1;white-space:nowrap}
+  .ql-filter-panel{margin:0 12px 9px}
+  .ql-discovery-tools{gap:8px}
+  .ql-discovery-tools label{min-width:0}
+  .ql-discovery-tools select{max-width:180px}
+  .lib-head:has(.ql-list-toggle:not([hidden])){flex-wrap:wrap;height:auto;min-height:44px;padding-block:6px}
+  .ql-list-toggle{order:5;margin-left:0}
+  .lib-head .ql-list-toggle + select{order:4;margin-left:auto}
+  .ql-thought-foot .btn{font-size:11px}
+}
