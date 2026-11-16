@@ -1213,7 +1213,8 @@ function exportData() {
     exportedAt: new Date().toISOString(),
     source: 'quick-links-mobile-localstorage-html',
     quickLinks: { items: activeItems, projects: activeProjects, projectColors: activeProjectColors, currentSortMode: state.linkSort, showArchived: false, floatingSearchEnabled: false },
-    promptMemos: { items: state.promptMemos, categories: activePromptCategories }
+    promptMemos: { items: state.promptMemos, categories: activePromptCategories },
+    thoughts: { items: window.QLThoughts?.exportNotes?.() || [] }
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -1251,11 +1252,13 @@ function importFromText(text, mode = 'merge') {
   const raw = JSON.parse(text);
   const importedLinks = normalizeLinkItems(normalizeImportedQuickLinks(raw));
   const importedPrompts = normalizePromptItems(normalizeImportedPrompts(raw));
+  const importedThoughts = Array.isArray(raw?.thoughts?.items) ? raw.thoughts.items :
+    (Array.isArray(raw?.thoughts) ? raw.thoughts : null);
   const importedProjects = normalizeImportedProjects(raw, importedLinks);
   const importedColors = normalizeImportedProjectColors(raw);
   const importedPromptCategories = normalizeImportedPromptCategories(raw, importedPrompts);
 
-  if (!importedLinks.length && !importedPrompts.length && !importedProjects.length && !importedPromptCategories.length) {
+  if (!importedLinks.length && !importedPrompts.length && !importedProjects.length && !importedPromptCategories.length && !importedThoughts?.length) {
     return { linkAdd: 0, linkMerge: 0, promptAdd: 0, promptMerge: 0, empty: true };
   }
 
@@ -1267,8 +1270,10 @@ function importFromText(text, mode = 'merge') {
     state.promptCategories = normalizePromptCategories(importedPromptCategories, importedPrompts);
     state.currentProject = 'ALL';
     state.currentPromptCategory = 'ALL';
+    if (importedThoughts) window.QLThoughts?.importNotes?.(importedThoughts, 'replace');
     save();
-    return { linkAdd: importedLinks.length, linkMerge: 0, promptAdd: importedPrompts.length, promptMerge: 0, replaced: true };
+    return { linkAdd: importedLinks.length, linkMerge: 0, promptAdd: importedPrompts.length, promptMerge: 0,
+      thoughtAdd: importedThoughts?.length || 0, replaced: true };
   }
 
   let linkAdd = 0, linkMerge = 0, promptAdd = 0, promptMerge = 0;
@@ -1286,11 +1291,12 @@ function importFromText(text, mode = 'merge') {
     if (promptIndex.has(key)) { const idx = promptIndex.get(key); state.promptMemos[idx] = mergePrompt(state.promptMemos[idx], memo); promptMerge++; }
     else { state.promptMemos.push(memo); promptIndex.set(key, state.promptMemos.length - 1); promptAdd++; }
   });
+  if (importedThoughts) window.QLThoughts?.importNotes?.(importedThoughts, 'merge');
   state.projects = normalizeProjects([...state.projects, ...importedProjects], state.items);
   state.projectColors = { ...(state.projectColors || {}), ...(importedColors || {}) };
   state.promptCategories = normalizePromptCategories([...state.promptCategories, ...importedPromptCategories], state.promptMemos);
   save();
-  return { linkAdd, linkMerge, promptAdd, promptMerge };
+  return { linkAdd, linkMerge, promptAdd, promptMerge, thoughtAdd:importedThoughts?.length || 0 };
 }
 
 function dedupe() {
@@ -1317,6 +1323,7 @@ function dedupe() {
 function resetAll() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(MK_KEY);
+  window.QLThoughts?.importNotes?.([], 'replace');
   Object.assign(state, {
     activeTab: 'links', query: '', currentProject: 'ALL', currentPromptCategory: 'ALL', onlyFavorites: false,
     linkSort: 'recent', promptSort: 'popular', viewMode: 'rich', linkPage: 1, promptPage: 1, linkPerPage: '10', promptPerPage: '10',
