@@ -115,3 +115,16 @@
   .ql-list-toggle{margin-left:0;max-width:100%;flex-wrap:wrap}
   .ql-list-toggle button{min-height:36px;font-size:12px}
 }
+
+/* Keep the original link library above the fold on compact desktop screens. */
+.ql-filter-caption{font-size:12px}
+.ql-list-toggle button{font-size:12px}
+.ql-thought-foot .btn{font-size:12px}
+@media(min-width:900px){
+  .ql-save-entry{margin:2px 16px 4px;justify-content:flex-end}
+  .ql-save-entry .btn{min-height:28px;padding:4px 9px;font-size:12px}
+  .ql-filter-panel{margin:0 16px 2px;padding:0;border-top:0}
+  .ql-filter-panel>summary{padding:0;line-height:1.2}
+  .deck{padding:4px 0 1px}
+  .deck-head{padding-bottom:4px}
+}
