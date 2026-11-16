@@ -1450,6 +1450,7 @@ render = function () {
   renderChips();
   if (U.born) $$(`#rail [data-rail="cat:${CSS.escape(U.born)}"], #chips [data-drawer="${CSS.escape(U.born)}"]`).forEach(el => el.classList.add('is-born'));
   renderDeck();
+  window.QLThoughts?.syncVisibility?.();
   renderLib();
   window.QLThoughts?.renderLibrary?.({ U, state, itemHtml, highlight });
   renderPrompts();
