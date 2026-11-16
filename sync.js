@@ -757,6 +757,8 @@
     renderSyncUi();
   });
   addUi();
+  // A pre-existing thought library must join sync even before the next user edit.
+  if (meta.enabled) { observe(); if (meta.dirty) scheduleAutoSync(); }
   if (meta.enabled && !meta.observed) { meta.observed = payload(); saveMeta(); }
   try {
     if (location.hash.includes('pair=')) {
