@@ -128,3 +128,6 @@
   .deck{padding:4px 0 1px}
   .deck-head{padding-bottom:4px}
 }
+
+/* Keep all form controls safe from iOS text zoom heuristics, including the range slider. */
+#ql-ratio{font-size:16px}
