@@ -95,7 +95,7 @@
     if (!nowSection) return;
     const pending = notes.filter(n => task(n)?.status === 'open').sort(taskSort);
     nowSection.hidden = byId('deck')?.hidden || !pending.length;
-    if (nowSection.hidden) return;
+    if (nowSection.hidden) { nowSection.replaceChildren(); return; }
     const top = pending.slice(0,3);
     nowSection.innerHTML = '<div class="ql-now-heading"><b>今、気にすること <span class="n">' + pending.length +
       '</span></b><button class="btn quiet" type="button" data-ql-show-tasks>全部見る</button></div>' +
