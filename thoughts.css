@@ -85,3 +85,26 @@
   #lib .item.ql-thought-item,
   #mResults .item.ql-thought-item{border-width:2px;border-color:#596e57}
 }
+
+/* Thought-to-task: compact actionable strip and progressive detail disclosure. */
+.ql-now{margin:0 16px 14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--sheet)}
+.ql-now-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.ql-now-heading b{font-size:14px}.ql-now-items{display:grid;gap:4px}
+.ql-now-item{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:6px 0}
+.ql-now-item:first-child{border-top:0}
+.ql-now-main{display:flex;flex:1;min-width:0;gap:4px;flex-direction:column;align-items:flex-start;border:0;background:none;text-align:left;cursor:pointer;padding:6px 0;color:var(--ink);font-size:13px}
+.ql-task-check{min-width:44px;min-height:44px;border:0;background:transparent;color:var(--ink);font-size:24px;cursor:pointer;display:grid;place-items:center}
+.ql-task-line{display:flex;align-items:center;gap:5px;padding:0 9px 2px;font-size:12px;flex-wrap:wrap}
+.ql-task-line>span:nth-child(2){font-weight:600;min-width:0;overflow-wrap:anywhere}
+.ql-task-done{text-decoration:line-through;opacity:.65}
+.ql-task-date{font-size:11px;color:var(--ink2)}
+.ql-task-alert{font-size:11px;color:var(--accent);font-weight:650}
+.ql-task-subtitle{margin:4px 0 0;font-size:13px;color:var(--ink2)}
+.ql-task-capture{display:flex;align-items:center;gap:8px;font-size:14px;min-height:44px}
+.ql-task-capture input{width:20px;height:20px;accent-color:var(--accent)}
+.ql-task-capture small{font-size:11px;color:var(--muted)}
+.ql-thought-form>label:not(.ql-task-capture){display:grid;gap:6px;font-size:13px}
+.ql-task-field{width:100%;min-height:44px;box-sizing:border-box;border:1px solid var(--line2);border-radius:9px;background:var(--sheet);padding:9px;font:inherit;font-size:16px}
+.ql-task-hint{margin:0;color:var(--ink2);font-size:12px;line-height:1.5}
+.ql-task-dialog{max-height:min(90dvh,660px);overflow:auto}
+@media(max-width:600px){.ql-now{margin:0 12px 10px}.ql-now-main{font-size:13px}.ql-list-toggle{flex-wrap:wrap}.ql-thought-foot .btn{min-height:32px}}
