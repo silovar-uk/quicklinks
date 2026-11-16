@@ -511,13 +511,14 @@ function renderLibrary({U,state,itemHtml}) {
     byId('ql-thought-input').addEventListener('keydown',e=>{
       if ((e.ctrlKey||e.metaKey)&&e.key==='Enter') {e.preventDefault();saveEditor()}
     });
-    const observer=new MutationObserver(()=>{
+    // Keep visibility synchronous with renderDeck: an observer would shift mobile scroll after restoration.
+    const syncVisibility=()=>{
       entry.hidden=deck.hidden;
       filter.hidden=deck.hidden;
       renderNow();
-    });
-    observer.observe(deck,{attributes:true,attributeFilter:['hidden']});
-    entry.hidden=deck.hidden;filter.hidden=deck.hidden;
+    };
+    window.QLThoughts.syncVisibility=syncVisibility;
+    syncVisibility();
     window.addEventListener('storage',e=>{
       if(e.key===NOTE_KEY){const updated=read(NOTE_KEY,[]);notes=Array.isArray(updated)?updated:[];dirty=true;refresh()}
     });
