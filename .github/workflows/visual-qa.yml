@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   visual-qa:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
@@ -80,6 +80,19 @@ jobs:
         env:
           LOCAL_URL: http://127.0.0.1:4173/
         run: node scripts/mobile-shell-regression.mjs
+
+      - name: Check JavaScript syntax for task feature
+        run: |
+          node --check thoughts.js
+          node --check sync.js
+          node --check core.js
+          node --check ui.js
+          node --check scripts/thoughts-tasks-regression.mjs
+
+      - name: Run thoughts-to-tasks acceptance QA
+        env:
+          LOCAL_URL: http://127.0.0.1:4173/
+        run: node scripts/thoughts-tasks-regression.mjs
 
       - name: Run sync recovery regression QA
         env:

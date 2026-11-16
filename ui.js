@@ -474,7 +474,7 @@ function renderManage() {
         if (r.empty) { toast('取り込めるデータが見つかりません'); return; }
         $('importText').value = '';
         render();
-        toast(r.replaced ? `置き換えました：リンク${r.linkAdd}件 / プロンプト${r.promptAdd}件` : `統合しました：リンク追加${r.linkAdd}件 / プロンプト追加${r.promptAdd}件`);
+        toast(r.replaced ? `置き換えました：リンク${r.linkAdd}件 / プロンプト${r.promptAdd}件 / 思ったこと${r.thoughtAdd || 0}件` : `統合しました：リンク追加${r.linkAdd}件 / プロンプト追加${r.promptAdd}件 / 思ったこと取込${r.thoughtAdd || 0}件`);
       } catch (error) {
         toast('JSONの形式を確認してください');
       }
@@ -1450,6 +1450,7 @@ render = function () {
   renderChips();
   if (U.born) $$(`#rail [data-rail="cat:${CSS.escape(U.born)}"], #chips [data-drawer="${CSS.escape(U.born)}"]`).forEach(el => el.classList.add('is-born'));
   renderDeck();
+  window.QLThoughts?.syncVisibility?.();
   renderLib();
   window.QLThoughts?.renderLibrary?.({ U, state, itemHtml, highlight });
   renderPrompts();

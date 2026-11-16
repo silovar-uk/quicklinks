@@ -31,7 +31,8 @@
   if (!validModes.includes(settings.mode)) settings.mode = 'mixed';
   if (!validPeriods.includes(settings.period)) settings.period = 'all';
   settings.ratio = Math.max(0, Math.min(100, Number(settings.ratio) || 0));
-  let listMode = 'all', editId = null, appending = false;
+  let listMode = 'all', editId = null, appending = false, taskEditId = null;
+  let nowSection = null;
   let order = [], position = 0, orderKey = '', dirty = true;
 
   const persistNotes = () => {
@@ -48,7 +49,110 @@
     if (typeof render === 'function') render();
   };
   const findNote = id => notes.find(n => n.id === id);
-  const activeNotes = () => notes.filter(n => !n.done && (!n.snooze || stamp(n.snooze) <= Date.now()));
+  const day = date => {
+    const d = date || new Date();
+    return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+  };
+  const validDay = value => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+    const d = new Date(value + 'T12:00:00');
+    return Number.isFinite(d.getTime()) && day(d) === value;
+  };
+  const task = n => n && n.task && typeof n.task === 'object' ? n.task : null;
+  const taskTitle = n => (task(n)?.title || n.body.split('\n').find(Boolean) || 'やること').trim();
+  const dueText = n => {
+    const d = task(n)?.dueOn;
+    if (!validDay(d)) return '';
+    return d < day() ? '期限超過 ' + d.slice(5).replace('-','/') : d === day() ? '今日が締切' : '締切 ' + d.slice(5).replace('-','/');
+  };
+  const reminderDue = n => {
+    const t = task(n);
+    return t?.status !== 'done' && !!t?.remindAt && stamp(t.remindAt) > 0 && stamp(t.remindAt) <= Date.now();
+  };
+  const taskSort = (a,b) => {
+    const ad = task(a)?.status === 'done', bd = task(b)?.status === 'done';
+    if (ad !== bd) return ad ? 1 : -1;
+    const ar = reminderDue(a), br = reminderDue(b);
+    if (ar !== br) return ar ? -1 : 1;
+    const aa = validDay(task(a)?.dueOn) ? task(a).dueOn : '9999-12-31';
+    const bb = validDay(task(b)?.dueOn) ? task(b).dueOn : '9999-12-31';
+    return aa.localeCompare(bb) || stamp(b.created)-stamp(a.created);
+  };
+  const taskify = id => update(id, n => n.task ? n : ({
+    ...n, task:{title:taskTitle(n), status:'open', dueOn:null, remindAt:null, completedAt:null},
+    updated:new Date().toISOString()
+  }));
+  const toggleTask = id => {
+    const n = findNote(id); if (!task(n)) return;
+    const previous = n.task.status === 'done';
+    update(id, old => ({...old, task:{...old.task,status:previous?'open':'done',
+      completedAt:previous?null:new Date().toISOString()},updated:new Date().toISOString()}));
+    if (!previous && typeof toast === 'function') toast('完了しました', {
+      action:{label:'元に戻す',fn:()=>toggleTask(id)},ms:5000
+    });
+  };
+  function renderNow() {
+    if (!nowSection) return;
+    const pending = notes.filter(n => task(n)?.status === 'open').sort(taskSort);
+    nowSection.hidden = byId('deck')?.hidden || !pending.length;
+    if (nowSection.hidden) { nowSection.replaceChildren(); return; }
+    const top = pending.slice(0,3);
+    nowSection.innerHTML = '<div class="ql-now-heading"><b>今、気にすること <span class="n">' + pending.length +
+      '</span></b><button class="btn quiet" type="button" data-ql-show-tasks>全部見る</button></div>' +
+      '<div class="ql-now-items">' + top.map(n => '<div class="ql-now-item" data-thought-id="' + h(n.id) +
+      '"><button type="button" class="ql-task-check" data-thought-action="task-toggle" aria-label="完了にする">□</button>' +
+      '<button type="button" class="ql-now-main" data-thought-action="task-edit"><span>' + h(taskTitle(n)) +
+      '</span>' + (reminderDue(n) ? '<small class="ql-task-alert">思い出す時刻です</small>' : dueText(n) ?
+      '<small class="ql-task-date">' + h(dueText(n)) + '</small>' : '') +
+      '</button></div>').join('') + '</div>';
+  }
+  function openTaskEditor(id) {
+    const n=findNote(id); if (!task(n)) return;
+    taskEditId=id;
+    byId('ql-task-title').value=taskTitle(n);
+    byId('ql-task-due').value=validDay(n.task.dueOn)?n.task.dueOn:'';
+    const dt=n.task.remindAt && stamp(n.task.remindAt) ? new Date(n.task.remindAt) : null;
+    const local=dt ? day(dt)+'T'+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0') : '';
+    byId('ql-task-remind').value=local;
+    byId('ql-task-dialog').showModal();
+  }
+  function removeTask() {
+    const id=taskEditId, n=findNote(id);
+    if(!task(n)) return;
+    const saved={...n.task};
+    update(id,old=>({...old,task:null,updated:new Date().toISOString()}));
+    byId('ql-task-dialog').close();taskEditId=null;
+    if(typeof toast==='function') toast('やることから外しました', {
+      action:{label:'元に戻す',fn:()=>update(id,old=>({...old,task:saved,updated:new Date().toISOString()}))},ms:5000
+    });
+  }
+  function saveTaskEditor() {
+    const n=findNote(taskEditId); if(!task(n))return;
+    const title=byId('ql-task-title').value.trim(), due=byId('ql-task-due').value;
+    const input=byId('ql-task-remind').value;
+    if(!title) {byId('ql-task-title').focus();return}
+    if(due && !validDay(due)){byId('ql-task-due').focus();return}
+    const reminder=input ? new Date(input) : null;
+    if(input && (!reminder || !Number.isFinite(reminder.getTime()))) {byId('ql-task-remind').focus();return}
+    update(taskEditId,old=>({...old,task:{...old.task,title,dueOn:due||null,
+      remindAt:reminder?reminder.toISOString():null},updated:new Date().toISOString()}));
+    byId('ql-task-dialog').close(); taskEditId=null;
+  }
+  function importNotes(imported,mode='merge') {
+    if (!Array.isArray(imported)) return;
+    if (mode==='replace') notes=imported.map(x=>({...x}));
+    else {
+      const m=new Map(notes.map(n=>[n.id,n]));
+      imported.forEach(n=>{
+        if(!n || typeof n.id!=='string'||!n.id)return;
+        const old=m.get(n.id);
+        if (!old || stamp(n.updated||n.created)>stamp(old.updated||old.created)) m.set(n.id,{...n});
+      });
+      notes=[...m.values()];
+    }
+    persistNotes();refresh();
+  }
+  const activeNotes = () => notes.filter(n => !n.done && task(n)?.status !== 'done' && (!n.snooze || stamp(n.snooze) <= Date.now()));
   function withinPeriod(value) {
     if (settings.period === 'all') return true;
     if (!stamp(value)) return false;
@@ -96,22 +200,28 @@
   }
   function isMixed(U) {
     return U?.view === 'links' && U?.drawer === 'ALL' && U?.kind === 'all'
-      && (settings.mode !== 'links' || settings.period !== 'all');
+      && (settings.mode === 'thoughts' || settings.period !== 'all'
+        || (settings.mode === 'mixed' && activeNotes().some(n => withinPeriod(n.created))));
   }
   function thoughtDeckHtml(n, i, cur) {
-    const latest = Array.isArray(n.history) ? n.history[n.history.length - 1] : null;
-    return `<article class="card ql-thought-card${i === cur ? ' is-current' : ''}" data-id="${h(n.id)}" data-index="${i}" aria-label="${i+1}枚目、思ったこと">
-      <div class="card-meta"><span class="src">思ったこと</span><span class="mood">自分の記録</span></div>
-      <span class="card-reason">${h(ago(n.created))}に残した</span>
-      <h3 class="card-title text clamp6">${h(n.body)}</h3>
-      ${latest ? `<p class="card-desc clamp3">追記：${h(latest.text)}</p>` : ''}
-      <div class="card-actions">
-        <button class="btn primary" type="button" data-thought-action="done">完了</button>
-        <button class="btn quiet" type="button" data-thought-action="later">あとで</button>
-        <button class="btn quiet" type="button" data-thought-action="append">追記</button>
-      </div></article>`;
+    const latest = Array.isArray(n.history) ? n.history[n.history.length-1] : null;
+    const t = task(n);
+    return '<article class="card ql-thought-card' + (i===cur?' is-current':'') +
+      '" data-id="' + h(n.id) + '" data-index="' + i + '" aria-label="' + (i+1) + '枚目、思ったこと">' +
+      '<div class="card-meta"><span class="src">思ったこと</span><span class="mood">' + (t?'タスクあり':'自分の記録') +
+      '</span></div><span class="card-reason">' + h(ago(n.created)) + 'に残した</span>' +
+      '<h3 class="card-title text clamp6">' + h(n.body) + '</h3>' +
+      (latest?'<p class="card-desc clamp3">追記：'+h(latest.text)+'</p>':'') +
+      (t ? '<p class="ql-task-subtitle">' + h(taskTitle(n)) + (dueText(n)?' · '+h(dueText(n)):'')+'</p>':'') +
+      '<div class="card-actions">' +
+      (t?'<button class="btn primary" type="button" data-thought-action="task-toggle">' +
+      (t.status==='done'?'再開':'タスク完了')+'</button><button class="btn" type="button" data-thought-action="task-edit">期限・通知</button>' :
+      '<button class="btn primary" type="button" data-thought-action="taskify">＋ やることにする</button>') +
+      '<button class="btn quiet" type="button" data-thought-action="later">あとで</button>' +
+      '<button class="btn quiet" type="button" data-thought-action="append">追記</button></div></article>';
   }
-  function renderMixedDeck({U, mk, cardHtml, findLink, markShown}) {
+
+function renderMixedDeck({U, mk, cardHtml, findLink, markShown}) {
     if (!isMixed(U)) return false;
     const links = settings.mode === 'thoughts' ? [] : mk.order.filter(id => {
       const item = findLink(id);
@@ -169,6 +279,9 @@
     if (action) {
       event.preventDefault();
       if (action === 'done') update(id, n => ({...n,done:true,updated:new Date().toISOString()}));
+      if (action === 'taskify') taskify(id);
+      if (action === 'task-toggle') toggleTask(id);
+      if (action === 'task-edit') openTaskEditor(id);
       if (action === 'later') update(id, n => ({...n,snooze:new Date(Date.now()+14*86400000).toISOString()}));
       if (action === 'append') openEditor(id,true);
     } else setPosition(Number(card.dataset.index));
@@ -176,25 +289,33 @@
   }
 
   function thoughtItemHtml(n) {
-    const latest = Array.isArray(n.history) ? n.history[n.history.length-1] : null;
-    return `<article class="item ql-thought-item" data-thought-id="${h(n.id)}">
-       <button type="button" class="item-main ql-thought-open" data-thought-action="edit">
-         <span class="item-meta"><span class="src">思ったこと</span>
-           <span>${h(ago(n.created))}</span>${n.done ? '<span>完了済み</span>' : ''}
-         </span>
-         <span class="item-title clamp2">${h(n.body)}</span>
-         ${latest ? `<span class="item-desc clamp3">追記：${h(latest.text)}</span>` : ''}
-       </button>
-       <div class="item-foot ql-thought-foot">
-         <span class="by">${h(dateLabel(n.created))}</span>
-         <button class="btn quiet" type="button" data-thought-action="append">追記</button>
-         <button class="btn quiet" type="button" data-thought-action="toggle">${n.done ? '再開' : '完了'}</button>
-         <button class="btn quiet" type="button" data-thought-action="delete" aria-label="削除">削除</button>
-       </div>
-     </article>`;
+    const latest=Array.isArray(n.history)?n.history[n.history.length-1]:null;
+    const t=task(n);
+    return '<article class="item ql-thought-item" data-thought-id="' + h(n.id) + '">' +
+      '<button type="button" class="item-main ql-thought-open" data-thought-action="edit">' +
+      '<span class="item-meta"><span class="src">思ったこと</span><span>' + h(ago(n.created)) +
+      '</span>' + (n.done?'<span>見返し終了</span>':'') + '</span>' +
+      '<span class="item-title clamp2">' + h(n.body) + '</span>' +
+      (latest?'<span class="item-desc clamp3">追記：'+h(latest.text)+'</span>':'') +
+      '</button>' +
+      (t?'<div class="ql-task-line"><button type="button" class="ql-task-check" data-thought-action="task-toggle" aria-label="' +
+      (t.status==='done'?'タスクを再開':'タスクを完了')+'">' + (t.status==='done'?'☑':'□') +
+      '</button><span class="' + (t.status==='done'?'ql-task-done':'') + '">' + h(taskTitle(n)) + '</span>' +
+      (dueText(n)?'<span class="ql-task-date">'+h(dueText(n))+'</span>':'') +
+      (reminderDue(n)?'<span class="ql-task-alert">リマインド</span>':'') + '</div>':'') +
+      '<div class="item-foot ql-thought-foot"><span class="by">' + h(dateLabel(n.created)) + '</span>' +
+      (t?'<button class="btn quiet" type="button" data-thought-action="task-edit">期限・通知</button>':
+      '<button class="btn quiet" type="button" data-thought-action="taskify">＋ やることにする</button>') +
+      '<button class="btn quiet" type="button" data-thought-action="append">追記</button>' +
+      (!t?'<button class="btn quiet" type="button" data-thought-action="toggle">' +
+      (n.done?'再表示':'見返し終了')+'</button>':'') +
+      '<button class="btn quiet" type="button" data-thought-action="delete" aria-label="削除">削除</button>' +
+      '</div></article>';
   }
-  function renderLibrary({U,state,itemHtml}) {
+
+function renderLibrary({U,state,itemHtml}) {
     const root = byId('lib'), head = byId('libHead');
+    renderNow();
     if (!root || !head) return;
     const normal = U.view === 'links' && U.drawer === 'ALL' && U.kind === 'all' && !U.query.trim();
     const toolbar = byId('ql-list-toggle');
@@ -202,7 +323,7 @@
     if (U.query.trim()) {
       const query = U.query.trim().toLocaleLowerCase();
       if (/^https?:\/\//i.test(query)) return;
-      const matches = notes.filter(n => (n.body + ' ' + (n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(query));
+      const matches = notes.filter(n => (n.body+' '+taskTitle(n)+' '+(n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(query));
       if (!matches.length) return;
       root.querySelector('.empty')?.remove();
       const count = parseInt(byId('libCount').textContent,10) || 0;
@@ -214,7 +335,7 @@
     }
     if (!normal) return;
     const links = state.items.filter(x => !x.archived);
-    const includeLinks = listMode !== 'thoughts', includeThoughts = listMode !== 'links';
+    const includeLinks = listMode === 'all' || listMode === 'links', includeThoughts = listMode === 'all' || listMode === 'thoughts';
     if (listMode === 'links') {
       byId('libTitle').textContent = 'リンク';
       byId('libCount').textContent = links.length + '件';
@@ -222,19 +343,25 @@
     }
     const records = [
       ...(includeLinks ? links.map(item => ({kind:'link',date:stamp(item.addedAt),item})) : []),
-      ...(includeThoughts ? notes.map(item => ({kind:'thought',date:stamp(item.created),item})) : [])
+      ...(includeThoughts ? notes.map(item => ({kind:'thought',date:stamp(item.created),item})) : []),
+      ...(listMode === 'tasks' ? notes.filter(task).map(item => ({kind:'thought',date:stamp(item.created),item})) : [])
     ];
     let sort = state.linkSort;
     if (!['recent','oldest','title'].includes(sort)) sort='recent';
-    records.sort((a,b) => sort === 'title'
+    records.sort((a,b) => listMode === 'tasks' ? taskSort(a.item,b.item) : sort === 'title'
       ? String(a.kind==='link' ? a.item.title||'' : a.item.body||'').localeCompare(String(b.kind==='link' ? b.item.title||'' : b.item.body||''),'ja')
       : sort === 'oldest' ? a.date-b.date : b.date-a.date);
-    byId('libTitle').textContent = listMode === 'thoughts' ? '思ったこと' : 'ぜんぶ';
+    byId('libTitle').textContent = listMode === 'tasks' ? 'やること' : listMode === 'thoughts' ? '思ったこと' : 'ぜんぶ';
     byId('libCount').textContent = records.length + '件';
     const select = byId('sortSelect');
+    select.hidden = listMode === 'tasks';
     select.innerHTML = [['recent','新しい順'],['oldest','古い順'],['title','名前順']]
       .map(([v,t])=>`<option value="${v}"${v===sort?' selected':''}>${t}</option>`).join('');
     if (!records.length) {root.innerHTML='<div class="empty"><b>まだありません</b>上の保存ボタンから追加できます。</div>';return}
+    if (listMode === 'tasks') {
+      root.innerHTML='<div class="grid ql-task-list">'+records.map(e=>thoughtItemHtml(e.item)).join('')+'</div>';
+      return;
+    }
     if (sort === 'recent' || sort === 'oldest') {
       const groups = new Map();
       for (const e of records) {
@@ -253,7 +380,7 @@
     const root = byId('mResults');
     if (!root || !query || /^https?:/i.test(query)) return;
     const needle = query.trim().toLocaleLowerCase();
-    const matches = notes.filter(n => (n.body + ' ' + (n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(needle));
+    const matches = notes.filter(n => (n.body+' '+taskTitle(n)+' '+(n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(needle));
     if (!matches.length) return;
     root.querySelector('.empty')?.remove();
     const group = document.createElement('div');
@@ -268,27 +395,34 @@
     byId('ql-thought-title').textContent=append?'追記する':id?'思ったことを編集':'思ったことを残す';
     byId('ql-thought-input').value=append?'':n?.body||'';
     byId('ql-thought-input').placeholder=append?'その後、どう思った？':'未来の自分に残したいこと';
+    byId('ql-thought-task-wrap').hidden=append||!!task(n);
+    byId('ql-thought-task-flag').checked=false;
     byId('ql-thought-dialog').showModal();
     byId('ql-thought-input').focus();
   }
   function saveEditor() {
     const value=byId('ql-thought-input').value.trim();
     if (!value) return;
+    const makeTask=!appending && byId('ql-thought-task-flag').checked;
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
-        ? {...n,history:[...(n.history||[]),{text:value,created:new Date().toISOString()}]}
-        : {...n,body:value,updated:new Date().toISOString()});
+        ? {...n,history:[...(n.history||[]),{text:value,created:new Date().toISOString()}],updated:new Date().toISOString()}
+        : {...n,body:value,task:makeTask && !n.task ? {title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null} : n.task,updated:new Date().toISOString()});
     } else notes.push({id:'thought-'+Date.now()+'-'+Math.random().toString(36).slice(2),
-      body:value,created:new Date().toISOString(),history:[],done:false});
+      body:value,created:new Date().toISOString(),history:[],done:false,
+      ...(makeTask ? {task:{title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null}} : {})});
     persistNotes();byId('ql-thought-dialog').close();refresh();
   }
   function onListClick(e) {
-    const target=e.target.closest('.ql-thought-item');
+    const target=e.target.closest('[data-thought-id]');
     if (!target)return;
     e.stopPropagation();
     const id=target.dataset.thoughtId;
     const action=e.target.closest('[data-thought-action]')?.dataset.thoughtAction||'edit';
     if(action==='edit')openEditor(id);
+    else if(action==='taskify')taskify(id);
+    else if(action==='task-toggle')toggleTask(id);
+    else if(action==='task-edit')openTaskEditor(id);
     else if(action==='append')openEditor(id,true);
     else if(action==='toggle')update(id,n=>({...n,done:!n.done,updated:new Date().toISOString()}));
     else if(action==='delete' && confirm('この記録を削除しますか？')){
@@ -303,6 +437,12 @@
     const entry=document.createElement('div');entry.className='ql-save-entry';
     entry.innerHTML='<button type="button" class="btn" id="ql-add-link">＋ リンクを保存</button><button type="button" class="btn primary" id="ql-add-thought">＋ 思ったことを残す</button>';
     deck.parentNode.insertBefore(entry,deck);
+    nowSection=document.createElement('section');nowSection.id='ql-now';nowSection.className='ql-now';
+    nowSection.setAttribute('aria-label','今、気にすること');nowSection.hidden=true;entry.after(nowSection);
+    nowSection.addEventListener('click',e=>{
+      if(e.target.closest('[data-ql-show-tasks]')){listMode='tasks';renderListButtons();refresh();byId('libHead')?.scrollIntoView({block:'start',behavior:'smooth'});return}
+      onListClick(e);
+    });
     byId('ql-add-link').onclick=()=>byId('addButton')?.click();
     byId('ql-add-thought').onclick=()=>openEditor();
 
@@ -333,7 +473,7 @@
     const listToggle=document.createElement('div');
     listToggle.id='ql-list-toggle';listToggle.className='ql-list-toggle';
     listToggle.setAttribute('role','group');listToggle.setAttribute('aria-label','一覧の表示対象');
-    listToggle.innerHTML='<button type="button" data-ql-list="all">すべて</button><button type="button" data-ql-list="links">リンク</button><button type="button" data-ql-list="thoughts">思ったこと</button>';
+    listToggle.innerHTML='<button type="button" data-ql-list="all">すべて</button><button type="button" data-ql-list="links">リンク</button><button type="button" data-ql-list="thoughts">思ったこと</button><button type="button" data-ql-list="tasks">やること</button>';
     byId('sortSelect').before(listToggle);
     listToggle.addEventListener('click',e=>{
       const button=e.target.closest('[data-ql-list]');if(!button)return;
@@ -348,27 +488,52 @@
 
     const dialog=document.createElement('dialog');
     dialog.id='ql-thought-dialog';dialog.className='ql-thought-dialog';
-    dialog.innerHTML='<form method="dialog" class="ql-thought-form"><h2 id="ql-thought-title">思ったことを残す</h2><textarea id="ql-thought-input" rows="5" required placeholder="未来の自分に残したいこと"></textarea><div class="ql-form-actions"><button type="button" class="btn" id="ql-cancel">やめる</button><button type="button" class="btn primary" id="ql-save">保存</button></div></form>';
+    dialog.innerHTML='<form method="dialog" class="ql-thought-form"><h2 id="ql-thought-title">思ったことを残す</h2><textarea id="ql-thought-input" rows="5" required placeholder="未来の自分に残したいこと"></textarea><label class="ql-task-capture" id="ql-thought-task-wrap"><input type="checkbox" id="ql-thought-task-flag"> やることにする <small>期限はあとから設定</small></label><div class="ql-form-actions"><button type="button" class="btn" id="ql-cancel">やめる</button><button type="button" class="btn primary" id="ql-save">保存</button></div></form>';
     document.body.append(dialog);
     byId('ql-cancel').onclick=()=>dialog.close();
     byId('ql-save').onclick=saveEditor;
+    const taskDialog=document.createElement('dialog');
+    taskDialog.id='ql-task-dialog';taskDialog.className='ql-thought-dialog ql-task-dialog';
+    taskDialog.innerHTML='<form method="dialog" class="ql-thought-form">' +
+      '<h2>やることを調整</h2><label>やることの名前<input class="ql-task-field" id="ql-task-title" required maxlength="250"></label>' +
+      '<label>締切（任意）<input class="ql-task-field" id="ql-task-due" type="date"></label>' +
+      '<label>アプリ内リマインド（任意）<input class="ql-task-field" id="ql-task-remind" type="datetime-local"></label>' +
+      '<p class="ql-task-hint">指定日時を過ぎたら、アプリを開いたときに表示します。端末へのプッシュ通知ではありません。</p>' +
+      '<div class="ql-form-actions"><button type="button" class="btn quiet" id="ql-task-remove">やることを外す</button><button type="button" class="btn" id="ql-task-cancel">やめる</button>' +
+      '<button type="button" class="btn primary" id="ql-task-save">保存</button></div></form>';
+    document.body.append(taskDialog);
+    byId('ql-task-cancel').onclick=()=>taskDialog.close();
+    byId('ql-task-remove').onclick=removeTask;
+    byId('ql-task-save').onclick=saveTaskEditor;
+    byId('ql-task-title').addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();saveTaskEditor()}
+    });
     byId('ql-thought-input').addEventListener('keydown',e=>{
       if ((e.ctrlKey||e.metaKey)&&e.key==='Enter') {e.preventDefault();saveEditor()}
     });
-    const observer=new MutationObserver(()=>{
+    // Keep visibility synchronous with renderDeck: an observer would shift mobile scroll after restoration.
+    const syncVisibility=()=>{
       entry.hidden=deck.hidden;
       filter.hidden=deck.hidden;
-    });
-    observer.observe(deck,{attributes:true,attributeFilter:['hidden']});
-    entry.hidden=deck.hidden;filter.hidden=deck.hidden;
+      renderNow();
+    };
+    window.QLThoughts.syncVisibility=syncVisibility;
+    syncVisibility();
     window.addEventListener('storage',e=>{
       if(e.key===NOTE_KEY){const updated=read(NOTE_KEY,[]);notes=Array.isArray(updated)?updated:[];dirty=true;refresh()}
     });
+    window.addEventListener('quicklinks:thoughts-apply',e=>{
+      if(!Array.isArray(e.detail?.notes))return;
+      notes=e.detail.notes.map(n=>({...n}));saveLocal(NOTE_KEY,notes);dirty=true;refresh();
+    });
+    window.addEventListener('focus',renderNow);
+    setInterval(()=>{if(!document.hidden)renderNow()},60000);
     refresh();
   }
 
   window.QLThoughts={isMixed,renderMixedDeck,renderLibrary,markCurrent,setPos,
-    currentPos:()=>position,handleDeckCard,renderMobileSearch};
+    currentPos:()=>position,handleDeckCard,renderMobileSearch,
+    exportNotes:()=>notes.map(n=>({...n})),importNotes};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
 })();

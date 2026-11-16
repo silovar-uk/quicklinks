@@ -59,7 +59,7 @@
       lastSyncedAt: '',
       lastError: '',
       etag: '',
-      tombstones: { links: {}, prompts: {} },
+      tombstones: { links: {}, prompts: {}, thoughts: {} },
       base: null,
       observed: null
     };
@@ -76,7 +76,8 @@
         endpoint: String(x.endpoint || d.endpoint).replace(/\/$/, ''),
         tombstones: {
           links: { ...(x.tombstones?.links || {}) },
-          prompts: { ...(x.tombstones?.prompts || {}) }
+          prompts: { ...(x.tombstones?.prompts || {}) },
+          thoughts: { ...(x.tombstones?.thoughts || {}) }
         }
       };
       if (recoveredInterruptedSync && next.enabled && !next.lastError) {
@@ -131,13 +132,31 @@
       lastCopiedAt: x.lastCopiedAt || null
     };
   }
+  function thoughtItem(x) {
+    const t = x.task && typeof x.task === 'object' ? x.task : null;
+    return {
+      id:String(x.id || ''), body:String(x.body || ''),
+      created:x.created || null, updated:x.updated || x.created || null,
+      history:(Array.isArray(x.history)?x.history:[]).map(h=>({text:String(h.text || ''),created:h.created || null})),
+      done:!!x.done, snooze:x.snooze || null,
+      task:t ? {title:String(t.title || ''),status:t.status === 'done' ? 'done':'open',
+        dueOn:t.dueOn || null,remindAt:t.remindAt || null,completedAt:t.completedAt || null} : null
+    };
+  }
+  function localThoughts() {
+    try { const list=JSON.parse(localStorage.getItem('quicklinks-thoughts-v1') || '[]');
+      return Array.isArray(list)?list.map(thoughtItem):[];
+    } catch(_){ return []; }
+  }
   function payload() {
     const links = (state.items || []).filter(x => !x.archived).map(linkItem).sort((a,b) => a.id.localeCompare(b.id));
     const prompts = (state.promptMemos || []).map(promptItem).sort((a,b) => a.id.localeCompare(b.id));
+    const thoughts = localThoughts().sort((a,b)=>a.id.localeCompare(b.id));
     return {
       schemaVersion: 'quick-links-sync-v1',
       links,
       prompts,
+      thoughts,
       projects: uniq([...(state.projects || []), ...links.map(x => x.projectName)]),
       promptCategories: uniq([...(state.promptCategories || []), ...prompts.map(x => x.categoryName)]),
       projectColors: clone(state.projectColors || {}),
@@ -150,12 +169,15 @@
     if (!meta.enabled || meta.syncing) return;
     const next = payload();
     const prev = meta.observed || next;
-    const a = ids(prev.links), b = ids(next.links), c = ids(prev.prompts), d = ids(next.prompts);
+    const a = ids(prev.links), b = ids(next.links), c = ids(prev.prompts), d = ids(next.prompts),
+      e = ids(prev.thoughts), f = ids(next.thoughts);
     const t = now();
     a.forEach((_, id) => { if (!b.has(id)) meta.tombstones.links[id] = t; });
     c.forEach((_, id) => { if (!d.has(id)) meta.tombstones.prompts[id] = t; });
+    e.forEach((_, id) => { if (!f.has(id)) meta.tombstones.thoughts[id] = t; });
     b.forEach((_, id) => { if (!a.has(id) && meta.tombstones.links[id]) delete meta.tombstones.links[id]; });
     d.forEach((_, id) => { if (!c.has(id) && meta.tombstones.prompts[id]) delete meta.tombstones.prompts[id]; });
+    f.forEach((_, id) => { if (!e.has(id) && meta.tombstones.thoughts[id]) delete meta.tombstones.thoughts[id]; });
     next.tombstones = clone(meta.tombstones);
     if (!same(prev, next)) meta.dirty = true;
     meta.observed = clone(next);
@@ -214,8 +236,8 @@
     return out;
   }
   function mergeTombstones(a, b) {
-    const out = { links: {}, prompts: {} };
-    ['links','prompts'].forEach(kind => {
+    const out = { links: {}, prompts: {}, thoughts: {} };
+    ['links','prompts','thoughts'].forEach(kind => {
       new Set([...Object.keys(a?.[kind] || {}), ...Object.keys(b?.[kind] || {})]).forEach(id => {
         out[kind][id] = later(a?.[kind]?.[id], b?.[kind]?.[id]) || now();
       });
@@ -229,7 +251,7 @@
     const out = { id };
     const fields = kind === 'links'
       ? ['title','url','projectName','note','favoriteType','favoriteExpiry']
-      : ['title','categoryName','body'];
+      : kind === 'thoughts' ? ['body','done','snooze','task'] : ['title','categoryName','body'];
     fields.forEach(f => { out[f] = mergeField(base?.[f], local?.[f], remote?.[f], kind + '.' + id + '.' + f, conflicts); });
     if (kind === 'links') {
       // ページ説明は機械取得データなので競合ダイアログに出さず、取得時刻が新しい側を採用する。
@@ -249,6 +271,16 @@
       out.lastClickedAt = later(local?.lastClickedAt, remote?.lastClickedAt) || base?.lastClickedAt || null;
       out.clickHistory = uniq([...(base?.clickHistory || []), ...(local?.clickHistory || []), ...(remote?.clickHistory || [])]);
       out.clickCount = Math.max(Number(base?.clickCount || 0), Number(local?.clickCount || 0), Number(remote?.clickCount || 0));
+    } else if (kind === 'thoughts') {
+      out.created = earlier(local?.created,remote?.created) || base?.created || null;
+      out.updated = later(local?.updated,remote?.updated) || base?.updated || out.created;
+      const events = [...(base?.history || []),...(local?.history || []),...(remote?.history || [])];
+      const seen = new Set();
+      out.history = events.filter(e=>{
+        const k=JSON.stringify([e.text,e.created]);
+        if(seen.has(k)) return false;
+        seen.add(k);return true;
+      }).sort((a,b)=>String(a.created||'').localeCompare(String(b.created||'')));
     } else {
       out.createdAt = earlier(local?.createdAt, remote?.createdAt) || base?.createdAt || null;
       out.updatedAt = later(local?.updatedAt, remote?.updatedAt) || base?.updatedAt || null;
@@ -267,7 +299,7 @@
     return out.sort((a,b) => a.id.localeCompare(b.id));
   }
   function mergePayload(base, local, remote) {
-    const empty = { links:[], prompts:[], projects:[], promptCategories:[], projectColors:{}, tombstones:{links:{},prompts:{}} };
+    const empty = { links:[], prompts:[], thoughts:[], projects:[], promptCategories:[], projectColors:{}, tombstones:{links:{},prompts:{},thoughts:{}} };
     const B = base || empty, R = remote || empty;
     let L = local || empty;
     if (!base && local && remote) L = bootstrap(L, R);
@@ -277,6 +309,9 @@
       schemaVersion: 'quick-links-sync-v1',
       links: mergeCollection('links', B.links, L.links, R.links, tomb.links, conflicts),
       prompts: mergeCollection('prompts', B.prompts, L.prompts, R.prompts, tomb.prompts, conflicts),
+      // Old clients omit thoughts entirely. Absence is not an instruction to delete them.
+      thoughts: mergeCollection('thoughts', B.thoughts, L.thoughts,
+        Array.isArray(R.thoughts) ? R.thoughts : (B.thoughts || []), tomb.thoughts, conflicts),
       projects: mergeSets(B.projects, L.projects, R.projects),
       promptCategories: mergeSets(B.promptCategories, L.promptCategories, R.promptCategories),
       projectColors: { ...(R.projectColors || {}), ...(L.projectColors || {}) },
@@ -403,10 +438,13 @@
     localStorage.setItem('quick-links-sync-last-good-v1', JSON.stringify({ savedAt:now(), data:payload() }));
     state.items = normalizeLinkItems(data.links || []);
     state.promptMemos = (data.prompts || []).map(x => ({ ...x }));
+    const receivedThoughts=Array.isArray(data.thoughts) ? data.thoughts.map(thoughtItem) : localThoughts();
+    localStorage.setItem('quicklinks-thoughts-v1', JSON.stringify(receivedThoughts));
+    window.dispatchEvent(new CustomEvent('quicklinks:thoughts-apply',{detail:{notes:receivedThoughts}}));
     state.projects = uniq([...(data.projects || []), ...state.items.map(x => x.projectName)]);
     state.promptCategories = uniq([...(data.promptCategories || []), ...state.promptMemos.map(x => x.categoryName)]);
     state.projectColors = clone(data.projectColors || {});
-    meta.tombstones = clone(data.tombstones || { links:{}, prompts:{} });
+    meta.tombstones = {links:{},prompts:{},thoughts:{},...clone(data.tombstones || {})};
     meta.base = clone(data);
     meta.observed = clone(data);
     meta.dirty = false;
@@ -447,7 +485,8 @@
       A.forEach((_,id) => { if (!B.has(id)) deleted++; });
       return { added, updated, deleted };
     }
-    return { links:one(before?.links || [], after?.links || []), prompts:one(before?.prompts || [], after?.prompts || []) };
+    return { links:one(before?.links || [], after?.links || []), prompts:one(before?.prompts || [], after?.prompts || []),
+      thoughts:one(before?.thoughts || [],after?.thoughts || []) };
   }
 
   async function syncNow(choices) {
@@ -464,7 +503,7 @@
         if (!remote.exists) {
           const w = await putRemote(local, '', true);
           if (w.conflict) continue;
-          const result = { localToShared:diff({links:[],prompts:[]}, local), sharedToLocal:diff(local, local) };
+          const result = { localToShared:diff({links:[],prompts:[],thoughts:[]}, local), sharedToLocal:diff(local, local) };
           const pendingLocalChanges = applyUnlessLocallyChanged(local, w.etag, local);
           return { result, pendingLocalChanges };
         }
@@ -662,13 +701,16 @@
     });
   }
   function resultText(group) {
-    const a = group.links || {}, b = group.prompts || {}, p = [];
+    const a = group.links || {}, b = group.prompts || {}, c=group.thoughts||{}, p = [];
     if (a.added) p.push('リンク＋' + a.added);
     if (a.updated) p.push('リンク更新' + a.updated);
     if (a.deleted) p.push('リンク−' + a.deleted);
     if (b.added) p.push('プロンプト＋' + b.added);
     if (b.updated) p.push('プロンプト更新' + b.updated);
     if (b.deleted) p.push('プロンプト−' + b.deleted);
+    if (c.added) p.push('思ったこと＋' + c.added);
+    if (c.updated) p.push('思ったこと更新' + c.updated);
+    if (c.deleted) p.push('思ったこと−' + c.deleted);
     return p.join(' / ') || '変更なし';
   }
   function showResult(r, pendingLocalChanges) {
@@ -700,6 +742,10 @@
   }
 
   window.addEventListener('quicklinks-content-changed', scheduleAutoSync);
+  window.addEventListener('quicklinks:thoughts-updated',()=>{
+    observe();
+    if(meta.enabled && meta.dirty) scheduleAutoSync();
+  });
   window.addEventListener('quicklinks-sync-meta', renderSyncUi);
   window.addEventListener('online', () => {
     renderSyncUi();
@@ -711,6 +757,8 @@
     renderSyncUi();
   });
   addUi();
+  // A pre-existing thought library must join sync even before the next user edit.
+  if (meta.enabled) { observe(); if (meta.dirty) scheduleAutoSync(); }
   if (meta.enabled && !meta.observed) { meta.observed = payload(); saveMeta(); }
   try {
     if (location.hash.includes('pair=')) {
