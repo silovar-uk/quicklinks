@@ -108,3 +108,10 @@
 .ql-task-hint{margin:0;color:var(--ink2);font-size:12px;line-height:1.5}
 .ql-task-dialog{max-height:min(90dvh,660px);overflow:auto}
 @media(max-width:600px){.ql-now{margin:0 12px 10px}.ql-now-main{font-size:13px}.ql-list-toggle{flex-wrap:wrap}.ql-thought-foot .btn{min-height:32px}}
+
+/* Mobile app shell hid the library header. Make the thought/task filters reachable. */
+@media(max-width:899px){
+  .lib-head:has(.ql-list-toggle:not([hidden])){display:flex;height:auto;min-height:48px;flex-wrap:wrap;padding:8px 12px}
+  .ql-list-toggle{margin-left:0;max-width:100%;flex-wrap:wrap}
+  .ql-list-toggle button{min-height:36px;font-size:12px}
+}
