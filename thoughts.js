@@ -116,6 +116,16 @@
     byId('ql-task-remind').value=local;
     byId('ql-task-dialog').showModal();
   }
+  function removeTask() {
+    const id=taskEditId, n=findNote(id);
+    if(!task(n)) return;
+    const saved={...n.task};
+    update(id,old=>({...old,task:null,updated:new Date().toISOString()}));
+    byId('ql-task-dialog').close();taskEditId=null;
+    if(typeof toast==='function') toast('やることから外しました', {
+      action:{label:'元に戻す',fn:()=>update(id,old=>({...old,task:saved,updated:new Date().toISOString()}))},ms:5000
+    });
+  }
   function saveTaskEditor() {
     const n=findNote(taskEditId); if(!task(n))return;
     const title=byId('ql-task-title').value.trim(), due=byId('ql-task-due').value;
@@ -343,9 +353,14 @@ function renderLibrary({U,state,itemHtml}) {
     byId('libTitle').textContent = listMode === 'tasks' ? 'やること' : listMode === 'thoughts' ? '思ったこと' : 'ぜんぶ';
     byId('libCount').textContent = records.length + '件';
     const select = byId('sortSelect');
+    select.hidden = listMode === 'tasks';
     select.innerHTML = [['recent','新しい順'],['oldest','古い順'],['title','名前順']]
       .map(([v,t])=>`<option value="${v}"${v===sort?' selected':''}>${t}</option>`).join('');
     if (!records.length) {root.innerHTML='<div class="empty"><b>まだありません</b>上の保存ボタンから追加できます。</div>';return}
+    if (listMode === 'tasks') {
+      root.innerHTML='<div class="grid ql-task-list">'+records.map(e=>thoughtItemHtml(e.item)).join('')+'</div>';
+      return;
+    }
     if (sort === 'recent' || sort === 'oldest') {
       const groups = new Map();
       for (const e of records) {
@@ -483,10 +498,11 @@ function renderLibrary({U,state,itemHtml}) {
       '<label>締切（任意）<input class="ql-task-field" id="ql-task-due" type="date"></label>' +
       '<label>アプリ内リマインド（任意）<input class="ql-task-field" id="ql-task-remind" type="datetime-local"></label>' +
       '<p class="ql-task-hint">指定日時を過ぎたら、アプリを開いたときに表示します。端末へのプッシュ通知ではありません。</p>' +
-      '<div class="ql-form-actions"><button type="button" class="btn" id="ql-task-cancel">やめる</button>' +
+      '<div class="ql-form-actions"><button type="button" class="btn quiet" id="ql-task-remove">やることを外す</button><button type="button" class="btn" id="ql-task-cancel">やめる</button>' +
       '<button type="button" class="btn primary" id="ql-task-save">保存</button></div></form>';
     document.body.append(taskDialog);
     byId('ql-task-cancel').onclick=()=>taskDialog.close();
+    byId('ql-task-remove').onclick=removeTask;
     byId('ql-task-save').onclick=saveTaskEditor;
     byId('ql-task-title').addEventListener('keydown',e=>{
       if(e.key==='Enter'){e.preventDefault();saveTaskEditor()}
