@@ -200,7 +200,8 @@
   }
   function isMixed(U) {
     return U?.view === 'links' && U?.drawer === 'ALL' && U?.kind === 'all'
-      && (settings.mode !== 'links' || settings.period !== 'all');
+      && (settings.mode === 'thoughts' || settings.period !== 'all'
+        || (settings.mode === 'mixed' && activeNotes().some(n => withinPeriod(n.created))));
   }
   function thoughtDeckHtml(n, i, cur) {
     const latest = Array.isArray(n.history) ? n.history[n.history.length-1] : null;
@@ -405,7 +406,7 @@ function renderLibrary({U,state,itemHtml}) {
     const makeTask=!appending && byId('ql-thought-task-flag').checked;
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
-        ? {...n,history:[...(n.history||[]),{text:value,created:new Date().toISOString()}]}
+        ? {...n,history:[...(n.history||[]),{text:value,created:new Date().toISOString()}],updated:new Date().toISOString()}
         : {...n,body:value,task:makeTask && !n.task ? {title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null} : n.task,updated:new Date().toISOString()});
     } else notes.push({id:'thought-'+Date.now()+'-'+Math.random().toString(36).slice(2),
       body:value,created:new Date().toISOString(),history:[],done:false,
