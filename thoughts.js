@@ -54,12 +54,12 @@
     return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
   };
   const validDay = value => {
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value || '')) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
     const d = new Date(value + 'T12:00:00');
     return Number.isFinite(d.getTime()) && day(d) === value;
   };
   const task = n => n && n.task && typeof n.task === 'object' ? n.task : null;
-  const taskTitle = n => (task(n)?.title || n.body.split('\\n').find(Boolean) || 'やること').trim();
+  const taskTitle = n => (task(n)?.title || n.body.split('\n').find(Boolean) || 'やること').trim();
   const dueText = n => {
     const d = task(n)?.dueOn;
     if (!validDay(d)) return '';
@@ -391,10 +391,10 @@ function renderLibrary({U,state,itemHtml}) {
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
         ? {...n,history:[...(n.history||[]),{text:value,created:new Date().toISOString()}]}
-        : {...n,body:value,task:makeTask && !n.task ? {title:value.split('\\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null} : n.task,updated:new Date().toISOString()});
+        : {...n,body:value,task:makeTask && !n.task ? {title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null} : n.task,updated:new Date().toISOString()});
     } else notes.push({id:'thought-'+Date.now()+'-'+Math.random().toString(36).slice(2),
       body:value,created:new Date().toISOString(),history:[],done:false,
-      ...(makeTask ? {task:{title:value.split('\\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null}} : {})});
+      ...(makeTask ? {task:{title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null}} : {})});
     persistNotes();byId('ql-thought-dialog').close();refresh();
   }
   function onListClick(e) {
