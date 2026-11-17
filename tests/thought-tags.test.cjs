@@ -237,3 +237,17 @@ test('Tag filter is hidden when no tags exist', () => {
   h.api.renderLibrary({U:h.U,state:{items:[],linkSort:'recent'},itemHtml(){return ''}});
   assert.equal(h.nodes['ql-tag-filter'].hidden,true);
 });
+
+
+test('A hash-prefixed tag query ignores untagged hashtag text', () => {
+  const h=makeHarness([
+    {id:'actual',body:'内容A',tags:['仕事'],created:'2026-11-17T00:00:00Z',history:[],done:false},
+    {id:'untagged',body:'内容B #仕事',tags:[],created:'2026-11-17T00:00:00Z',history:[],done:false}
+  ]);
+  h.api.renderMobileSearch('#仕事');
+  assert.match(h.nodes.mResults.innerHTML,/内容A/);
+  assert.doesNotMatch(h.nodes.mResults.innerHTML,/内容B/);
+  h.nodes.mResults.innerHTML='';
+  h.api.renderMobileSearch('仕事');
+  assert.match(h.nodes.mResults.innerHTML,/内容B/);
+});
