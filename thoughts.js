@@ -26,6 +26,8 @@
   const validModes = ['mixed', 'links', 'thoughts'];
   const validPeriods = ['all', 'month', 'quarter', 'year'];
   const tagKey = v => String(v || '').normalize('NFKC').toLocaleLowerCase('ja').trim();
+  // Match the existing Quick Links search: hiragana and katakana share a search key.
+  const thoughtSearchKey = v => tagKey(v).replace(/[ぁ-ゖ]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
   const cleanTag = v => String(v || '').normalize('NFKC').trim().replace(/^#+/,'').trim().replace(/\s+/g, ' ').slice(0,24);
   const normalizeTags = values => {
     const out = [], seen = new Set();
@@ -39,16 +41,17 @@
   const thoughtTags = n => normalizeTags(n?.tags);
   const hasTag = (n, tag) => thoughtTags(n).some(t=>tagKey(t)===tagKey(tag));
   const matchesThought = (n, query) => {
-    const q=tagKey(query), text=tagKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
-    return text.includes(q) || (q.startsWith('#') && thoughtTags(n).some(tag=>tagKey(tag).includes(q.slice(1))));
+    const q=thoughtSearchKey(query), text=thoughtSearchKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
+    if (q.startsWith('#') && q.length>1) return thoughtTags(n).some(tag=>thoughtSearchKey(tag).includes(q.slice(1)));
+    return text.includes(q);
   };
   const availableTags = () => {
     const count = new Map();
     for (const n of notes) for (const tag of thoughtTags(n)) {
       const k=tagKey(tag), old=count.get(k);
-      count.set(k,{tag:old?.tag||tag,count:(old?.count||0)+1});
+      count.set(k,{tag:old?.tag||tag,count:(old?.count||0)+1,lastUsed:Math.max(old?.lastUsed||0,stamp(n.updated||n.created))});
     }
-    return [...count.values()].sort((a,b)=>b.count-a.count || a.tag.localeCompare(b.tag,'ja'));
+    return [...count.values()].sort((a,b)=>b.lastUsed-a.lastUsed || b.count-a.count || a.tag.localeCompare(b.tag,'ja'));
   };
   const tagButtons = n => thoughtTags(n).length ?
     '<div class="ql-thought-tags" aria-label="タグ">' +
@@ -62,6 +65,7 @@
   settings.ratio = Math.max(0, Math.min(100, Number(settings.ratio) || 0));
   let listMode = 'all', editId = null, appending = false, taskEditId = null;
   let editTags = [], showTagOptions = false, selectedTag = '';
+
   let nowSection = null;
   let order = [], position = 0, orderKey = '', dirty = true;
 
@@ -350,11 +354,12 @@ function renderLibrary({U,state,itemHtml}) {
     const normal = U.view === 'links' && U.drawer === 'ALL' && U.kind === 'all' && !U.query.trim();
     const toolbar = byId('ql-list-toggle');
     if (toolbar) toolbar.hidden = !normal;
+    if (U.query.trim()) selectedTag='';
     const tagBar = byId('ql-tag-filter');
     if (tagBar) {
-      tagBar.hidden = !(normal && listMode === 'thoughts');
+      const available = availableTags();
+      tagBar.hidden = !(normal && listMode === 'thoughts' && available.length);
       if (!tagBar.hidden) {
-        const available = availableTags();
         tagBar.innerHTML = '<label for="ql-tag-filter-select">タグで絞る</label>' +
           '<select id="ql-tag-filter-select" aria-label="思ったことをタグで絞り込む">' +
           '<option value="">すべてのタグ</option>' +
@@ -435,6 +440,9 @@ function renderLibrary({U,state,itemHtml}) {
   function renderTagEditor() {
     const selected=byId('ql-tag-selected'), options=byId('ql-tag-options'), input=byId('ql-tag-input');
     if (!selected || !options || !input) return;
+    const picker=byId('ql-tag-picker'), toggle=byId('ql-tag-toggle');
+    if (picker) picker.hidden=!showTagOptions;
+    if (toggle) {toggle.disabled=editTags.length>=8;toggle.setAttribute('aria-expanded',String(showTagOptions));}
     selected.innerHTML=editTags.map(t=>'<button class="ql-tag-selected" type="button" data-remove-tag="'+h(t)+'" aria-label="'+h(t)+'を外す">#'+h(t)+' <span aria-hidden="true">×</span></button>').join('');
     const q=tagKey(input.value), all=availableTags();
     const choices=all.filter(x=>!editTags.some(t=>tagKey(t)===tagKey(x.tag)) && (!q || tagKey(x.tag).includes(q))).slice(0,8);
@@ -445,16 +453,17 @@ function renderLibrary({U,state,itemHtml}) {
       (!choices.length&&!canCreate?'<span class="ql-tag-empty">候補がありません</span>':'');
     options.hidden=!showTagOptions || editTags.length>=8;
     input.disabled=editTags.length>=8;
-    input.setAttribute('aria-expanded',String(!options.hidden));
     byId('ql-tag-count').textContent=editTags.length+'/8';
   }
   function addEditorTag(value) {
     const tag=cleanTag(value);
     if (!tag || editTags.length>=8 || editTags.some(t=>tagKey(t)===tagKey(tag))) return;
-    editTags=normalizeTags([...editTags,tag]);
+    const existing=availableTags().find(x=>tagKey(x.tag)===tagKey(tag));
+    editTags=normalizeTags([...editTags,existing?.tag||tag]);
     byId('ql-tag-input').value='';
-    showTagOptions=false;
+    showTagOptions=editTags.length<8;
     renderTagEditor();
+    if (showTagOptions) byId('ql-tag-input').focus();
   }
   function applyTagFilter(value) {
     selectedTag=value||'';
@@ -484,7 +493,7 @@ function renderLibrary({U,state,itemHtml}) {
   function saveEditor() {
     const value=byId('ql-thought-input').value.trim();
     if (!value) return;
-    if (!appending && byId('ql-tag-input').value.trim()) addEditorTag(byId('ql-tag-input').value);
+    if (!appending && showTagOptions && byId('ql-tag-input').value.trim()) addEditorTag(byId('ql-tag-input').value);
     const makeTask=!appending && byId('ql-thought-task-flag').checked;
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
@@ -571,7 +580,6 @@ function renderLibrary({U,state,itemHtml}) {
     tagFilter.addEventListener('click',e=>{
       if(e.target.closest('[data-clear-tag]'))applyTagFilter('');
     });
-    byId('searchInput')?.addEventListener('input',()=>{if(selectedTag){selectedTag='';refresh()}});
     byId('lib').addEventListener('click',onListClick);
     byId('mResults').addEventListener('click',onListClick);
     function renderListButtons() {
@@ -582,18 +590,27 @@ function renderLibrary({U,state,itemHtml}) {
     const dialog=document.createElement('dialog');
     dialog.id='ql-thought-dialog';dialog.className='ql-thought-dialog';
     dialog.innerHTML='<form method="dialog" class="ql-thought-form"><h2 id="ql-thought-title">思ったことを残す</h2><textarea id="ql-thought-input" rows="5" required placeholder="未来の自分に残したいこと"></textarea>' +
-      '<div id="ql-tag-edit" class="ql-tag-edit"><div class="ql-tag-heading"><label for="ql-tag-input">タグ <small>任意・引き出しとは別</small></label><span id="ql-tag-count">0/8</span></div>' +
+      '<div id="ql-tag-edit" class="ql-tag-edit"><div class="ql-tag-heading"><span>タグ <small>任意・引き出しとは別</small></span><span id="ql-tag-count">0/8</span></div>' +
       '<div id="ql-tag-selected" class="ql-tag-selected-list"></div>' +
-      '<div class="ql-tag-search"><input id="ql-tag-input" type="text" maxlength="24" autocomplete="off" placeholder="タグを探す・新しく作る" aria-controls="ql-tag-options" aria-expanded="false"><button type="button" class="btn quiet" id="ql-tag-add">追加</button></div>' +
-      '<div id="ql-tag-options" class="ql-tag-options" hidden></div></div>' +
+      '<button type="button" class="btn quiet ql-tag-toggle" id="ql-tag-toggle" aria-controls="ql-tag-picker" aria-expanded="false">＋ タグを追加</button>' +
+      '<div id="ql-tag-picker" class="ql-tag-picker" hidden><div class="ql-tag-search"><input id="ql-tag-input" type="text" maxlength="24" autocomplete="off" enterkeyhint="done" placeholder="タグを探す・新しく作る" aria-label="タグを探す・新しく作る" aria-describedby="ql-tag-hint"><button type="button" class="btn quiet" id="ql-tag-add">追加</button></div>' +
+      '<div id="ql-tag-options" class="ql-tag-options" role="group" aria-label="既存のタグ候補" hidden></div><small id="ql-tag-hint">Enterまたは「追加」でタグを確定</small></div></div>' +
       '<label class="ql-task-capture" id="ql-thought-task-wrap"><input type="checkbox" id="ql-thought-task-flag"> やることにする <small>期限はあとから設定</small></label><div class="ql-form-actions"><button type="button" class="btn" id="ql-cancel">やめる</button><button type="button" class="btn primary" id="ql-save">保存</button></div></form>';
     document.body.append(dialog);
+    byId('ql-tag-toggle').onclick=()=>{
+      showTagOptions=!showTagOptions;
+      if(!showTagOptions)byId('ql-tag-input').value='';
+      renderTagEditor();
+      if(showTagOptions)byId('ql-tag-input').focus();
+    };
     byId('ql-tag-input').addEventListener('focus',()=>{showTagOptions=true;renderTagEditor()});
     byId('ql-tag-input').addEventListener('input',()=>{showTagOptions=true;renderTagEditor()});
     byId('ql-tag-input').addEventListener('keydown',e=>{
       if(e.isComposing||e.keyCode===229) return;
       if(e.key==='Enter'||e.key===','){e.preventDefault();addEditorTag(e.target.value)}
-      if(e.key==='Escape'){e.stopPropagation();showTagOptions=false;renderTagEditor()}
+      if(e.key==='Escape' && showTagOptions){
+        e.preventDefault();e.stopPropagation();showTagOptions=false;byId('ql-tag-input').value='';renderTagEditor();byId('ql-tag-toggle').focus();
+      }
     });
     byId('ql-tag-add').onclick=()=>addEditorTag(byId('ql-tag-input').value);
     byId('ql-tag-selected').addEventListener('click',e=>{
@@ -623,6 +640,7 @@ function renderLibrary({U,state,itemHtml}) {
       if(e.key==='Enter'){e.preventDefault();saveTaskEditor()}
     });
     byId('ql-thought-input').addEventListener('keydown',e=>{
+      if (e.isComposing || e.keyCode===229) return;
       if ((e.ctrlKey||e.metaKey)&&e.key==='Enter') {e.preventDefault();saveEditor()}
     });
     // Keep visibility synchronous with renderDeck: an observer would shift mobile scroll after restoration.

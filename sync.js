@@ -155,7 +155,12 @@
   }
   function localThoughts() {
     try { const list=JSON.parse(localStorage.getItem('quicklinks-thoughts-v1') || '[]');
-      return Array.isArray(list)?list.map(thoughtItem):[];
+      return Array.isArray(list) ? list.map(n => {
+        const normalized=thoughtItem(n);
+        // Preserve the distinction until the three-way merge: legacy missing tags are unknown.
+        if (!Object.prototype.hasOwnProperty.call(n,'tags')) delete normalized.tags;
+        return normalized;
+      }) : [];
     } catch(_){ return []; }
   }
   function payload() {
@@ -282,7 +287,12 @@
       out.clickHistory = uniq([...(base?.clickHistory || []), ...(local?.clickHistory || []), ...(remote?.clickHistory || [])]);
       out.clickCount = Math.max(Number(base?.clickCount || 0), Number(local?.clickCount || 0), Number(remote?.clickCount || 0));
     } else if (kind === 'thoughts') {
-      out.tags = normalizeThoughtTags(mergeSets(normalizeThoughtTags(base?.tags),normalizeThoughtTags(local?.tags),normalizeThoughtTags(remote?.tags)));
+      // Older clients have no tags field. Missing means unknown, not an intentional tag deletion.
+      // A current client explicitly saves [] when the user removes all tags.
+      const baseTags=normalizeThoughtTags(base?.tags);
+      const localTags=local && Object.prototype.hasOwnProperty.call(local,'tags') ? normalizeThoughtTags(local.tags) : baseTags;
+      const remoteTags=remote && Object.prototype.hasOwnProperty.call(remote,'tags') ? normalizeThoughtTags(remote.tags) : baseTags;
+      out.tags = normalizeThoughtTags(mergeSets(baseTags,localTags,remoteTags));
       out.created = earlier(local?.created,remote?.created) || base?.created || null;
       out.updated = later(local?.updated,remote?.updated) || base?.updated || out.created;
       const events = [...(base?.history || []),...(local?.history || []),...(remote?.history || [])];
