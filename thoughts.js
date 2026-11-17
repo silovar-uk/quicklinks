@@ -26,6 +26,8 @@
   const validModes = ['mixed', 'links', 'thoughts'];
   const validPeriods = ['all', 'month', 'quarter', 'year'];
   const tagKey = v => String(v || '').normalize('NFKC').toLocaleLowerCase('ja').trim();
+  // Match the existing Quick Links search: hiragana and katakana share a search key.
+  const thoughtSearchKey = v => tagKey(v).replace(/[ぁ-ゖ]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
   const cleanTag = v => String(v || '').normalize('NFKC').trim().replace(/^#+/,'').trim().replace(/\s+/g, ' ').slice(0,24);
   const normalizeTags = values => {
     const out = [], seen = new Set();
@@ -39,8 +41,8 @@
   const thoughtTags = n => normalizeTags(n?.tags);
   const hasTag = (n, tag) => thoughtTags(n).some(t=>tagKey(t)===tagKey(tag));
   const matchesThought = (n, query) => {
-    const q=tagKey(query), text=tagKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
-    return text.includes(q) || (q.startsWith('#') && thoughtTags(n).some(tag=>tagKey(tag).includes(q.slice(1))));
+    const q=thoughtSearchKey(query), text=thoughtSearchKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
+    return text.includes(q) || (q.startsWith('#') && thoughtTags(n).some(tag=>thoughtSearchKey(tag).includes(q.slice(1))));
   };
   const availableTags = () => {
     const count = new Map();
@@ -354,9 +356,9 @@ function renderLibrary({U,state,itemHtml}) {
     if (U.query.trim()) selectedTag='';
     const tagBar = byId('ql-tag-filter');
     if (tagBar) {
-      tagBar.hidden = !(normal && listMode === 'thoughts');
+      const available = availableTags();
+      tagBar.hidden = !(normal && listMode === 'thoughts' && available.length);
       if (!tagBar.hidden) {
-        const available = availableTags();
         tagBar.innerHTML = '<label for="ql-tag-filter-select">タグで絞る</label>' +
           '<select id="ql-tag-filter-select" aria-label="思ったことをタグで絞り込む">' +
           '<option value="">すべてのタグ</option>' +
