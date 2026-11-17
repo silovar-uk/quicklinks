@@ -21,7 +21,7 @@ function makeHarness(initialNotes = []) {
       id, value: '', textContent: '', innerHTML: '', hidden: false, open: false,
       checked: false, selectedIndex: 0, options: [{textContent:'リンク＋思ったこと'}],
       dataset: {}, classList: {add(){},remove(){}},
-      setAttribute(){}, getAttribute(){return null}, focus(){}, before(){}, after(){},
+      setAttribute(){}, getAttribute(){return null}, focus(){}, before(){}, after(node){nodes[node.id]=node},
       showModal(){this.open = true}, close(){this.open = false},
       replaceChildren(){this.innerHTML = ''}, scrollIntoView(){},
       append(child){this.innerHTML += child.innerHTML || ''},
@@ -222,4 +222,18 @@ test('Cache-busted assets are referenced from index.html', () => {
   assert.match(html,/thoughts[.]js[?]v=/);
   assert.match(html,/thoughts[.]css[?]v=/);
   assert.match(html,/sync[.]js[?]v=/);
+});
+
+
+test('Hiragana searches can match katakana tag names', () => {
+  const h=makeHarness([{id:'kana',body:'別の本文',tags:['カタカナ'],created:'2026-11-17T00:00:00Z',history:[],done:false}]);
+  h.api.renderMobileSearch('#かたかな');
+  assert.match(h.nodes.mResults.innerHTML,/別の本文/);
+});
+
+test('Tag filter is hidden when no tags exist', () => {
+  const h=makeHarness();
+  h.test.applyTagFilter('');
+  h.api.renderLibrary({U:h.U,state:{items:[],linkSort:'recent'},itemHtml(){return ''}});
+  assert.equal(h.nodes['ql-tag-filter'].hidden,true);
 });
