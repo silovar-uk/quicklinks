@@ -42,7 +42,8 @@
   const hasTag = (n, tag) => thoughtTags(n).some(t=>tagKey(t)===tagKey(tag));
   const matchesThought = (n, query) => {
     const q=thoughtSearchKey(query), text=thoughtSearchKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
-    return text.includes(q) || (q.startsWith('#') && thoughtTags(n).some(tag=>thoughtSearchKey(tag).includes(q.slice(1))));
+    if (q.startsWith('#') && q.length>1) return thoughtTags(n).some(tag=>thoughtSearchKey(tag).includes(q.slice(1)));
+    return text.includes(q);
   };
   const availableTags = () => {
     const count = new Map();
