@@ -165,3 +165,10 @@
   .ql-tag-filter select{flex:1;min-width:120px}
   .ql-thought-tags .ql-thought-tag{min-height:32px}
 }
+
+/* Optional tags stay out of the way until explicitly opened. */
+.ql-tag-toggle{justify-self:start;min-height:40px;padding-inline:11px}
+.ql-tag-picker{display:grid;gap:7px;min-width:0}
+.ql-tag-picker[hidden]{display:none!important}
+.ql-tag-picker #ql-tag-hint{color:var(--muted);font-size:11px}
+.ql-tag-options{scrollbar-width:thin}
