@@ -324,7 +324,7 @@ function renderMixedDeck({U, mk, cardHtml, findLink, markShown}) {
       '</span>' + (n.done?'<span>見返し終了</span>':'') + '</span>' +
       '<span class="item-title clamp2">' + h(n.body) + '</span>' +
       (latest?'<span class="item-desc clamp3">追記：'+h(latest.text)+'</span>':'') +
-      '</button>' +
+      '</button>' + tagButtons(n) +
       (t?'<div class="ql-task-line"><button type="button" class="ql-task-check" data-thought-action="task-toggle" aria-label="' +
       (t.status==='done'?'タスクを再開':'タスクを完了')+'">' + (t.status==='done'?'☑':'□') +
       '</button><span class="' + (t.status==='done'?'ql-task-done':'') + '">' + h(taskTitle(n)) + '</span>' +
@@ -347,10 +347,22 @@ function renderLibrary({U,state,itemHtml}) {
     const normal = U.view === 'links' && U.drawer === 'ALL' && U.kind === 'all' && !U.query.trim();
     const toolbar = byId('ql-list-toggle');
     if (toolbar) toolbar.hidden = !normal;
+    const tagBar = byId('ql-tag-filter');
+    if (tagBar) {
+      tagBar.hidden = !(normal && listMode === 'thoughts');
+      if (!tagBar.hidden) {
+        const available = availableTags();
+        tagBar.innerHTML = '<label for="ql-tag-filter-select">タグで絞る</label>' +
+          '<select id="ql-tag-filter-select" aria-label="思ったことをタグで絞り込む">' +
+          '<option value="">すべてのタグ</option>' +
+          available.map(x=>'<option value="'+h(x.tag)+'"'+(tagKey(x.tag)===tagKey(selectedTag)?' selected':'')+'>'+h(x.tag)+' ('+x.count+')</option>').join('') +
+          '</select>' + (selectedTag?'<button class="btn quiet" type="button" data-clear-tag>解除 ×</button>':'');
+      }
+    }
     if (U.query.trim()) {
       const query = U.query.trim().toLocaleLowerCase();
       if (/^https?:\/\//i.test(query)) return;
-      const matches = notes.filter(n => (n.body+' '+taskTitle(n)+' '+(n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(query));
+      const matches = notes.filter(n => matchesThought(n, query));
       if (!matches.length) return;
       root.querySelector('.empty')?.remove();
       const count = parseInt(byId('libCount').textContent,10) || 0;
@@ -368,9 +380,10 @@ function renderLibrary({U,state,itemHtml}) {
       byId('libCount').textContent = links.length + '件';
       return;
     }
+    const visibleNotes = selectedTag && listMode === 'thoughts' ? notes.filter(n=>hasTag(n,selectedTag)) : notes;
     const records = [
       ...(includeLinks ? links.map(item => ({kind:'link',date:stamp(item.addedAt),item})) : []),
-      ...(includeThoughts ? notes.map(item => ({kind:'thought',date:stamp(item.created),item})) : []),
+      ...(includeThoughts ? visibleNotes.map(item => ({kind:'thought',date:stamp(item.created),item})) : []),
       ...(listMode === 'tasks' ? notes.filter(task).map(item => ({kind:'thought',date:stamp(item.created),item})) : [])
     ];
     let sort = state.linkSort;
@@ -384,7 +397,7 @@ function renderLibrary({U,state,itemHtml}) {
     select.hidden = listMode === 'tasks';
     select.innerHTML = [['recent','新しい順'],['oldest','古い順'],['title','名前順']]
       .map(([v,t])=>`<option value="${v}"${v===sort?' selected':''}>${t}</option>`).join('');
-    if (!records.length) {root.innerHTML='<div class="empty"><b>まだありません</b>上の保存ボタンから追加できます。</div>';return}
+    if (!records.length) {root.innerHTML=selectedTag ? '<div class="empty"><b>該当するメモがありません</b>タグの絞り込みを解除してください。</div>' : '<div class="empty"><b>まだありません</b>上の保存ボタンから追加できます。</div>';return}
     if (listMode === 'tasks') {
       root.innerHTML='<div class="grid ql-task-list">'+records.map(e=>thoughtItemHtml(e.item)).join('')+'</div>';
       return;
@@ -407,7 +420,7 @@ function renderLibrary({U,state,itemHtml}) {
     const root = byId('mResults');
     if (!root || !query || /^https?:/i.test(query)) return;
     const needle = query.trim().toLocaleLowerCase();
-    const matches = notes.filter(n => (n.body+' '+taskTitle(n)+' '+(n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(needle));
+    const matches = notes.filter(n => matchesThought(n, needle));
     if (!matches.length) return;
     root.querySelector('.empty')?.remove();
     const group = document.createElement('div');
@@ -484,6 +497,7 @@ function renderLibrary({U,state,itemHtml}) {
     e.stopPropagation();
     const id=target.dataset.thoughtId;
     const action=e.target.closest('[data-thought-action]')?.dataset.thoughtAction||'edit';
+    if(action==='filter-tag'){applyTagFilter(e.target.closest('[data-tag]')?.dataset.tag);return}
     if(action==='edit')openEditor(id);
     else if(action==='taskify')taskify(id);
     else if(action==='task-toggle')toggleTask(id);
@@ -542,7 +556,16 @@ function renderLibrary({U,state,itemHtml}) {
     byId('sortSelect').before(listToggle);
     listToggle.addEventListener('click',e=>{
       const button=e.target.closest('[data-ql-list]');if(!button)return;
-      listMode=button.dataset.qlList;renderListButtons();refresh();
+      listMode=button.dataset.qlList;selectedTag='';renderListButtons();refresh();
+    });
+    const tagFilter=document.createElement('div');
+    tagFilter.id='ql-tag-filter';tagFilter.className='ql-tag-filter';tagFilter.hidden=true;
+    byId('libHead').after(tagFilter);
+    tagFilter.addEventListener('change',e=>{
+      if(e.target.id==='ql-tag-filter-select')applyTagFilter(e.target.value);
+    });
+    tagFilter.addEventListener('click',e=>{
+      if(e.target.closest('[data-clear-tag]'))applyTagFilter('');
     });
     byId('lib').addEventListener('click',onListClick);
     byId('mResults').addEventListener('click',onListClick);
