@@ -251,3 +251,25 @@ test('A hash-prefixed tag query ignores untagged hashtag text', () => {
   h.api.renderMobileSearch('仕事');
   assert.match(h.nodes.mResults.innerHTML,/内容B/);
 });
+
+
+test('Sync serialization keeps missing legacy tags distinct from explicit []', () => {
+  function extract(start,end) {
+    const a=syncCode.indexOf(start),b=syncCode.indexOf(end,a+start.length);
+    assert.ok(a>=0 && b>a,'sync source anchors exist');
+    return syncCode.slice(a,b);
+  }
+  const script =
+    extract('  function normalizeThoughtTags(values) {','  function payload() {') +
+    '\nreturn localThoughts;';
+  const originals=[
+    {id:'legacy',body:'旧メモ',created:'2026-01-01T00:00:00Z'},
+    {id:'empty',body:'空タグ',tags:[],created:'2026-01-01T00:00:00Z'},
+    {id:'tagged',body:'タグあり',tags:['仕事'],created:'2026-01-01T00:00:00Z'}
+  ];
+  const localStorage={getItem(){return JSON.stringify(originals)}};
+  const records=new Function('localStorage',script)(localStorage)();
+  assert.equal(Object.prototype.hasOwnProperty.call(records[0],'tags'),false);
+  assert.deepEqual(asArray(records[1].tags),[]);
+  assert.deepEqual(asArray(records[2].tags),['仕事']);
+});
