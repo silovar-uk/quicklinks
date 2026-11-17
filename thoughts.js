@@ -26,7 +26,7 @@
   const validModes = ['mixed', 'links', 'thoughts'];
   const validPeriods = ['all', 'month', 'quarter', 'year'];
   const tagKey = v => String(v || '').normalize('NFKC').toLocaleLowerCase('ja').trim();
-  const cleanTag = v => String(v || '').normalize('NFKC').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0,24);
+  const cleanTag = v => String(v || '').normalize('NFKC').trim().replace(/^#+/,'').trim().replace(/\s+/g, ' ').slice(0,24);
   const normalizeTags = values => {
     const out = [], seen = new Set();
     for (const v of Array.isArray(values) ? values : []) {
