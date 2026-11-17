@@ -155,7 +155,12 @@
   }
   function localThoughts() {
     try { const list=JSON.parse(localStorage.getItem('quicklinks-thoughts-v1') || '[]');
-      return Array.isArray(list)?list.map(thoughtItem):[];
+      return Array.isArray(list) ? list.map(n => {
+        const normalized=thoughtItem(n);
+        // Preserve the distinction until the three-way merge: legacy missing tags are unknown.
+        if (!Object.prototype.hasOwnProperty.call(n,'tags')) delete normalized.tags;
+        return normalized;
+      }) : [];
     } catch(_){ return []; }
   }
   function payload() {
