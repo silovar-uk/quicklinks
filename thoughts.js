@@ -38,7 +38,10 @@
   };
   const thoughtTags = n => normalizeTags(n?.tags);
   const hasTag = (n, tag) => thoughtTags(n).some(t=>tagKey(t)===tagKey(tag));
-  const matchesThought = (n, query) => tagKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' ')).includes(tagKey(query));
+  const matchesThought = (n, query) => {
+    const q=tagKey(query), text=tagKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
+    return text.includes(q) || (q.startsWith('#') && thoughtTags(n).some(tag=>tagKey(tag).includes(q.slice(1))));
+  };
   const availableTags = () => {
     const count = new Map();
     for (const n of notes) for (const tag of thoughtTags(n)) {
@@ -481,6 +484,7 @@ function renderLibrary({U,state,itemHtml}) {
   function saveEditor() {
     const value=byId('ql-thought-input').value.trim();
     if (!value) return;
+    if (!appending && byId('ql-tag-input').value.trim()) addEditorTag(byId('ql-tag-input').value);
     const makeTask=!appending && byId('ql-thought-task-flag').checked;
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
@@ -567,6 +571,7 @@ function renderLibrary({U,state,itemHtml}) {
     tagFilter.addEventListener('click',e=>{
       if(e.target.closest('[data-clear-tag]'))applyTagFilter('');
     });
+    byId('searchInput')?.addEventListener('input',()=>{if(selectedTag){selectedTag='';refresh()}});
     byId('lib').addEventListener('click',onListClick);
     byId('mResults').addEventListener('click',onListClick);
     function renderListButtons() {
