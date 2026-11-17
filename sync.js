@@ -135,7 +135,7 @@
   function normalizeThoughtTags(values) {
     const out=[], seen=new Set();
     for (const value of Array.isArray(values)?values:[]) {
-      const tag=String(value||'').normalize('NFKC').replace(/^#+/,'').trim().replace(/\s+/g,' ').slice(0,24);
+      const tag=String(value||'').normalize('NFKC').trim().replace(/^#+/,'').trim().replace(/\s+/g,' ').slice(0,24);
       const key=tag.toLocaleLowerCase('ja');
       if (key && !seen.has(key)) {out.push(tag);seen.add(key)}
       if (out.length>=8) break;
