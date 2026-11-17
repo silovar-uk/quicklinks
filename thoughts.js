@@ -460,6 +460,7 @@ function renderLibrary({U,state,itemHtml}) {
     byId('ql-tag-input').value='';
     showTagOptions=editTags.length<8;
     renderTagEditor();
+    if (showTagOptions) byId('ql-tag-input').focus();
   }
   function applyTagFilter(value) {
     selectedTag=value||'';
@@ -489,7 +490,7 @@ function renderLibrary({U,state,itemHtml}) {
   function saveEditor() {
     const value=byId('ql-thought-input').value.trim();
     if (!value) return;
-    if (!appending && byId('ql-tag-input').value.trim()) addEditorTag(byId('ql-tag-input').value);
+    if (!appending && showTagOptions && byId('ql-tag-input').value.trim()) addEditorTag(byId('ql-tag-input').value);
     const makeTask=!appending && byId('ql-thought-task-flag').checked;
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
@@ -594,7 +595,9 @@ function renderLibrary({U,state,itemHtml}) {
       '<label class="ql-task-capture" id="ql-thought-task-wrap"><input type="checkbox" id="ql-thought-task-flag"> やることにする <small>期限はあとから設定</small></label><div class="ql-form-actions"><button type="button" class="btn" id="ql-cancel">やめる</button><button type="button" class="btn primary" id="ql-save">保存</button></div></form>';
     document.body.append(dialog);
     byId('ql-tag-toggle').onclick=()=>{
-      showTagOptions=!showTagOptions;renderTagEditor();
+      showTagOptions=!showTagOptions;
+      if(!showTagOptions)byId('ql-tag-input').value='';
+      renderTagEditor();
       if(showTagOptions)byId('ql-tag-input').focus();
     };
     byId('ql-tag-input').addEventListener('focus',()=>{showTagOptions=true;renderTagEditor()});
@@ -603,7 +606,7 @@ function renderLibrary({U,state,itemHtml}) {
       if(e.isComposing||e.keyCode===229) return;
       if(e.key==='Enter'||e.key===','){e.preventDefault();addEditorTag(e.target.value)}
       if(e.key==='Escape' && showTagOptions){
-        e.preventDefault();e.stopPropagation();showTagOptions=false;renderTagEditor();byId('ql-tag-toggle').focus();
+        e.preventDefault();e.stopPropagation();showTagOptions=false;byId('ql-tag-input').value='';renderTagEditor();byId('ql-tag-toggle').focus();
       }
     });
     byId('ql-tag-add').onclick=()=>addEditorTag(byId('ql-tag-input').value);
