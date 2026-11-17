@@ -132,10 +132,20 @@
       lastCopiedAt: x.lastCopiedAt || null
     };
   }
+  function normalizeThoughtTags(values) {
+    const out=[], seen=new Set();
+    for (const value of Array.isArray(values)?values:[]) {
+      const tag=String(value||'').normalize('NFKC').trim().replace(/^#+/,'').trim().replace(/\s+/g,' ').slice(0,24);
+      const key=tag.toLocaleLowerCase('ja');
+      if (key && !seen.has(key)) {out.push(tag);seen.add(key)}
+      if (out.length>=8) break;
+    }
+    return out;
+  }
   function thoughtItem(x) {
     const t = x.task && typeof x.task === 'object' ? x.task : null;
     return {
-      id:String(x.id || ''), body:String(x.body || ''),
+      id:String(x.id || ''), body:String(x.body || ''), tags:normalizeThoughtTags(x.tags),
       created:x.created || null, updated:x.updated || x.created || null,
       history:(Array.isArray(x.history)?x.history:[]).map(h=>({text:String(h.text || ''),created:h.created || null})),
       done:!!x.done, snooze:x.snooze || null,
@@ -272,6 +282,7 @@
       out.clickHistory = uniq([...(base?.clickHistory || []), ...(local?.clickHistory || []), ...(remote?.clickHistory || [])]);
       out.clickCount = Math.max(Number(base?.clickCount || 0), Number(local?.clickCount || 0), Number(remote?.clickCount || 0));
     } else if (kind === 'thoughts') {
+      out.tags = normalizeThoughtTags(mergeSets(normalizeThoughtTags(base?.tags),normalizeThoughtTags(local?.tags),normalizeThoughtTags(remote?.tags)));
       out.created = earlier(local?.created,remote?.created) || base?.created || null;
       out.updated = later(local?.updated,remote?.updated) || base?.updated || out.created;
       const events = [...(base?.history || []),...(local?.history || []),...(remote?.history || [])];

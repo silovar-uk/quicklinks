@@ -25,6 +25,35 @@
   };
   const validModes = ['mixed', 'links', 'thoughts'];
   const validPeriods = ['all', 'month', 'quarter', 'year'];
+  const tagKey = v => String(v || '').normalize('NFKC').toLocaleLowerCase('ja').trim();
+  const cleanTag = v => String(v || '').normalize('NFKC').trim().replace(/^#+/,'').trim().replace(/\s+/g, ' ').slice(0,24);
+  const normalizeTags = values => {
+    const out = [], seen = new Set();
+    for (const v of Array.isArray(values) ? values : []) {
+      const tag = cleanTag(v), key = tagKey(tag);
+      if (key && !seen.has(key)) {out.push(tag);seen.add(key)}
+      if (out.length >= 8) break;
+    }
+    return out;
+  };
+  const thoughtTags = n => normalizeTags(n?.tags);
+  const hasTag = (n, tag) => thoughtTags(n).some(t=>tagKey(t)===tagKey(tag));
+  const matchesThought = (n, query) => {
+    const q=tagKey(query), text=tagKey([n.body,taskTitle(n),...(n.history||[]).map(x=>x.text),...thoughtTags(n)].join(' '));
+    return text.includes(q) || (q.startsWith('#') && thoughtTags(n).some(tag=>tagKey(tag).includes(q.slice(1))));
+  };
+  const availableTags = () => {
+    const count = new Map();
+    for (const n of notes) for (const tag of thoughtTags(n)) {
+      const k=tagKey(tag), old=count.get(k);
+      count.set(k,{tag:old?.tag||tag,count:(old?.count||0)+1});
+    }
+    return [...count.values()].sort((a,b)=>b.count-a.count || a.tag.localeCompare(b.tag,'ja'));
+  };
+  const tagButtons = n => thoughtTags(n).length ?
+    '<div class="ql-thought-tags" aria-label="タグ">' +
+    thoughtTags(n).slice(0,2).map(t=>'<button class="ql-thought-tag" type="button" data-thought-action="filter-tag" data-tag="'+h(t)+'" aria-label="タグ '+h(t)+' で絞り込む">#'+h(t)+'</button>').join('') +
+    (thoughtTags(n).length>2?'<span class="ql-tag-more">+'+(thoughtTags(n).length-2)+'</span>':'') + '</div>' : '';
   let notes = read(NOTE_KEY, []);
   if (!Array.isArray(notes)) notes = [];
   let settings = {mode:'mixed', ratio:30, period:'all', ...read(SETTINGS_KEY, {})};
@@ -32,6 +61,7 @@
   if (!validPeriods.includes(settings.period)) settings.period = 'all';
   settings.ratio = Math.max(0, Math.min(100, Number(settings.ratio) || 0));
   let listMode = 'all', editId = null, appending = false, taskEditId = null;
+  let editTags = [], showTagOptions = false, selectedTag = '';
   let nowSection = null;
   let order = [], position = 0, orderKey = '', dirty = true;
 
@@ -297,7 +327,7 @@ function renderMixedDeck({U, mk, cardHtml, findLink, markShown}) {
       '</span>' + (n.done?'<span>見返し終了</span>':'') + '</span>' +
       '<span class="item-title clamp2">' + h(n.body) + '</span>' +
       (latest?'<span class="item-desc clamp3">追記：'+h(latest.text)+'</span>':'') +
-      '</button>' +
+      '</button>' + tagButtons(n) +
       (t?'<div class="ql-task-line"><button type="button" class="ql-task-check" data-thought-action="task-toggle" aria-label="' +
       (t.status==='done'?'タスクを再開':'タスクを完了')+'">' + (t.status==='done'?'☑':'□') +
       '</button><span class="' + (t.status==='done'?'ql-task-done':'') + '">' + h(taskTitle(n)) + '</span>' +
@@ -320,10 +350,22 @@ function renderLibrary({U,state,itemHtml}) {
     const normal = U.view === 'links' && U.drawer === 'ALL' && U.kind === 'all' && !U.query.trim();
     const toolbar = byId('ql-list-toggle');
     if (toolbar) toolbar.hidden = !normal;
+    const tagBar = byId('ql-tag-filter');
+    if (tagBar) {
+      tagBar.hidden = !(normal && listMode === 'thoughts');
+      if (!tagBar.hidden) {
+        const available = availableTags();
+        tagBar.innerHTML = '<label for="ql-tag-filter-select">タグで絞る</label>' +
+          '<select id="ql-tag-filter-select" aria-label="思ったことをタグで絞り込む">' +
+          '<option value="">すべてのタグ</option>' +
+          available.map(x=>'<option value="'+h(x.tag)+'"'+(tagKey(x.tag)===tagKey(selectedTag)?' selected':'')+'>'+h(x.tag)+' ('+x.count+')</option>').join('') +
+          '</select>' + (selectedTag?'<button class="btn quiet" type="button" data-clear-tag>解除 ×</button>':'');
+      }
+    }
     if (U.query.trim()) {
       const query = U.query.trim().toLocaleLowerCase();
       if (/^https?:\/\//i.test(query)) return;
-      const matches = notes.filter(n => (n.body+' '+taskTitle(n)+' '+(n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(query));
+      const matches = notes.filter(n => matchesThought(n, query));
       if (!matches.length) return;
       root.querySelector('.empty')?.remove();
       const count = parseInt(byId('libCount').textContent,10) || 0;
@@ -341,9 +383,10 @@ function renderLibrary({U,state,itemHtml}) {
       byId('libCount').textContent = links.length + '件';
       return;
     }
+    const visibleNotes = selectedTag && listMode === 'thoughts' ? notes.filter(n=>hasTag(n,selectedTag)) : notes;
     const records = [
       ...(includeLinks ? links.map(item => ({kind:'link',date:stamp(item.addedAt),item})) : []),
-      ...(includeThoughts ? notes.map(item => ({kind:'thought',date:stamp(item.created),item})) : []),
+      ...(includeThoughts ? visibleNotes.map(item => ({kind:'thought',date:stamp(item.created),item})) : []),
       ...(listMode === 'tasks' ? notes.filter(task).map(item => ({kind:'thought',date:stamp(item.created),item})) : [])
     ];
     let sort = state.linkSort;
@@ -357,7 +400,7 @@ function renderLibrary({U,state,itemHtml}) {
     select.hidden = listMode === 'tasks';
     select.innerHTML = [['recent','新しい順'],['oldest','古い順'],['title','名前順']]
       .map(([v,t])=>`<option value="${v}"${v===sort?' selected':''}>${t}</option>`).join('');
-    if (!records.length) {root.innerHTML='<div class="empty"><b>まだありません</b>上の保存ボタンから追加できます。</div>';return}
+    if (!records.length) {root.innerHTML=selectedTag ? '<div class="empty"><b>該当するメモがありません</b>タグの絞り込みを解除してください。</div>' : '<div class="empty"><b>まだありません</b>上の保存ボタンから追加できます。</div>';return}
     if (listMode === 'tasks') {
       root.innerHTML='<div class="grid ql-task-list">'+records.map(e=>thoughtItemHtml(e.item)).join('')+'</div>';
       return;
@@ -380,7 +423,7 @@ function renderLibrary({U,state,itemHtml}) {
     const root = byId('mResults');
     if (!root || !query || /^https?:/i.test(query)) return;
     const needle = query.trim().toLocaleLowerCase();
-    const matches = notes.filter(n => (n.body+' '+taskTitle(n)+' '+(n.history||[]).map(x=>x.text).join(' ')).toLocaleLowerCase().includes(needle));
+    const matches = notes.filter(n => matchesThought(n, needle));
     if (!matches.length) return;
     root.querySelector('.empty')?.remove();
     const group = document.createElement('div');
@@ -389,9 +432,47 @@ function renderLibrary({U,state,itemHtml}) {
     root.append(group);
   }
 
+  function renderTagEditor() {
+    const selected=byId('ql-tag-selected'), options=byId('ql-tag-options'), input=byId('ql-tag-input');
+    if (!selected || !options || !input) return;
+    selected.innerHTML=editTags.map(t=>'<button class="ql-tag-selected" type="button" data-remove-tag="'+h(t)+'" aria-label="'+h(t)+'を外す">#'+h(t)+' <span aria-hidden="true">×</span></button>').join('');
+    const q=tagKey(input.value), all=availableTags();
+    const choices=all.filter(x=>!editTags.some(t=>tagKey(t)===tagKey(x.tag)) && (!q || tagKey(x.tag).includes(q))).slice(0,8);
+    const candidate=cleanTag(input.value);
+    const canCreate=!!candidate && !editTags.some(t=>tagKey(t)===tagKey(candidate)) && !all.some(x=>tagKey(x.tag)===tagKey(candidate));
+    options.innerHTML=choices.map(x=>'<button type="button" data-add-tag="'+h(x.tag)+'">#'+h(x.tag)+'</button>').join('')+
+      (canCreate&&editTags.length<8?'<button type="button" data-add-new>＋「'+h(candidate)+'」を作成</button>':'')+
+      (!choices.length&&!canCreate?'<span class="ql-tag-empty">候補がありません</span>':'');
+    options.hidden=!showTagOptions || editTags.length>=8;
+    input.disabled=editTags.length>=8;
+    input.setAttribute('aria-expanded',String(!options.hidden));
+    byId('ql-tag-count').textContent=editTags.length+'/8';
+  }
+  function addEditorTag(value) {
+    const tag=cleanTag(value);
+    if (!tag || editTags.length>=8 || editTags.some(t=>tagKey(t)===tagKey(tag))) return;
+    editTags=normalizeTags([...editTags,tag]);
+    byId('ql-tag-input').value='';
+    showTagOptions=false;
+    renderTagEditor();
+  }
+  function applyTagFilter(value) {
+    selectedTag=value||'';
+    listMode='thoughts';
+    if (typeof U !== 'undefined') {U.view='links';U.drawer='ALL';U.kind='all';U.query='';U.active=-1}
+    const search=byId('searchInput');if(search) search.value='';
+    const sheet=byId('searchSheet');if(sheet?.open) sheet.close();
+    byId('ql-list-toggle')?.querySelectorAll('[data-ql-list]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.qlList==='thoughts')));
+    refresh();
+    byId('libHead')?.scrollIntoView({block:'start',behavior:'smooth'});
+  }
   function openEditor(id=null,append=false) {
     editId=id;appending=append;
     const n=findNote(id);
+    editTags=thoughtTags(n);showTagOptions=false;
+    byId('ql-tag-input').value='';
+    byId('ql-tag-edit').hidden=append;
+    renderTagEditor();
     byId('ql-thought-title').textContent=append?'追記する':id?'思ったことを編集':'思ったことを残す';
     byId('ql-thought-input').value=append?'':n?.body||'';
     byId('ql-thought-input').placeholder=append?'その後、どう思った？':'未来の自分に残したいこと';
@@ -403,13 +484,14 @@ function renderLibrary({U,state,itemHtml}) {
   function saveEditor() {
     const value=byId('ql-thought-input').value.trim();
     if (!value) return;
+    if (!appending && byId('ql-tag-input').value.trim()) addEditorTag(byId('ql-tag-input').value);
     const makeTask=!appending && byId('ql-thought-task-flag').checked;
     if (editId && findNote(editId)) {
       notes=notes.map(n=>n.id!==editId?n:appending
         ? {...n,history:[...(n.history||[]),{text:value,created:new Date().toISOString()}],updated:new Date().toISOString()}
-        : {...n,body:value,task:makeTask && !n.task ? {title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null} : n.task,updated:new Date().toISOString()});
+        : {...n,body:value,tags:normalizeTags(editTags),task:makeTask && !n.task ? {title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null} : n.task,updated:new Date().toISOString()});
     } else notes.push({id:'thought-'+Date.now()+'-'+Math.random().toString(36).slice(2),
-      body:value,created:new Date().toISOString(),history:[],done:false,
+      body:value,tags:normalizeTags(editTags),created:new Date().toISOString(),history:[],done:false,
       ...(makeTask ? {task:{title:value.split('\n').find(Boolean).slice(0,100),status:'open',dueOn:null,remindAt:null,completedAt:null}} : {})});
     persistNotes();byId('ql-thought-dialog').close();refresh();
   }
@@ -419,6 +501,7 @@ function renderLibrary({U,state,itemHtml}) {
     e.stopPropagation();
     const id=target.dataset.thoughtId;
     const action=e.target.closest('[data-thought-action]')?.dataset.thoughtAction||'edit';
+    if(action==='filter-tag'){applyTagFilter(e.target.closest('[data-tag]')?.dataset.tag);return}
     if(action==='edit')openEditor(id);
     else if(action==='taskify')taskify(id);
     else if(action==='task-toggle')toggleTask(id);
@@ -477,8 +560,18 @@ function renderLibrary({U,state,itemHtml}) {
     byId('sortSelect').before(listToggle);
     listToggle.addEventListener('click',e=>{
       const button=e.target.closest('[data-ql-list]');if(!button)return;
-      listMode=button.dataset.qlList;renderListButtons();refresh();
+      listMode=button.dataset.qlList;selectedTag='';renderListButtons();refresh();
     });
+    const tagFilter=document.createElement('div');
+    tagFilter.id='ql-tag-filter';tagFilter.className='ql-tag-filter';tagFilter.hidden=true;
+    byId('libHead').after(tagFilter);
+    tagFilter.addEventListener('change',e=>{
+      if(e.target.id==='ql-tag-filter-select')applyTagFilter(e.target.value);
+    });
+    tagFilter.addEventListener('click',e=>{
+      if(e.target.closest('[data-clear-tag]'))applyTagFilter('');
+    });
+    byId('searchInput')?.addEventListener('input',()=>{if(selectedTag){selectedTag='';refresh()}});
     byId('lib').addEventListener('click',onListClick);
     byId('mResults').addEventListener('click',onListClick);
     function renderListButtons() {
@@ -488,8 +581,29 @@ function renderLibrary({U,state,itemHtml}) {
 
     const dialog=document.createElement('dialog');
     dialog.id='ql-thought-dialog';dialog.className='ql-thought-dialog';
-    dialog.innerHTML='<form method="dialog" class="ql-thought-form"><h2 id="ql-thought-title">思ったことを残す</h2><textarea id="ql-thought-input" rows="5" required placeholder="未来の自分に残したいこと"></textarea><label class="ql-task-capture" id="ql-thought-task-wrap"><input type="checkbox" id="ql-thought-task-flag"> やることにする <small>期限はあとから設定</small></label><div class="ql-form-actions"><button type="button" class="btn" id="ql-cancel">やめる</button><button type="button" class="btn primary" id="ql-save">保存</button></div></form>';
+    dialog.innerHTML='<form method="dialog" class="ql-thought-form"><h2 id="ql-thought-title">思ったことを残す</h2><textarea id="ql-thought-input" rows="5" required placeholder="未来の自分に残したいこと"></textarea>' +
+      '<div id="ql-tag-edit" class="ql-tag-edit"><div class="ql-tag-heading"><label for="ql-tag-input">タグ <small>任意・引き出しとは別</small></label><span id="ql-tag-count">0/8</span></div>' +
+      '<div id="ql-tag-selected" class="ql-tag-selected-list"></div>' +
+      '<div class="ql-tag-search"><input id="ql-tag-input" type="text" maxlength="24" autocomplete="off" placeholder="タグを探す・新しく作る" aria-controls="ql-tag-options" aria-expanded="false"><button type="button" class="btn quiet" id="ql-tag-add">追加</button></div>' +
+      '<div id="ql-tag-options" class="ql-tag-options" hidden></div></div>' +
+      '<label class="ql-task-capture" id="ql-thought-task-wrap"><input type="checkbox" id="ql-thought-task-flag"> やることにする <small>期限はあとから設定</small></label><div class="ql-form-actions"><button type="button" class="btn" id="ql-cancel">やめる</button><button type="button" class="btn primary" id="ql-save">保存</button></div></form>';
     document.body.append(dialog);
+    byId('ql-tag-input').addEventListener('focus',()=>{showTagOptions=true;renderTagEditor()});
+    byId('ql-tag-input').addEventListener('input',()=>{showTagOptions=true;renderTagEditor()});
+    byId('ql-tag-input').addEventListener('keydown',e=>{
+      if(e.isComposing||e.keyCode===229) return;
+      if(e.key==='Enter'||e.key===','){e.preventDefault();addEditorTag(e.target.value)}
+      if(e.key==='Escape'){e.stopPropagation();showTagOptions=false;renderTagEditor()}
+    });
+    byId('ql-tag-add').onclick=()=>addEditorTag(byId('ql-tag-input').value);
+    byId('ql-tag-selected').addEventListener('click',e=>{
+      const b=e.target.closest('[data-remove-tag]');if(!b)return;
+      editTags=editTags.filter(t=>tagKey(t)!==tagKey(b.dataset.removeTag));renderTagEditor();
+    });
+    byId('ql-tag-options').addEventListener('click',e=>{
+      const b=e.target.closest('[data-add-tag],[data-add-new]');if(!b)return;
+      addEditorTag(b.hasAttribute('data-add-new')?byId('ql-tag-input').value:b.dataset.addTag);
+    });
     byId('ql-cancel').onclick=()=>dialog.close();
     byId('ql-save').onclick=saveEditor;
     const taskDialog=document.createElement('dialog');
