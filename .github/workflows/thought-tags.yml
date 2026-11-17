@@ -1,0 +1,35 @@
+name: Thought tags regression
+
+on:
+  pull_request:
+    paths:
+      - "thoughts.js"
+      - "sync.js"
+      - "tests/thought-tags.test.cjs"
+      - ".github/workflows/thought-tags.yml"
+  push:
+    branches: [main]
+    paths:
+      - "thoughts.js"
+      - "sync.js"
+      - "tests/thought-tags.test.cjs"
+      - ".github/workflows/thought-tags.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Thought tags and sync tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JS syntax
+        run: |
+          node --check thoughts.js
+          node --check sync.js
+      - name: Run regression tests
+        run: node --test tests/thought-tags.test.cjs
