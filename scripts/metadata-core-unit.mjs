@@ -80,6 +80,14 @@ assert.equal(readerCalls, 2, 'Reader fallback is attempted after normal site fet
 assert.equal(microlinkCalls, 0, 'Reader success prevents consuming the Microlink quota');
 assert(api('resolverUnavailableUntil > Date.now()'), '404 Worker endpoint disables repeated Worker attempts for 15 minutes');
 assert.equal(api("isSafePublicReaderUrl('https://example.com/private?access_token=abc')"), false, 'sensitive query parameters are never sent to Reader');
+const readerParse = api('parseReaderMetadata');
+const tweet = readerParse(
+  'Title: YouTube (@YouTube) on X\n\nMarkdown Content:\n## Post\n\n[Log in](https://x.com/i/signup)[Sign up](https://x.com/i/signup)\n\n# YouTube on X: "\"go touch grass\" ok but have you ever touched a crunchy fall leaf"\n\n## Conversation',
+  'https://x.com/YouTube/status/2102412606308757511'
+);
+assert.equal(tweet.description, '"go touch grass" ok but have you ever touched a crunchy fall leaf');
+assert.equal(tweet.descriptionSource, 'reader-post', 'X login prompts are not used as the description');
+
 api("RF.day = '2000-01-01'; RF.used = 20; RF.blockedUntil = null;");
 assert.equal(api('refetchBlocked()'), false);
 assert.equal(api('RF.used'), 0, 'budget resets at local midnight without reload');
