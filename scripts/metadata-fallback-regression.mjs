@@ -194,7 +194,7 @@ async function testReaderGetsRealMetadata(browser) {
       readerCalls++;
       return route.fulfill({
         status: 200, headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' },
-        body: 'Title: Reader Recovery\\n\\nURL Source: https://qa-reader.test/page-0\\n\\nMarkdown Content:\\nAn article introduction that carries enough meaningful information to describe the page even when its HTML cannot be fetched directly.'
+        body: 'Title: Reader Recovery\n\nURL Source: https://qa-reader.test/page-0\n\nMarkdown Content:\nAn article introduction that carries enough meaningful information to describe the page even when its HTML cannot be fetched directly.'
       });
     });
     await page.route(MICROLINK, route => { microlinkCalls++; return route.abort(); });
