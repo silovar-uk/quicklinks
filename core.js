@@ -847,7 +847,7 @@ function isSafePublicReaderUrl(value) {
     const host = url.hostname.toLowerCase();
     if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return false;
     if (isLoginHost(url.href) || host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return false;
-    if (/^(?:127|10|0|192\\.168|169\\.254)\\./.test(host) || /^172\\.(?:1[6-9]|2[0-9]|3[01])\\./.test(host)) return false;
+    if (/^(?:127|10|0|192\.168|169\.254)\./.test(host) || /^172\.(?:1[6-9]|2[0-9]|3[01])\./.test(host)) return false;
     for (const key of url.searchParams.keys()) {
       if (/(?:token|access_key|api_key|auth|session|password|signature|signed|oauth|secret|credential)/i.test(key)) return false;
     }
@@ -857,21 +857,21 @@ function isSafePublicReaderUrl(value) {
 
 function parseReaderMetadata(text, fallbackUrl) {
   const raw = String(text || '').slice(0, 150000);
-  if (!raw || /^(?:error|request failed|internal server error|access denied)\\b/i.test(raw.trim())) return null;
-  const titleMatch = raw.match(/^Title:\\s*(.+)$/im);
+  if (!raw || /^(?:error|request failed|internal server error|access denied)\b/i.test(raw.trim())) return null;
+  const titleMatch = raw.match(/^Title:\s*(.+)$/im);
   const title = cleanText(titleMatch?.[1] || '', 240);
-  let body = raw.split(/\\nMarkdown Content:\\s*\\n/i)[1] || '';
-  if (!body) body = raw.split(/\\nContent:\\s*\\n/i)[1] || '';
-  const paragraphs = body.split(/\\n\\s*\\n+/).map(block => {
+  let body = raw.split(/\nMarkdown Content:\s*\n/i)[1] || '';
+  if (!body) body = raw.split(/\nContent:\s*\n/i)[1] || '';
+  const paragraphs = body.split(/\n\s*\n+/).map(block => {
     return cleanText(block
-      .replace(/^#{1,6}\\s+/gm, '')
-      .replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, '')
-      .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/<[^>]+>/g, '')
-      .replace(/^[>*\\-•]+\\s*/gm, ''), 900);
+      .replace(/^[>*\-•]+\s*/gm, ''), 900);
   }).filter(block => block.length >= 45
     && !/^(?:navigation|目次|menu|cookie|privacy policy|sign in|login|関連記事|おすすめ記事|著作権|ホーム|all rights reserved)/i.test(block)
-    && !/^(?:https?:\\/\\/|\\|)/.test(block));
+    && !/^(?:https?:\/\/|\|)/.test(block));
   const description = cleanText(paragraphs[0] || '', 550);
   if (!title && !description) return null;
   return {
