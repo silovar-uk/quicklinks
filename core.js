@@ -862,22 +862,32 @@ function parseReaderMetadata(text, fallbackUrl) {
   const title = cleanText(titleMatch?.[1] || '', 240);
   let body = raw.split(/\nMarkdown Content:\s*\n/i)[1] || '';
   if (!body) body = raw.split(/\nContent:\s*\n/i)[1] || '';
+  const urlObj = new URL(fallbackUrl);
+  const isXPost = /^(?:www\.)?(?:x\.com|twitter\.com)$/i.test(urlObj.hostname)
+    && /\/status\/[0-9]+/.test(urlObj.pathname);
+  // X は先頭にログイン誘導が混じるため、公開投稿の見出しから投稿本文を拾う。
+  const xPost = isXPost
+    ? cleanText(body.match(/^#\s+.+?\s+on X:\s*["“](.+)["”]\s*$/mi)?.[1] || '', 550)
+    : '';
   const paragraphs = body.split(/\n\s*\n+/).map(block => {
-    return cleanText(block
+    const links = (block.match(/\[[^\]]+\]\([^)]+\)/g) || []).length;
+    const plain = cleanText(block
       .replace(/^#{1,6}\s+/gm, '')
       .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/<[^>]+>/g, '')
       .replace(/^[>*\-•]+\s*/gm, ''), 900);
-  }).filter(block => block.length >= 45
-    && !/^(?:navigation|目次|menu|cookie|privacy policy|sign in|login|関連記事|おすすめ記事|著作権|ホーム|all rights reserved)/i.test(block)
-    && !/^(?:https?:\/\/|\|)/.test(block));
-  const description = cleanText(paragraphs[0] || '', 550);
+    return { plain, links };
+  }).filter(({ plain, links }) => plain.length >= 45
+    && links <= 2
+    && !/^(?:navigation|目次|menu|cookie|privacy policy|sign in|log in|sign up|login|関連記事|おすすめ記事|著作権|ホーム|all rights reserved)/i.test(plain)
+    && !/^(?:https?:\/\/|\|)/.test(plain));
+  const description = cleanText(xPost || paragraphs[0]?.plain || '', 550);
   if (!title && !description) return null;
   return {
     url: fallbackUrl, title, description, domain: hostOf(fallbackUrl),
     source: 'jina-reader', provider: 'Jina Reader',
-    descriptionSource: description ? 'reader-body' : 'none',
+    descriptionSource: description ? (xPost ? 'reader-post' : 'reader-body') : 'none',
     confidence: description ? 'medium' : 'low'
   };
 }
