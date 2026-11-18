@@ -654,6 +654,10 @@ const RESOLVER_TIMEOUT = 9000;
 const MICROLINK_TIMEOUT = 9000;
 const METADATA_RESOLVER_ENDPOINT = 'https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata';
 const MICROLINK_ENDPOINT = 'https://api.microlink.io/';
+const READER_ENDPOINT = 'https://r.jina.ai/';
+const READER_TIMEOUT = 16000;
+let readerBlockedUntil = 0;
+let resolverUnavailableUntil = 0;
 
 function meta(doc, selectors) {
   for (const selector of selectors) {
@@ -835,7 +839,71 @@ async function fetchNoembedMetadata(url, { signal } = {}) {
   });
 }
 
+// Jina Reader は無料キー無しで公開ページをMarkdown化できる。フロントからのCORSを稼働確認済み。
+// 機密URLを第三者へ送らないよう、セッション等を含むクエリや内向きホストは除外。
+function isSafePublicReaderUrl(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return false;
+    if (isLoginHost(url.href) || host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return false;
+    if (/^(?:127|10|0|192\\.168|169\\.254)\\./.test(host) || /^172\\.(?:1[6-9]|2[0-9]|3[01])\\./.test(host)) return false;
+    for (const key of url.searchParams.keys()) {
+      if (/(?:token|access_key|api_key|auth|session|password|signature|signed|oauth|secret|credential)/i.test(key)) return false;
+    }
+    return true;
+  } catch { return false; }
+}
+
+function parseReaderMetadata(text, fallbackUrl) {
+  const raw = String(text || '').slice(0, 150000);
+  if (!raw || /^(?:error|request failed|internal server error|access denied)\\b/i.test(raw.trim())) return null;
+  const titleMatch = raw.match(/^Title:\\s*(.+)$/im);
+  const title = cleanText(titleMatch?.[1] || '', 240);
+  let body = raw.split(/\\nMarkdown Content:\\s*\\n/i)[1] || '';
+  if (!body) body = raw.split(/\\nContent:\\s*\\n/i)[1] || '';
+  const paragraphs = body.split(/\\n\\s*\\n+/).map(block => {
+    return cleanText(block
+      .replace(/^#{1,6}\\s+/gm, '')
+      .replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, '')
+      .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')
+      .replace(/<[^>]+>/g, '')
+      .replace(/^[>*\\-•]+\\s*/gm, ''), 900);
+  }).filter(block => block.length >= 45
+    && !/^(?:navigation|目次|menu|cookie|privacy policy|sign in|login|関連記事|おすすめ記事|著作権|ホーム|all rights reserved)/i.test(block)
+    && !/^(?:https?:\\/\\/|\\|)/.test(block));
+  const description = cleanText(paragraphs[0] || '', 550);
+  if (!title && !description) return null;
+  return {
+    url: fallbackUrl, title, description, domain: hostOf(fallbackUrl),
+    source: 'jina-reader', provider: 'Jina Reader',
+    descriptionSource: description ? 'reader-body' : 'none',
+    confidence: description ? 'medium' : 'low'
+  };
+}
+
+async function fetchReaderMetadata(url, { signal } = {}) {
+  if (!isSafePublicReaderUrl(url)) throw Object.assign(new Error('reader_skipped_sensitive'), { code: 'private' });
+  if (Date.now() < readerBlockedUntil) throw Object.assign(new Error('reader_cooldown'), { code: 'reader_rate' });
+  return withTimeoutSignal(READER_TIMEOUT, signal, async innerSignal => {
+    const endpoint = READER_ENDPOINT + url;
+    const response = await fetch(endpoint, {
+      method: 'GET', mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer',
+      headers: { Accept: 'text/plain' }, signal: innerSignal
+    });
+    if (response.status === 429) {
+      readerBlockedUntil = Date.now() + 60 * 1000;
+      throw Object.assign(new Error('reader_rate'), { code: 'reader_rate' });
+    }
+    if (!response.ok) throw new Error('Reader HTTP ' + response.status);
+    const data = parseReaderMetadata(await response.text(), url);
+    if (!data) throw new Error('reader_metadata_not_found');
+    return data;
+  });
+}
+
 async function fetchResolverMetadata(url, { signal } = {}) {
+  if (Date.now() < resolverUnavailableUntil) throw new Error('resolver_not_deployed');
   return withTimeoutSignal(RESOLVER_TIMEOUT, signal, async innerSignal => {
     const endpoint = new URL(METADATA_RESOLVER_ENDPOINT);
     endpoint.searchParams.set('url', url);
@@ -847,6 +915,12 @@ async function fetchResolverMetadata(url, { signal } = {}) {
       headers: { Accept: 'application/json' },
       signal: innerSignal
     });
+    if (response.status === 404 && !(response.headers.get('content-type') || '').includes('application/json')) {
+      // 404 + text/plain = デプロイ中のWorkerにメタデータ用ルートがない。
+      // URL固有の404(JSON)とは区別し、連続して待たせない。
+      resolverUnavailableUntil = Date.now() + 15 * 60 * 1000;
+      throw new Error('resolver_not_deployed');
+    }
     if (!response.ok) throw new Error('resolver HTTP ' + response.status);
     const payload = await response.json();
     if (payload?.status !== 'success' || !payload?.data) throw new Error(payload?.error || 'ページ情報を取得できませんでした');
@@ -1042,7 +1116,20 @@ async function fetchPageMetadata(url, { signal, bulk = false, force = false } = 
     }
   }
 
-  // 外部サービスの残枠がなくても、それ以前の無料枠不要な取得は常に実行する。
+  // 稼働確認できたキー不要のReaderで公開ページのタイトルと本文冒頭を補う。
+  // HTML取得できない場合も、ここから別経路で成功する可能性がある。
+  try {
+    const reader = await fetchReaderMetadata(metadataUrl, { signal });
+    if (!looksSuspicious(reader)) {
+      best = mergeFetchedMetadata(best, reader, url);
+      if (hasCompleteMetadata(best)) return conclude();
+    }
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
+  }
+
+  // Microlinkの残枠とは独立して、Readerまでで取れた情報は反映する。
   if (refetchBlocked() || (bulk && RF.used >= REFETCH_DAILY_LIMIT)) return conclude('rate');
 
   // タイムアウトやネットワークエラーも消費として数え、失敗ループで再試行しない。
