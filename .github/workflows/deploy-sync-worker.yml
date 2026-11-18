@@ -48,6 +48,14 @@ jobs:
           import urllib.parse
           import urllib.request
 
+          health = "https://quicklinks-sync.silovar-uk.workers.dev/v1/health"
+          health_req = urllib.request.Request(health, headers={"Origin": "https://silovar-uk.github.io"})
+          with urllib.request.urlopen(health_req, timeout=10) as res:
+              check = json.load(res)
+          if check.get("metadataRoute") is not True or check.get("version") != 2:
+              raise SystemExit("Worker health check failed: " + json.dumps(check))
+          print("Worker metadata endpoint deployed: v2")
+
           target = "https://studio.persol-group.co.jp/rirekisyo/250107-1"
           endpoint = "https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?url=" + urllib.parse.quote(target, safe="")
           req = urllib.request.Request(endpoint, headers={"Origin": "https://silovar-uk.github.io", "Accept": "application/json"})
