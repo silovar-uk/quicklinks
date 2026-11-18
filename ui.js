@@ -460,6 +460,16 @@ function renderManage() {
           <li>アクション「URLを開く」を足し、手順4のテキストを渡す</li>
         </ol>
         <p class="diff-note">使い方:共有したいページで共有→「Quick Linksに保存」→Safariで保存シートが開く→引き出しを選んで保存。</p>
+        <details class="diff-note"><summary>Safariではタイトル・説明も一緒に保存する</summary>
+          <p>Safari専用のショートカットをもう1つ作ると、ページを開いている本人の操作でタイトルと説明を受け取れます。外部サービスの取得枠は使いません。</p>
+          <ol style="margin:4px 0;padding-left:18px;line-height:1.7">
+            <li>ショートカットの共有シート入力を「SafariのWebページ」にする</li>
+            <li>「WebページでJavaScriptを実行」へ、下のボタンでコピーしたコードを貼る</li>
+            <li>次に「URLを開く」を追加し、JavaScriptの結果を渡す</li>
+          </ol>
+          <button class="btn" type="button" id="copySafariShortcut">Safari用JavaScriptをコピー</button>
+          <p>Safari以外のアプリからは、上のURL共有ショートカットを使ってください。</p>
+        </details>
       </div>
       <div class="m-sec"><h3>重複の整理・リセット</h3><p>完全に同じ内容のリンク・プロンプトをまとめます。リセットはこの端末のデータを消します。</p>
         <div class="m-row"><button class="btn" type="button" id="dedupeBtn">完全重複を整理</button><button class="btn danger" type="button" id="resetAllBtn">この端末のデータをリセット</button></div>
@@ -480,6 +490,11 @@ function renderManage() {
       }
     });
     $('bookmarkletLink').setAttribute('href', createDirectBookmarkletCode());
+    $('copySafariShortcut').addEventListener('click', async event => {
+      const ok = await writeClip(createSafariShortcutCode());
+      if (ok) { flashCopied(event.currentTarget); toast('Safari用のコードをコピーしました'); }
+      else toast('コピーできませんでした。ブラウザのクリップボード設定をご確認ください');
+    });
     $('dedupeBtn').addEventListener('click', () => {
       const r = dedupe();
       toast(r.removedLinks || r.removedPrompts ? '重複を整理しました' : '完全重複はありませんでした');
@@ -595,6 +610,18 @@ function createDirectBookmarkletCode() {
   const target = JSON.stringify(BOOKMARKLET_TARGET);
   return `javascript:(()=>{const c=(v,n)=>String(v||'').replace(/\\s+/g,' ').trim().slice(0,n);const m=s=>document.querySelector(s)?.content||'';const u=location.href;if(!/^https?:/i.test(u)){alert('http / https のページだけ追加できます');return}const p={v:1,url:u,title:c(document.title,300),description:c(m('meta[name="description"]')||m('meta[property="og:description"]')||m('meta[name="twitter:description"]')||'',600)};location.href=${target}+'#add='+encodeURIComponent(JSON.stringify(p))})()`;
 }
+// iPhone Safariの「WebページでJavaScriptを実行」用。共有元のページで実行し、URLフラグメント経由で本人のQuick Linksに渡す。
+function createSafariShortcutCode() {
+  return `const meta = (selector) => document.querySelector(selector)?.getAttribute('content') || '';
+const clean = (value, max) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, max);
+const payload = {
+  v: 1, url: location.href,
+  title: clean(document.title, 300),
+  description: clean(meta('meta[name="description"]') || meta('meta[property="og:description"]') || meta('meta[name="twitter:description"]'), 1000)
+};
+completion('https://silovar-uk.github.io/quicklinks/#add=' + encodeURIComponent(JSON.stringify(payload)));`;
+}
+
 function decodeAddPayload() {
   if (!location.hash.startsWith('#add=')) return null;
   const raw = location.hash.slice('#add='.length);
