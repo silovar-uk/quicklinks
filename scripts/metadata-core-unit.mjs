@@ -9,16 +9,24 @@ store.set('quick-links-refetch-v1', JSON.stringify({
   day, used: 20, blockedUntil: null, queue: ['persisted-id'], pos: 0, batch: null, failed: {},
 }));
 
-let resolverCalls = 0, microlinkCalls = 0;
+let resolverCalls = 0, microlinkCalls = 0, readerCalls = 0;
 const fakeFetch = async rawUrl => {
   const url = String(rawUrl);
   if (url.startsWith('https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?')) {
     resolverCalls += 1;
     const target = new URL(url).searchParams.get('url');
     if (target.includes('/failure')) return new Response('Down', { status: 502 });
+    if (target.includes('/reader-success')) return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain' } });
     return Response.json({ status: 'success', data: {
       url: target, title: 'Resolved title', description: 'Resolved description', provider: 'web',
     }});
+  }
+  if (url.startsWith('https://r.jina.ai/')) {
+    readerCalls += 1;
+    if (url.includes('/reader-success')) {
+      return new Response('Title: Actual Reader Title\n\nURL Source: https://qa-worker.test/reader-success\n\nMarkdown Content:\nThis is an actual article paragraph containing a useful description for the saved link, not just a placeholder.', { status: 200 });
+    }
+    throw new Error('Reader upstream blocked');
   }
   if (url.startsWith('https://api.microlink.io/')) {
     microlinkCalls += 1;
@@ -62,6 +70,23 @@ assert.equal(blocked.status, 'unavailable');
 assert.equal(blocked.reason, 'rate');
 assert.equal(microlinkCalls, 0, 'bulk quota is limited to Microlink only');
 assert.equal(api('RF.used'), 20, 'quota-free paths must not consume the Microlink budget');
+
+const readerResult = await api("fetchPageMetadata('https://qa-worker.test/reader-success', { bulk: true })");
+assert.equal(readerResult.ok, true, 'Reader succeeds when deployed Worker has no metadata route');
+assert.equal(readerResult.status, 'complete');
+assert.equal(readerResult.data.title, 'Actual Reader Title');
+assert.match(readerResult.data.description, /actual article paragraph/);
+assert.equal(readerCalls, 2, 'Reader fallback is attempted after normal site fetch fails');
+assert.equal(microlinkCalls, 0, 'Reader success prevents consuming the Microlink quota');
+assert(api('resolverUnavailableUntil > Date.now()'), '404 Worker endpoint disables repeated Worker attempts for 15 minutes');
+assert.equal(api("isSafePublicReaderUrl('https://example.com/private?access_token=abc')"), false, 'sensitive query parameters are never sent to Reader');
+const readerParse = api('parseReaderMetadata');
+const tweet = readerParse(
+  'Title: YouTube (@YouTube) on X\n\nMarkdown Content:\n## Post\n\n[Log in](https://x.com/i/signup)[Sign up](https://x.com/i/signup)\n\n# YouTube on X: "\"go touch grass\" ok but have you ever touched a crunchy fall leaf"\n\n## Conversation',
+  'https://x.com/YouTube/status/2102412606308757511'
+);
+assert.equal(tweet.description, '"go touch grass" ok but have you ever touched a crunchy fall leaf');
+assert.equal(tweet.descriptionSource, 'reader-post', 'X login prompts are not used as the description');
 
 api("RF.day = '2000-01-01'; RF.used = 20; RF.blockedUntil = null;");
 assert.equal(api('refetchBlocked()'), false);

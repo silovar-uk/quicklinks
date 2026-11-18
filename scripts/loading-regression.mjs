@@ -6,6 +6,8 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const RESOLVER_PATTERN = 'https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?**';
 
 async function routeResolverFailure(page) {
+  // Jina Readerは実ネットワークでなくモックする。従来のMicrolink回帰ケースを独立に評価。
+  await page.route('https://r.jina.ai/**', route => route.abort('failed'));
   await page.route(RESOLVER_PATTERN, route => route.fulfill({
     status: 502,
     headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },

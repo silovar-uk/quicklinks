@@ -12,6 +12,8 @@ function dayKey() {
 
 async function seedLinks(page, count, host = 'qa-quota.test') {
   await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+  // サービスの無料枠に触れずモックで再現する
+  await page.route('https://r.jina.ai/**', route => route.abort('failed'));
   await page.evaluate(({ count, host, day }) => {
     const now = new Date().toISOString();
     const items = Array.from({ length: count }, (_, i) => ({
@@ -178,6 +180,40 @@ async function testCompleteMetadataCache(browser) {
   } finally { await context.close(); }
 }
 
+async function testReaderGetsRealMetadata(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  let readerCalls = 0, microlinkCalls = 0;
+  try {
+    await seedLinks(page, 1, 'qa-reader.test');
+    await page.route(RESOLVER, route => route.fulfill({
+      status: 404, headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' }, body: 'Not found'
+    }));
+    await page.route('https://qa-reader.test/**', route => route.abort('failed'));
+    await page.route('https://r.jina.ai/**', route => {
+      readerCalls++;
+      return route.fulfill({
+        status: 200, headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' },
+        body: 'Title: Reader Recovery\n\nURL Source: https://qa-reader.test/page-0\n\nMarkdown Content:\nAn article introduction that carries enough meaningful information to describe the page even when its HTML cannot be fetched directly.'
+      });
+    });
+    await page.route(MICROLINK, route => { microlinkCalls++; return route.abort(); });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await openCare(page);
+    await page.locator('#careRun').click();
+    await page.waitForFunction(() => {
+      const saved = JSON.parse(localStorage.getItem('quick-links-mobile-localstorage-v1') || '{}').items || [];
+      return saved.length === 1 && saved[0].description.includes('article introduction');
+    }, null, { timeout: 20000 });
+    const saved = await readLinks(page);
+    assert.equal(saved[0].title, 'Reader Recovery');
+    assert.equal(saved[0].descriptionSource, 'reader-body');
+    assert.equal(readerCalls, 1, 'new Reader route actually processes the URL');
+    assert.equal(microlinkCalls, 0, 'Reader success works without Microlink');
+    return 'PASS';
+  } finally { await context.close(); }
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   const results = {
@@ -185,6 +221,7 @@ try {
     blockedPagesStillChecked: await testQuotaBlockedDoesNotSkip(browser),
     pauseResume: await testPauseResume(browser),
     sevenDayCompleteCache: await testCompleteMetadataCache(browser),
+    readerFallbackAfterWorker404: await testReaderGetsRealMetadata(browser),
   };
   console.log(JSON.stringify({ metadataFallbackRegression: 'PASS', results }, null, 2));
 } finally { await browser.close(); }

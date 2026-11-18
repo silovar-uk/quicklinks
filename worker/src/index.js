@@ -116,6 +116,9 @@ export default {
     if (request.method === "OPTIONS") return response(null, 204, origin);
 
     const url = new URL(request.url);
+    if (url.pathname === "/v1/health") return jsonResponse({
+      status: "success", service: "quicklinks-metadata", metadataRoute: true, version: 2
+    }, 200, origin);
     if (url.pathname === "/v1/metadata") return handleMetadata(request, env, origin, url);
 
     const vaultId = vaultPath(url);
