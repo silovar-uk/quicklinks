@@ -1,6 +1,9 @@
 const targets = [
   { label: 'Worker', url: 'https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?url=https%3A%2F%2Fexample.com' },
-  { label: 'JinaReader', url: 'https://r.jina.ai/https://example.com' }
+  { label: 'JinaReader', url: 'https://r.jina.ai/https://example.com' },
+  { label: 'JinaReader-Article', url: 'https://r.jina.ai/https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS' },
+  { label: 'JinaReader-Note', url: 'https://r.jina.ai/https://note.com/' },
+  { label: 'JinaReader-X', url: 'https://r.jina.ai/https://x.com/YouTube' }
 ];
 for (const target of targets) {
   const controller = new AbortController();
