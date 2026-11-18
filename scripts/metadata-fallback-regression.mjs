@@ -47,7 +47,7 @@ async function readLinks(page) {
 }
 
 async function testQuotaFreeBulk(browser) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   let workerCalls = 0, microlinkCalls = 0;
   try {
@@ -85,7 +85,7 @@ async function testQuotaFreeBulk(browser) {
 }
 
 async function testQuotaBlockedDoesNotSkip(browser) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   let microlinkCalls = 0, workerCalls = 0;
   try {
@@ -114,7 +114,7 @@ async function testQuotaBlockedDoesNotSkip(browser) {
 }
 
 async function testPauseResume(browser) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   try {
     await seedLinks(page, 12, 'qa-pause.test');
@@ -149,7 +149,7 @@ async function testPauseResume(browser) {
 }
 
 async function testCompleteMetadataCache(browser) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   let workerCalls = 0, microlinkCalls = 0;
   const url = 'https://qa-metadata-cache.test/abc';
