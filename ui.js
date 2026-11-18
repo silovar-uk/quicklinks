@@ -497,13 +497,13 @@ function renderManage() {
 }
 
 /* ============ 情報の手入れ(管理の#care。計画書7章) ============ */
-const CARE = { running: false, log: [] };
+const CARE = { running: false, pauseRequested: false, log: [] };
 function fetchFailureText(reason) {
   if (reason === 'login') return 'ログインが必要なページのようです。外からは中身を読めないため、取得しません。そのページを開いてブックマークレットを押すと、表示中のタイトルと説明で保存・更新できます。';
-  if (reason === 'rate') return '今日の取得枠を使い切りました。URLだけでも保存できます。取得は明日また試せます。';
+  if (reason === 'rate') return '外部サービスの取得枠は利用できませんが、ほかの方法は確認済みです。リンクは保存できます。ページを開いて情報を取り込む方法もあります。';
   if (reason === 'suspicious') return 'ログイン画面やエラー画面のようです。URLだけでも保存できます。';
-  if (reason === 'network') return '取得できませんでした（通信エラー）。URLだけでも保存できます。';
-  return '取得できませんでした（時間切れ）。URLだけでも保存できます。';
+  if (reason === 'network') return 'ページ情報を取得できませんでした（通信エラー）。リンクはそのまま保存できます。';
+  return 'ページ情報を取得できませんでした（時間切れ）。リンクはそのまま保存できます。';
 }
 function renderCare() {
   const el = $('care');
@@ -518,10 +518,10 @@ function renderCare() {
   const canRun = !CARE.running && (paused || c.fetchable.length > 0);
   el.innerHTML = `<h3>情報の手入れ</h3>
     <div class="care-stats"><div class="care-stat"><b>${c.noDescription}</b><span>ページ説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
-    <p>タイトルとページの説明だけを補います。自分メモには触れません。取得に使う外部サービスの無料枠は1日25件です。枠がなくなったら止まり、翌日に続きから再開できます。</p>
-    <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo">${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
-    ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `取り直しています… ${done} / ${total}件` : paused ? `今日の取得枠を使い切りました。${done} / ${total}件まで終わりました。続きは明日の朝から再開できます。` : `終わりました。説明や題名を入れた${CARE.log.filter(x => x.ok).length}件・取得できなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice().reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
-    <p class="diff-note">外から読めないページ（Notion・Googleドキュメントなど）は、そのページを開いてブックマークレット「Quick Linksに追加」を押すと、表示中のタイトルと説明で更新できます。</p>`;
+    <p>タイトルとページの説明だけを補います。自分メモには触れません。外部サービスの無料枠が尽きても、別の取得方法で最後まで確認します。途中で一時停止・再開できます。</p>
+    <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${CARE.running ? `<button class="btn" type="button" id="carePause" ${CARE.pauseRequested ? 'disabled' : ''}>${CARE.pauseRequested ? '停止しています…' : '一時停止'}</button>` : ''}${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo">${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
+    ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `確認中… ${done} / ${total}件` : paused ? `一時停止中：${done} / ${total}件。いつでも続きを実行できます。` : `確認完了。情報を補った${CARE.log.filter(x => x.ok).length}件・今回補えなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice().reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
+    <p class="diff-note">ページ情報を自動取得できない場合は、PCで対象ページを開き、管理画面にあるブックマークレット「Quick Linksに追加」を押すと、そのページから直接取り込めます。iPhoneは共有ショートカットからURLを保存できます。</p>`;
 }
 async function startCareRun() {
   if (CARE.running) return;
@@ -535,23 +535,23 @@ async function startCareRun() {
     saveRF();
   }
   CARE.running = true;
+  CARE.pauseRequested = false;
   renderCare();
   let changed = false;
-  while (RF.pos < RF.queue.length) {
-    if (refetchBlocked() || RF.used >= REFETCH_DAILY_LIMIT) break;
+  while (RF.pos < RF.queue.length && !CARE.pauseRequested) {
     const id = RF.queue[RF.pos];
     const item = find('link', id);
-    RF.pos += 1;
-    if (!item) { saveRF(); continue; }
+    if (!item) { RF.pos += 1; saveRF(); continue; }
     let r;
     try { r = await fetchPageMetadata(item.url, { bulk: true }); }
     catch { r = { ok: false, reason: 'network' }; }
     if (!r.ok) {
-      markFetchFailed(id);
-      CARE.log.push({ ok: false, name: view(item).title.slice(0, 30), msg: r.reason === 'rate' ? '今日の取得枠が終わりました' : '取得できませんでした' });
+      // 外部サービスの枠切れはページ固有の失敗ではない。翌日以降も補完対象に残す。
+      if (r.reason !== 'rate') markFetchFailed(id);
+      CARE.log.push({ ok: false, name: view(item).title.slice(0, 30), msg: r.reason === 'rate' ? '別経路で取得不可・外部補完は利用不可' : '今回は取得できませんでした' });
+      RF.pos += 1;
       saveRF();
       renderCare();
-      if (r.reason === 'rate') break;
       continue;
     }
     const before = { id: item.id, title: item.title, description: item.description, descriptionSource: item.descriptionSource, descriptionUpdatedAt: item.descriptionUpdatedAt };
@@ -563,12 +563,19 @@ async function startCareRun() {
       item.descriptionUpdatedAt = new Date().toISOString();
       changedDescription = true;
     }
-    if (changedTitle || changedDescription) { RF.batch.push(before); changed = true; }
+    if (changedTitle || changedDescription) {
+      RF.batch.push(before);
+      item.updatedAt = new Date().toISOString();
+      changed = true;
+      save(); // 一括処理の途中でタブが閉じても、完了分を失わない
+    }
     CARE.log.push({ ok: changedTitle || changedDescription, name: view(item).title.slice(0, 30), msg: changedTitle || changedDescription ? [changedTitle && 'タイトル', changedDescription && '説明'].filter(Boolean).join('と') + 'を入れました' : '変更なし' });
+    RF.pos += 1;
     saveRF();
     renderCare();
   }
   CARE.running = false;
+  CARE.pauseRequested = false;
   if (RF.pos >= RF.queue.length) { RF.queue = []; RF.pos = 0; saveRF(); }
   if (changed) { save(); render(); } else renderCare();
 }
@@ -1037,7 +1044,7 @@ async function startFetch() {
   if (seq !== F.seq || !$('linkSheet').open) return;
   if (!r.ok) {
     if (r.reason === 'login') { if (!$('fTitle').value) $('fTitle').value = hostOf(url); setStatus('warn', `<span class="grow">${fetchFailureText('login')}</span>`); return; }
-    setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
+    setStatus(r.reason === 'rate' ? 'warn' : 'bad', `<span class="grow">${fetchFailureText(r.reason)}</span>${r.reason === 'rate' ? '' : '<button class="btn" type="button" id="fRetry">もう一度取得</button>'}`);
     return;
   }
   const filledTitle = !$('fTitle').value && !!r.data.title;
@@ -1058,12 +1065,12 @@ async function refetchInSheet() {
   $('fDiff').hidden = true;
   setStatus('busy', `<span class="spin" aria-hidden="true"></span><span class="grow">ページ情報を取り直しています…</span>`);
   let r;
-  try { r = await fetchPageMetadata(url, { signal: F.controller.signal }); }
+  try { r = await fetchPageMetadata(url, { signal: F.controller.signal, force: true }); }
   catch { return; }
   if (seq !== F.seq || !$('linkSheet').open) return;
   if (!r.ok) {
     if (r.reason === 'login') { setStatus('warn', `<span class="grow">${fetchFailureText('login')}いまの内容はそのまま残します。</span>`); return; }
-    if (F.id) markFetchFailed(F.id);
+    if (F.id && r.reason !== 'rate') markFetchFailed(F.id);
     setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度</button>`);
     return;
   }
@@ -1600,6 +1607,7 @@ document.addEventListener('click', e => {
   if (t.closest('#dApply')) { applyDiff(); return; }
   const dupOpen = t.closest('[data-dup-open]'); if (dupOpen) { closeSheet($('linkSheet')); openLink(dupOpen.dataset.dupOpen); return; }
   const dupEdit = t.closest('[data-dup-edit]'); if (dupEdit) { closeSheet($('linkSheet')); openLinkSheet({ mode: 'edit', id: dupEdit.dataset.dupEdit }); return; }
+  if (t.closest('#carePause')) { CARE.pauseRequested = true; renderCare(); return; }
   if (t.closest('#careRun')) { startCareRun(); return; }
   if (t.closest('#careUndo')) { undoCare(); return; }
 
