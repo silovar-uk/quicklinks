@@ -1,0 +1,21 @@
+name: Metadata Live Probe
+on:
+  push:
+    branches: [main, 'fix/metadata-actual-fetch-20261118']
+    paths:
+      - 'scripts/metadata-live-probe.mjs'
+      - '.github/workflows/metadata-live-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe Worker and Reader
+        run: node scripts/metadata-live-probe.mjs
