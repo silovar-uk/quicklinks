@@ -949,11 +949,12 @@ function loadRefetchState() {
   const cutoff = Date.now() - 6 * 60 * 60 * 1000; // 一時的な取得失敗は6時間後に再試行できる
   Object.keys(failed).forEach(id => { if (timeValue(failed[id]) < cutoff) delete failed[id]; });
   const today = refetchDayKey();
-  if (!saved || saved.day !== today) return { day: today, used: 0, blockedUntil: null, queue: [], pos: 0, batch: null, failed };
+  if (!saved) return { day: today, used: 0, blockedUntil: null, queue: [], pos: 0, batch: null, failed };
+  const newDay = saved.day !== today;
   return {
-    day: saved.day,
-    used: Number(saved.used || 0),
-    blockedUntil: saved.blockedUntil || null,
+    day: today,
+    used: newDay ? 0 : Number(saved.used || 0),
+    blockedUntil: newDay ? null : (saved.blockedUntil || null),
     queue: Array.isArray(saved.queue) ? saved.queue : [],
     pos: Number(saved.pos || 0),
     batch: Array.isArray(saved.batch) ? saved.batch : null,
@@ -962,7 +963,18 @@ function loadRefetchState() {
 }
 const RF = loadRefetchState();
 function saveRF() { try { localStorage.setItem(REFETCH_KEY, JSON.stringify(RF)); } catch { /* 保存できなくても手入れは動く */ } }
-function refetchBlocked() { return !!(RF.blockedUntil && Date.now() < timeValue(RF.blockedUntil)); }
+function refreshRefetchDay() {
+  const today = refetchDayKey();
+  if (RF.day === today) return;
+  RF.day = today;
+  RF.used = 0;
+  RF.blockedUntil = null;
+  saveRF();
+}
+function refetchBlocked() {
+  refreshRefetchDay();
+  return !!(RF.blockedUntil && Date.now() < timeValue(RF.blockedUntil));
+}
 function markFetchFailed(id) { if (id) { RF.failed[id] = new Date().toISOString(); saveRF(); } }
 function endOfTodayIso() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString(); }
 
