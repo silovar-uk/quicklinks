@@ -511,9 +511,9 @@ function renderCare() {
   const c = careCandidates();
   const queued = RF.queue.length > 0;
   const paused = !CARE.running && queued && RF.pos < RF.queue.length;
-  const finishedJustNow = !CARE.running && queued && RF.pos >= RF.queue.length && CARE.log.length > 0;
-  const total = queued ? RF.queue.length : c.fetchable.length;
-  const done = queued ? RF.pos : 0;
+  const finishedJustNow = !CARE.running && !paused && CARE.log.length > 0;
+  const total = queued ? RF.queue.length : finishedJustNow ? CARE.log.length : c.fetchable.length;
+  const done = queued ? RF.pos : finishedJustNow ? CARE.log.length : 0;
   const label = CARE.running ? '取り直しています…' : paused ? '続きから取り直す' : `取り直す（${c.fetchable.length}件）`;
   const canRun = !CARE.running && (paused || c.fetchable.length > 0);
   el.innerHTML = `<h3>情報の手入れ</h3>
