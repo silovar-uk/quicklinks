@@ -515,7 +515,7 @@ function renderManage() {
 const CARE = { running: false, pauseRequested: false, log: [] };
 function fetchFailureText(reason) {
   if (reason === 'login') return 'ログインが必要なページのようです。外からは中身を読めないため、取得しません。そのページを開いてブックマークレットを押すと、表示中のタイトルと説明で保存・更新できます。';
-  if (reason === 'rate') return '外部サービスの取得枠は利用できませんが、ほかの方法は確認済みです。リンクは保存できます。ページを開いて情報を取り込む方法もあります。';
+  if (reason === 'rate') return '今回はタイトルや説明を自動取得できませんでした。リンク自体は保存できます。PCでは対象ページを開き、ブックマークレット「Quick Linksに追加」で情報を取り込めます。';
   if (reason === 'suspicious') return 'ログイン画面やエラー画面のようです。URLだけでも保存できます。';
   if (reason === 'network') return 'ページ情報を取得できませんでした（通信エラー）。リンクはそのまま保存できます。';
   return 'ページ情報を取得できませんでした（時間切れ）。リンクはそのまま保存できます。';
@@ -1072,7 +1072,7 @@ async function startFetch() {
   if (!r.ok) {
     if (r.reason === 'login') { if (!$('fTitle').value) $('fTitle').value = hostOf(url); setStatus('warn', `<span class="grow">${fetchFailureText('login')}</span>`); return; }
     // 枠切れでも無料枠不要な経路の再試行は可能。明示的な再試行操作は残す。
-    setStatus(r.reason === 'rate' ? 'warn' : 'bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
+    setStatus('warn', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">再取得</button>`);
     return;
   }
   const filledTitle = !$('fTitle').value && !!r.data.title;
