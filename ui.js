@@ -1071,7 +1071,8 @@ async function startFetch() {
   if (seq !== F.seq || !$('linkSheet').open) return;
   if (!r.ok) {
     if (r.reason === 'login') { if (!$('fTitle').value) $('fTitle').value = hostOf(url); setStatus('warn', `<span class="grow">${fetchFailureText('login')}</span>`); return; }
-    setStatus(r.reason === 'rate' ? 'warn' : 'bad', `<span class="grow">${fetchFailureText(r.reason)}</span>${r.reason === 'rate' ? '' : '<button class="btn" type="button" id="fRetry">もう一度取得</button>'}`);
+    // 枠切れでも無料枠不要な経路の再試行は可能。明示的な再試行操作は残す。
+    setStatus(r.reason === 'rate' ? 'warn' : 'bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
     return;
   }
   const filledTitle = !$('fTitle').value && !!r.data.title;
