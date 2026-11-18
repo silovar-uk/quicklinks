@@ -716,6 +716,40 @@ function hasCompleteMetadata(data) {
   return !!(String(data?.title || '').trim() && String(data?.description || '').trim());
 }
 
+// 完全取得したページだけを7日間再利用。キャッシュはこの端末だけに保存し、同期対象にはしない。
+const METADATA_CACHE_KEY = 'quick-links-metadata-cache-v1';
+const METADATA_CACHE_TTL = 7 * DAY;
+let pageMetadataCache = {};
+try {
+  const stored = JSON.parse(localStorage.getItem(METADATA_CACHE_KEY) || '{}');
+  if (stored && typeof stored === 'object' && !Array.isArray(stored)) pageMetadataCache = stored;
+} catch { /* 保存済みキャッシュの破損は取得動作を妨げない */ }
+
+function readPageMetadataCache(url) {
+  const entry = pageMetadataCache[url];
+  if (!entry || timeValue(entry.savedAt) + METADATA_CACHE_TTL <= Date.now() || !hasCompleteMetadata(entry.data)) return null;
+  return entry.data;
+}
+
+function writePageMetadataCache(url, data) {
+  if (!hasCompleteMetadata(data)) return;
+  pageMetadataCache[url] = { data, savedAt: new Date().toISOString() };
+  const now = Date.now();
+  pageMetadataCache = Object.fromEntries(Object.entries(pageMetadataCache)
+    .filter(([, entry]) => timeValue(entry?.savedAt) + METADATA_CACHE_TTL > now && hasCompleteMetadata(entry?.data))
+    .sort((a, b) => timeValue(b[1].savedAt) - timeValue(a[1].savedAt))
+    .slice(0, 150));
+  try { localStorage.setItem(METADATA_CACHE_KEY, JSON.stringify(pageMetadataCache)); }
+  catch { /* キャッシュが書けなくても保存・取得は使える */ }
+}
+
+function metadataFetchResult(data, reason = null) {
+  const status = hasCompleteMetadata(data) ? 'complete' : hasMetadata(data) ? 'partial' : 'unavailable';
+  return status === 'unavailable'
+    ? { ok: false, status, reason: reason || 'network' }
+    : { ok: true, status, data, reason };
+}
+
 function youtubeVideoId(value) {
   try {
     const u = new URL(String(value || ''));
@@ -902,7 +936,7 @@ async function fetchMicrolinkMetadata(url, { signal } = {}) {
 
 /* ---------- ページ情報の取り直しの枠(quick-links-refetch-v1。同期しない) ---------- */
 const REFETCH_KEY = 'quick-links-refetch-v1';
-const REFETCH_DAILY_LIMIT = 20; // まとめて取り直すときはここで止める(手で保存する5件を残すため)
+const REFETCH_DAILY_LIMIT = 20; // Microlinkの一括利用だけを制限。ほかの取得経路は止めない
 
 function refetchDayKey(t = Date.now()) {
   const d = new Date(t);
@@ -912,14 +946,15 @@ function loadRefetchState() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(REFETCH_KEY) || 'null'); } catch { /* 壊れていれば作り直す */ }
   const failed = { ...(saved?.failed || {}) };
-  const cutoff = Date.now() - 7 * DAY; // 失敗したリンクは7日間まとめての対象から外す
+  const cutoff = Date.now() - 6 * 60 * 60 * 1000; // 一時的な取得失敗は6時間後に再試行できる
   Object.keys(failed).forEach(id => { if (timeValue(failed[id]) < cutoff) delete failed[id]; });
   const today = refetchDayKey();
-  if (!saved || saved.day !== today) return { day: today, used: 0, blockedUntil: null, queue: [], pos: 0, batch: null, failed };
+  if (!saved) return { day: today, used: 0, blockedUntil: null, queue: [], pos: 0, batch: null, failed };
+  const newDay = saved.day !== today;
   return {
-    day: saved.day,
-    used: Number(saved.used || 0),
-    blockedUntil: saved.blockedUntil || null,
+    day: today,
+    used: newDay ? 0 : Number(saved.used || 0),
+    blockedUntil: newDay && timeValue(saved.blockedUntil) <= Date.now() ? null : (saved.blockedUntil || null),
     queue: Array.isArray(saved.queue) ? saved.queue : [],
     pos: Number(saved.pos || 0),
     batch: Array.isArray(saved.batch) ? saved.batch : null,
@@ -928,16 +963,36 @@ function loadRefetchState() {
 }
 const RF = loadRefetchState();
 function saveRF() { try { localStorage.setItem(REFETCH_KEY, JSON.stringify(RF)); } catch { /* 保存できなくても手入れは動く */ } }
-function refetchBlocked() { return !!(RF.blockedUntil && Date.now() < timeValue(RF.blockedUntil)); }
+function refreshRefetchDay() {
+  const today = refetchDayKey();
+  if (RF.day === today) return;
+  RF.day = today;
+  RF.used = 0;
+  if (timeValue(RF.blockedUntil) <= Date.now()) RF.blockedUntil = null;
+  saveRF();
+}
+function refetchBlocked() {
+  refreshRefetchDay();
+  return !!(RF.blockedUntil && Date.now() < timeValue(RF.blockedUntil));
+}
 function markFetchFailed(id) { if (id) { RF.failed[id] = new Date().toISOString(); saveRF(); } }
 function endOfTodayIso() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString(); }
 
 // { ok:true, data } か { ok:false, reason:'timeout'|'rate'|'network'|'login'|'suspicious' } を返す。
 // signalがabortされたら例外をそのまま投げる(呼び出し側で無視させる)。bulk:trueはまとめて取り直すときの枠を守る
-async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
-  if (isLoginHost(url)) return { ok: false, reason: 'login' };
+async function fetchPageMetadata(url, { signal, bulk = false, force = false } = {}) {
+  if (isLoginHost(url)) return { ok: false, status: 'unavailable', reason: 'login' };
+  if (!force) {
+    const cached = readPageMetadataCache(url);
+    if (cached) return { ok: true, status: 'complete', data: cached, cacheHit: true };
+  }
 
   let best = { url, title: '', domain: hostOf(url), description: '', source: '' };
+  const conclude = (reason = null) => {
+    const result = metadataFetchResult(best, reason);
+    if (result.status === 'complete') writePageMetadataCache(url, best);
+    return result;
+  };
   let lastReason = 'network';
   const youtubeId = youtubeVideoId(url);
   const metadataUrl = youtubeId ? youtubeCanonicalUrl(url) : url;
@@ -965,7 +1020,7 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
     const resolver = await fetchResolverMetadata(metadataUrl, { signal });
     if (!looksSuspicious(resolver)) {
       best = mergeFetchedMetadata(best, resolver, url);
-      if (hasCompleteMetadata(best)) return { ok: true, data: best };
+      if (hasCompleteMetadata(best)) return conclude();
     }
   } catch (error) {
     if (signal?.aborted) throw error;
@@ -979,7 +1034,7 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
       const direct = await fetchDirectMetadata(url, { signal });
       if (!looksSuspicious(direct)) {
         best = mergeFetchedMetadata(best, direct, url);
-        if (hasCompleteMetadata(best)) return { ok: true, data: best };
+        if (hasCompleteMetadata(best)) return conclude();
       }
     } catch (error) {
       if (signal?.aborted) throw error;
@@ -987,30 +1042,29 @@ async function fetchPageMetadata(url, { signal, bulk = false } = {}) {
     }
   }
 
-  if (refetchBlocked() || (bulk && RF.used >= REFETCH_DAILY_LIMIT)) {
-    return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: 'rate' };
-  }
+  // 外部サービスの残枠がなくても、それ以前の無料枠不要な取得は常に実行する。
+  if (refetchBlocked() || (bulk && RF.used >= REFETCH_DAILY_LIMIT)) return conclude('rate');
 
+  // タイムアウトやネットワークエラーも消費として数え、失敗ループで再試行しない。
+  RF.used += 1;
+  saveRF();
   try {
     const microlink = await fetchMicrolinkMetadata(metadataUrl, { signal });
-    RF.used += 1; saveRF();
     if (!looksSuspicious(microlink)) best = mergeFetchedMetadata(best, microlink, url);
-    return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: lastReason };
+    return conclude();
   } catch (error) {
     if (signal?.aborted) throw error;
     if (error?.code === 'rate') {
       RF.blockedUntil = error.resetAt ? new Date(error.resetAt).toISOString() : endOfTodayIso();
       saveRF();
-      return hasMetadata(best) ? { ok: true, data: best } : { ok: false, reason: 'rate' };
+      return conclude('rate');
     }
-    return hasMetadata(best)
-      ? { ok: true, data: best }
-      : { ok: false, reason: error?.code === 'network' ? 'network' : 'timeout' };
+    return conclude(error?.code === 'network' ? 'network' : 'timeout');
   }
 }
 
 function careCandidates() {
-  const cutoff = Date.now() - 7 * DAY;
+  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
   const excluded = new Set(Object.keys(RF.failed || {}).filter(id => timeValue(RF.failed[id]) >= cutoff));
   const active = state.items.filter(item => !item.archived);
   const need = active.filter(item => (!item.description || looksPlaceholder(item.title, item.url)) && !excluded.has(item.id));

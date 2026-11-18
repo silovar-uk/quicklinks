@@ -335,14 +335,22 @@ const checks = [
     assert.equal(await page.locator('#fTitle').inputValue(), before, 'タイトルを書き換えた');
     assert.equal(await page.locator('#fDiff').isVisible(), false); await context.close();
   }),
-  check('P2', '管理:まとめて取り直すと、取得枠が尽きたところで止まり「明日」再開を案内する', async b => {
+  check('P2', '管理:外部サービスの枠が尽きても全件を確認し、処理完了を案内する', async b => {
     const { page, context } = await open(b, PC);
-    // 本番実装では直接取得を失敗させ、外部サービス(429)へ回して枠切れを起こす
+    // 本番実装では直接取得を失敗させ、外部サービス(429)へ回して枠切れを起こす。
     if (MOCK) await page.evaluate(() => { S.quota = 2; });
     else { await context.unroute('https://qa-bulk.test/**'); await context.route('https://qa-bulk.test/**', r => r.abort()); }
     await page.locator('[data-rail="manage"]').click();
     await page.locator('#careRun').click();
-    await page.waitForFunction(() => /明日/.test(document.querySelector('#care').textContent), null, { timeout: 60000 });
+    if (MOCK) {
+      // モックは旧UIのまま。本番の停止条件を検査するために使わない。
+      await page.waitForFunction(() => /明日/.test(document.querySelector('#care').textContent), null, { timeout: 60000 });
+    } else {
+      await page.waitForFunction(() => /確認完了/.test(document.querySelector('#care').textContent), null, { timeout: 60000 });
+      const state = await page.evaluate(() => JSON.parse(localStorage.getItem('quick-links-refetch-v1') || '{}'));
+      assert.equal(state.queue?.length, 0, '外部サービスの枠切れで未処理キューを残さない');
+      assert.doesNotMatch(await page.locator('#care').innerText(), /明日.*再開/, '枠切れを処理全体の停止理由にしない');
+    }
     await context.close();
   }),
   // P3 出会い直し

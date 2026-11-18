@@ -460,6 +460,16 @@ function renderManage() {
           <li>アクション「URLを開く」を足し、手順4のテキストを渡す</li>
         </ol>
         <p class="diff-note">使い方:共有したいページで共有→「Quick Linksに保存」→Safariで保存シートが開く→引き出しを選んで保存。</p>
+        <details class="diff-note"><summary>Safariではタイトル・説明も一緒に保存する</summary>
+          <p>Safari専用のショートカットをもう1つ作ると、ページを開いている本人の操作でタイトルと説明を受け取れます。外部サービスの取得枠は使いません。</p>
+          <ol style="margin:4px 0;padding-left:18px;line-height:1.7">
+            <li>ショートカットの共有シート入力を「SafariのWebページ」にする</li>
+            <li>「WebページでJavaScriptを実行」へ、下のボタンでコピーしたコードを貼る</li>
+            <li>次に「URLを開く」を追加し、JavaScriptの結果を渡す</li>
+          </ol>
+          <button class="btn" type="button" id="copySafariShortcut">Safari用JavaScriptをコピー</button>
+          <p>Safari以外のアプリからは、上のURL共有ショートカットを使ってください。</p>
+        </details>
       </div>
       <div class="m-sec"><h3>重複の整理・リセット</h3><p>完全に同じ内容のリンク・プロンプトをまとめます。リセットはこの端末のデータを消します。</p>
         <div class="m-row"><button class="btn" type="button" id="dedupeBtn">完全重複を整理</button><button class="btn danger" type="button" id="resetAllBtn">この端末のデータをリセット</button></div>
@@ -480,6 +490,11 @@ function renderManage() {
       }
     });
     $('bookmarkletLink').setAttribute('href', createDirectBookmarkletCode());
+    $('copySafariShortcut').addEventListener('click', async event => {
+      const ok = await writeClip(createSafariShortcutCode());
+      if (ok) { flashCopied(event.currentTarget); toast('Safari用のコードをコピーしました'); }
+      else toast('コピーできませんでした。ブラウザのクリップボード設定をご確認ください');
+    });
     $('dedupeBtn').addEventListener('click', () => {
       const r = dedupe();
       toast(r.removedLinks || r.removedPrompts ? '重複を整理しました' : '完全重複はありませんでした');
@@ -497,13 +512,13 @@ function renderManage() {
 }
 
 /* ============ 情報の手入れ(管理の#care。計画書7章) ============ */
-const CARE = { running: false, log: [] };
+const CARE = { running: false, pauseRequested: false, log: [] };
 function fetchFailureText(reason) {
   if (reason === 'login') return 'ログインが必要なページのようです。外からは中身を読めないため、取得しません。そのページを開いてブックマークレットを押すと、表示中のタイトルと説明で保存・更新できます。';
-  if (reason === 'rate') return '今日の取得枠を使い切りました。URLだけでも保存できます。取得は明日また試せます。';
+  if (reason === 'rate') return '外部サービスの取得枠は利用できませんが、ほかの方法は確認済みです。リンクは保存できます。ページを開いて情報を取り込む方法もあります。';
   if (reason === 'suspicious') return 'ログイン画面やエラー画面のようです。URLだけでも保存できます。';
-  if (reason === 'network') return '取得できませんでした（通信エラー）。URLだけでも保存できます。';
-  return '取得できませんでした（時間切れ）。URLだけでも保存できます。';
+  if (reason === 'network') return 'ページ情報を取得できませんでした（通信エラー）。リンクはそのまま保存できます。';
+  return 'ページ情報を取得できませんでした（時間切れ）。リンクはそのまま保存できます。';
 }
 function renderCare() {
   const el = $('care');
@@ -511,17 +526,17 @@ function renderCare() {
   const c = careCandidates();
   const queued = RF.queue.length > 0;
   const paused = !CARE.running && queued && RF.pos < RF.queue.length;
-  const finishedJustNow = !CARE.running && queued && RF.pos >= RF.queue.length && CARE.log.length > 0;
-  const total = queued ? RF.queue.length : c.fetchable.length;
-  const done = queued ? RF.pos : 0;
+  const finishedJustNow = !CARE.running && !paused && CARE.log.length > 0;
+  const total = queued ? RF.queue.length : finishedJustNow ? CARE.log.length : c.fetchable.length;
+  const done = queued ? RF.pos : finishedJustNow ? CARE.log.length : 0;
   const label = CARE.running ? '取り直しています…' : paused ? '続きから取り直す' : `取り直す（${c.fetchable.length}件）`;
   const canRun = !CARE.running && (paused || c.fetchable.length > 0);
   el.innerHTML = `<h3>情報の手入れ</h3>
     <div class="care-stats"><div class="care-stat"><b>${c.noDescription}</b><span>ページ説明がないリンク</span></div><div class="care-stat"><b>${c.placeholder}</b><span>タイトルがURLのまま</span></div><div class="care-stat"><b>${c.login.length}</b><span>外から読めないページ</span></div></div>
-    <p>タイトルとページの説明だけを補います。自分メモには触れません。取得に使う外部サービスの無料枠は1日25件です。枠がなくなったら止まり、翌日に続きから再開できます。</p>
-    <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo">${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
-    ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `取り直しています… ${done} / ${total}件` : paused ? `今日の取得枠を使い切りました。${done} / ${total}件まで終わりました。続きは明日の朝から再開できます。` : `終わりました。説明や題名を入れた${CARE.log.filter(x => x.ok).length}件・取得できなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice().reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
-    <p class="diff-note">外から読めないページ（Notion・Googleドキュメントなど）は、そのページを開いてブックマークレット「Quick Linksに追加」を押すと、表示中のタイトルと説明で更新できます。</p>`;
+    <p>タイトルとページの説明だけを補います。自分メモには触れません。外部サービスの無料枠が尽きても、別の取得方法で最後まで確認します。途中で一時停止・再開できます。</p>
+    <div class="m-row"><button class="btn primary" type="button" id="careRun" ${canRun ? '' : 'disabled'}>${label}</button>${CARE.running ? `<button class="btn" type="button" id="carePause" ${CARE.pauseRequested ? 'disabled' : ''}>${CARE.pauseRequested ? '停止しています…' : '一時停止'}</button>` : ''}${RF.batch && RF.batch.length ? `<button class="btn" type="button" id="careUndo" ${CARE.running ? 'disabled' : ''}>${ICON.undo}いまの手入れを元に戻す</button>` : ''}</div>
+    ${CARE.running || paused || finishedJustNow ? `<div class="progress" aria-hidden="true"><i style="width:${total ? Math.round(done / total * 100) : 0}%"></i></div><p aria-live="polite">${CARE.running ? `確認中… ${done} / ${total}件` : paused ? `一時停止中：${done} / ${total}件。いつでも続きを実行できます。` : `確認完了。情報を補った${CARE.log.filter(x => x.ok).length}件・今回補えなかった${CARE.log.filter(x => !x.ok).length}件`}</p><ul class="care-log">${CARE.log.slice(-30).reverse().map(x => `<li><span class="st ${x.ok ? 'ok' : 'ng'}">${x.ok ? '✓' : '×'}</span><span>${escapeHtml(x.name)}${x.msg ? `・${escapeHtml(x.msg)}` : ''}</span></li>`).join('')}</ul>` : ''}
+    <p class="diff-note">ページ情報を自動取得できない場合は、PCで対象ページを開き、管理画面にあるブックマークレット「Quick Linksに追加」を押すと、そのページから直接取り込めます。iPhoneは共有ショートカットからURLを保存できます。</p>`;
 }
 async function startCareRun() {
   if (CARE.running) return;
@@ -535,23 +550,23 @@ async function startCareRun() {
     saveRF();
   }
   CARE.running = true;
+  CARE.pauseRequested = false;
   renderCare();
   let changed = false;
-  while (RF.pos < RF.queue.length) {
-    if (refetchBlocked() || RF.used >= REFETCH_DAILY_LIMIT) break;
+  while (RF.pos < RF.queue.length && !CARE.pauseRequested) {
     const id = RF.queue[RF.pos];
     const item = find('link', id);
-    RF.pos += 1;
-    if (!item) { saveRF(); continue; }
+    if (!item) { RF.pos += 1; saveRF(); continue; }
     let r;
     try { r = await fetchPageMetadata(item.url, { bulk: true }); }
     catch { r = { ok: false, reason: 'network' }; }
     if (!r.ok) {
-      markFetchFailed(id);
-      CARE.log.push({ ok: false, name: view(item).title.slice(0, 30), msg: r.reason === 'rate' ? '今日の取得枠が終わりました' : '取得できませんでした' });
+      // 外部サービスの枠切れはページ固有の失敗ではない。翌日以降も補完対象に残す。
+      if (r.reason !== 'rate') markFetchFailed(id);
+      CARE.log.push({ ok: false, name: view(item).title.slice(0, 30), msg: r.reason === 'rate' ? '別経路で取得不可・外部補完は利用不可' : '今回は取得できませんでした' });
+      RF.pos += 1;
       saveRF();
       renderCare();
-      if (r.reason === 'rate') break;
       continue;
     }
     const before = { id: item.id, title: item.title, description: item.description, descriptionSource: item.descriptionSource, descriptionUpdatedAt: item.descriptionUpdatedAt };
@@ -563,12 +578,19 @@ async function startCareRun() {
       item.descriptionUpdatedAt = new Date().toISOString();
       changedDescription = true;
     }
-    if (changedTitle || changedDescription) { RF.batch.push(before); changed = true; }
+    if (changedTitle || changedDescription) {
+      RF.batch.push(before);
+      item.updatedAt = new Date().toISOString();
+      changed = true;
+      save(); // 一括処理の途中でタブが閉じても、完了分を失わない
+    }
     CARE.log.push({ ok: changedTitle || changedDescription, name: view(item).title.slice(0, 30), msg: changedTitle || changedDescription ? [changedTitle && 'タイトル', changedDescription && '説明'].filter(Boolean).join('と') + 'を入れました' : '変更なし' });
+    RF.pos += 1;
     saveRF();
     renderCare();
   }
   CARE.running = false;
+  CARE.pauseRequested = false;
   if (RF.pos >= RF.queue.length) { RF.queue = []; RF.pos = 0; saveRF(); }
   if (changed) { save(); render(); } else renderCare();
 }
@@ -588,6 +610,18 @@ function createDirectBookmarkletCode() {
   const target = JSON.stringify(BOOKMARKLET_TARGET);
   return `javascript:(()=>{const c=(v,n)=>String(v||'').replace(/\\s+/g,' ').trim().slice(0,n);const m=s=>document.querySelector(s)?.content||'';const u=location.href;if(!/^https?:/i.test(u)){alert('http / https のページだけ追加できます');return}const p={v:1,url:u,title:c(document.title,300),description:c(m('meta[name="description"]')||m('meta[property="og:description"]')||m('meta[name="twitter:description"]')||'',600)};location.href=${target}+'#add='+encodeURIComponent(JSON.stringify(p))})()`;
 }
+// iPhone Safariの「WebページでJavaScriptを実行」用。共有元のページで実行し、URLフラグメント経由で本人のQuick Linksに渡す。
+function createSafariShortcutCode() {
+  return `const meta = (selector) => document.querySelector(selector)?.getAttribute('content') || '';
+const clean = (value, max) => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, max);
+const payload = {
+  v: 1, url: location.href,
+  title: clean(document.title, 300),
+  description: clean(meta('meta[name="description"]') || meta('meta[property="og:description"]') || meta('meta[name="twitter:description"]'), 1000)
+};
+completion('https://silovar-uk.github.io/quicklinks/#add=' + encodeURIComponent(JSON.stringify(payload)));`;
+}
+
 function decodeAddPayload() {
   if (!location.hash.startsWith('#add=')) return null;
   const raw = location.hash.slice('#add='.length);
@@ -1037,7 +1071,8 @@ async function startFetch() {
   if (seq !== F.seq || !$('linkSheet').open) return;
   if (!r.ok) {
     if (r.reason === 'login') { if (!$('fTitle').value) $('fTitle').value = hostOf(url); setStatus('warn', `<span class="grow">${fetchFailureText('login')}</span>`); return; }
-    setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
+    // 枠切れでも無料枠不要な経路の再試行は可能。明示的な再試行操作は残す。
+    setStatus(r.reason === 'rate' ? 'warn' : 'bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度取得</button>`);
     return;
   }
   const filledTitle = !$('fTitle').value && !!r.data.title;
@@ -1058,12 +1093,12 @@ async function refetchInSheet() {
   $('fDiff').hidden = true;
   setStatus('busy', `<span class="spin" aria-hidden="true"></span><span class="grow">ページ情報を取り直しています…</span>`);
   let r;
-  try { r = await fetchPageMetadata(url, { signal: F.controller.signal }); }
+  try { r = await fetchPageMetadata(url, { signal: F.controller.signal, force: true }); }
   catch { return; }
   if (seq !== F.seq || !$('linkSheet').open) return;
   if (!r.ok) {
     if (r.reason === 'login') { setStatus('warn', `<span class="grow">${fetchFailureText('login')}いまの内容はそのまま残します。</span>`); return; }
-    if (F.id) markFetchFailed(F.id);
+    if (F.id && r.reason !== 'rate') markFetchFailed(F.id);
     setStatus('bad', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">もう一度</button>`);
     return;
   }
@@ -1600,6 +1635,7 @@ document.addEventListener('click', e => {
   if (t.closest('#dApply')) { applyDiff(); return; }
   const dupOpen = t.closest('[data-dup-open]'); if (dupOpen) { closeSheet($('linkSheet')); openLink(dupOpen.dataset.dupOpen); return; }
   const dupEdit = t.closest('[data-dup-edit]'); if (dupEdit) { closeSheet($('linkSheet')); openLinkSheet({ mode: 'edit', id: dupEdit.dataset.dupEdit }); return; }
+  if (t.closest('#carePause')) { CARE.pauseRequested = true; renderCare(); return; }
   if (t.closest('#careRun')) { startCareRun(); return; }
   if (t.closest('#careUndo')) { undoCare(); return; }
 
