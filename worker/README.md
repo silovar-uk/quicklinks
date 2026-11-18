@@ -16,6 +16,7 @@ npx wrangler deploy
 
 ## API
 
+- `GET /v1/health`（デプロイされた metadata route のバージョン確認）
 - `GET /v1/metadata?url=<public-http-url>`
 - `GET /v1/vault/:vaultId`
 - `PUT /v1/vault/:vaultId`
