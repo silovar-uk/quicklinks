@@ -24,7 +24,7 @@ const fakeFetch = async rawUrl => {
   if (url.startsWith('https://r.jina.ai/')) {
     readerCalls += 1;
     if (url.includes('/reader-success')) {
-      return new Response('Title: Actual Reader Title\\n\\nURL Source: https://qa-worker.test/reader-success\\n\\nMarkdown Content:\\nThis is an actual article paragraph containing a useful description for the saved link, not just a placeholder.', { status: 200 });
+      return new Response('Title: Actual Reader Title\n\nURL Source: https://qa-worker.test/reader-success\n\nMarkdown Content:\nThis is an actual article paragraph containing a useful description for the saved link, not just a placeholder.', { status: 200 });
     }
     throw new Error('Reader upstream blocked');
   }
