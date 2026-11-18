@@ -954,7 +954,7 @@ function loadRefetchState() {
   return {
     day: today,
     used: newDay ? 0 : Number(saved.used || 0),
-    blockedUntil: newDay ? null : (saved.blockedUntil || null),
+    blockedUntil: newDay && timeValue(saved.blockedUntil) <= Date.now() ? null : (saved.blockedUntil || null),
     queue: Array.isArray(saved.queue) ? saved.queue : [],
     pos: Number(saved.pos || 0),
     batch: Array.isArray(saved.batch) ? saved.batch : null,
@@ -968,7 +968,7 @@ function refreshRefetchDay() {
   if (RF.day === today) return;
   RF.day = today;
   RF.used = 0;
-  RF.blockedUntil = null;
+  if (timeValue(RF.blockedUntil) <= Date.now()) RF.blockedUntil = null;
   saveRF();
 }
 function refetchBlocked() {
@@ -1051,7 +1051,7 @@ async function fetchPageMetadata(url, { signal, bulk = false, force = false } = 
   try {
     const microlink = await fetchMicrolinkMetadata(metadataUrl, { signal });
     if (!looksSuspicious(microlink)) best = mergeFetchedMetadata(best, microlink, url);
-    return conclude(lastReason);
+    return conclude();
   } catch (error) {
     if (signal?.aborted) throw error;
     if (error?.code === 'rate') {
