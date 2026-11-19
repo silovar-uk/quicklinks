@@ -615,6 +615,10 @@ function normalizeQuickUrl(value) {
   if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
   const parsed = new URL(raw);
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('http / https のURLを入力してください');
+  // ChatGPT経由で付く紹介元パラメータだけ除去し、ほかのクエリは維持する。
+  for (const [key, value] of [...parsed.searchParams]) {
+    if (key === 'utm_source' && value === 'chatgpt.com') parsed.searchParams.delete(key, value);
+  }
   return parsed.href;
 }
 
