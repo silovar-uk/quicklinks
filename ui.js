@@ -1208,7 +1208,8 @@ function drawerShortlist() {
   return [...new Set([...recentCats().filter(ok), ...moodCounts().map(([name]) => name).filter(ok), ...(state.projects || []).filter(ok)])].slice(0, 12);
 }
 function saveLink() {
-  const url = $('fUrl').value.trim();
+  const inputUrl = $('fUrl').value.trim();
+  const url = /^https?:\/\//.test(inputUrl) ? normalizeQuickUrl(inputUrl) : inputUrl;
   if (!/^https?:\/\//.test(url)) { $('fUrlField').hidden = false; $('fUrlError').hidden = false; renderSaveTargetCard(); $('fUrl').focus(); return; }
   // 欄に打っただけで札を押していない名前も、そのまま使う(なければ新しく作る)
   if (linkPick.pending()) linkPick.pick(linkPick.pending());
