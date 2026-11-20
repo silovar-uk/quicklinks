@@ -3,6 +3,8 @@ const targets = [
   { label: 'JinaReader', url: 'https://r.jina.ai/https://example.com' },
   { label: 'JinaReader-Article', url: 'https://r.jina.ai/https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS' },
   { label: 'JinaReader-Note', url: 'https://r.jina.ai/https://note.com/' },
+  { label: 'JinaReader-NoteArticle', url: 'https://r.jina.ai/https://note.com/norinity1103/n/n6c5e0426eb7b' },
+  { label: 'NotePublicArticleAPI', url: 'https://note.com/api/v3/notes/n6c5e0426eb7b' },
   { label: 'JinaReader-X', url: 'https://r.jina.ai/https://x.com/YouTube' }
 ];
 for (const target of targets) {
