@@ -8,6 +8,8 @@ on:
       - 'core.js'
       - 'ui.js'
       - 'scripts/metadata-core-unit.mjs'
+      - 'scripts/metadata-worker-regression.mjs'
+      - 'worker/src/metadata/**'
       - '.github/workflows/metadata-fast-qa.yml'
   pull_request:
     branches:
@@ -16,6 +18,8 @@ on:
       - 'core.js'
       - 'ui.js'
       - 'scripts/metadata-core-unit.mjs'
+      - 'scripts/metadata-worker-regression.mjs'
+      - 'worker/src/metadata/**'
       - '.github/workflows/metadata-fast-qa.yml'
   workflow_dispatch:
 
@@ -36,5 +40,8 @@ jobs:
           node --check core.js
           node --check ui.js
           node --check scripts/metadata-core-unit.mjs
+          node --experimental-default-type=module --check worker/src/metadata/note.js
       - name: Run metadata unit checks
-        run: node scripts/metadata-core-unit.mjs
+        run: |
+          node scripts/metadata-core-unit.mjs
+          node --experimental-default-type=module scripts/metadata-worker-regression.mjs
