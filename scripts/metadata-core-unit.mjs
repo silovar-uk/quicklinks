@@ -23,6 +23,9 @@ const fakeFetch = async rawUrl => {
   }
   if (url.startsWith('https://r.jina.ai/')) {
     readerCalls += 1;
+    if (url.includes('/cloudfront-block')) {
+      return new Response('Title: Request blocked.\n\nMarkdown Content:\nRequest blocked. We can\'t connect to the server for this app or website at this time. There might be too much traffic or a configuration error. You can find steps to troubleshoot and help prevent this error by reviewing the CloudFront documentation.', { status: 200 });
+    }
     if (url.includes('/reader-success')) {
       return new Response('Title: Actual Reader Title\n\nURL Source: https://qa-worker.test/reader-success\n\nMarkdown Content:\nThis is an actual article paragraph containing a useful description for the saved link, not just a placeholder.', { status: 200 });
     }
@@ -87,6 +90,13 @@ const tweet = readerParse(
 );
 assert.equal(tweet.description, '"go touch grass" ok but have you ever touched a crunchy fall leaf');
 assert.equal(tweet.descriptionSource, 'reader-post', 'X login prompts are not used as the description');
+const blockedPage = 'Title: Request blocked.\n\nMarkdown Content:\nRequest blocked. We can\\'t connect to the server for this app or website at this time. There might be too much traffic or a configuration error. CloudFront documentation.';
+assert.equal(readerParse(blockedPage, 'https://note.com/abc/n/n6c5e0426eb7b'), null, 'CloudFront errors must not turn into article metadata');
+assert.equal(api("looksSuspicious({title: 'ERROR: The request could not be satisfied', description: ''})"), true, 'CDN error titles are rejected');
+assert.equal(api("looksPlaceholder('Request blocked.', 'https://note.com/a/n/n6c5e0426eb7b')"), true, 'corrupt saved titles are repairable');
+const blockedReader = await api("fetchPageMetadata('https://qa-worker.test/cloudfront-block', { bulk: true })");
+assert.equal(blockedReader.status, 'unavailable', 'blocked Reader text must not count as fetched metadata');
+
 
 api("RF.day = '2000-01-01'; RF.used = 20; RF.blockedUntil = null;");
 assert.equal(api('refetchBlocked()'), false);
