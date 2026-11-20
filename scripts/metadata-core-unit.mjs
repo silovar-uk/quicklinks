@@ -90,7 +90,7 @@ const tweet = readerParse(
 );
 assert.equal(tweet.description, '"go touch grass" ok but have you ever touched a crunchy fall leaf');
 assert.equal(tweet.descriptionSource, 'reader-post', 'X login prompts are not used as the description');
-const blockedPage = 'Title: Request blocked.\n\nMarkdown Content:\nRequest blocked. We can\\'t connect to the server for this app or website at this time. There might be too much traffic or a configuration error. CloudFront documentation.';
+const blockedPage = 'Title: Request blocked.\n\nMarkdown Content:\nRequest blocked. We cannot connect to the server for this app or website at this time. There might be too much traffic or a configuration error. CloudFront documentation.';
 assert.equal(readerParse(blockedPage, 'https://note.com/abc/n/n6c5e0426eb7b'), null, 'CloudFront errors must not turn into article metadata');
 assert.equal(api("looksSuspicious({title: 'ERROR: The request could not be satisfied', description: ''})"), true, 'CDN error titles are rejected');
 assert.equal(api("looksPlaceholder('Request blocked.', 'https://note.com/a/n/n6c5e0426eb7b')"), true, 'corrupt saved titles are repairable');
