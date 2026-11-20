@@ -9,9 +9,18 @@ store.set('quick-links-refetch-v1', JSON.stringify({
   day, used: 20, blockedUntil: null, queue: ['persisted-id'], pos: 0, batch: null, failed: {},
 }));
 
-let resolverCalls = 0, microlinkCalls = 0, readerCalls = 0;
+let resolverCalls = 0, microlinkCalls = 0, readerCalls = 0, bundledCalls = 0;
 const fakeFetch = async rawUrl => {
   const url = String(rawUrl);
+  if (url === './metadata-cache/n6c5e0426eb7b.json') {
+    bundledCalls++;
+    return Response.json({
+      key: 'n6c5e0426eb7b',
+      title: 'Verified note title',
+      description: 'Verified note article excerpt',
+      descriptionSource: 'verified-note-article'
+    });
+  }
   if (url.startsWith('https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?')) {
     resolverCalls += 1;
     const target = new URL(url).searchParams.get('url');
@@ -67,6 +76,17 @@ assert.equal(resolverCalls, 1, 'complete metadata must be cached');
 const fresh = await api("fetchPageMetadata('https://qa-worker.test/first', { force: true })");
 assert.equal(fresh.status, 'complete');
 assert.equal(resolverCalls, 2, 'manual refresh must bypass the cache');
+
+const note = await api("fetchPageMetadata('https://note.com/norinity1103/n/n6c5e0426eb7b')");
+assert.equal(note.status, 'complete');
+assert.equal(note.data.title, 'Verified note title');
+assert.equal(note.data.description, 'Verified note article excerpt');
+assert.equal(bundledCalls, 1, 'same-origin note metadata is read once');
+assert.equal(resolverCalls, 2, 'available same-origin note metadata skips the unavailable Worker');
+const savedNote = await api("fetchPageMetadata('https://note.com/norinity1103/n/n6c5e0426eb7b')");
+assert.equal(savedNote.cacheHit, true);
+assert.equal(bundledCalls, 1);
+
 
 const blocked = await api("fetchPageMetadata('https://qa-worker.test/failure', { bulk: true })");
 assert.equal(blocked.status, 'unavailable');
