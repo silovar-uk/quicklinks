@@ -15,7 +15,7 @@ const fakeFetch = async rawUrl => {
   if (url.startsWith('https://quicklinks-sync.silovar-uk.workers.dev/v1/metadata?')) {
     resolverCalls += 1;
     const target = new URL(url).searchParams.get('url');
-    if (target.includes('/failure')) return new Response('Down', { status: 502 });
+    if (target.includes('/failure') || target.includes('/cloudfront-block')) return new Response('Down', { status: 502 });
     if (target.includes('/reader-success')) return new Response('Not found', { status: 404, headers: { 'content-type': 'text/plain' } });
     return Response.json({ status: 'success', data: {
       url: target, title: 'Resolved title', description: 'Resolved description', provider: 'web',
