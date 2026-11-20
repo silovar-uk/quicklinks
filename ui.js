@@ -572,7 +572,7 @@ async function startCareRun() {
     const before = { id: item.id, title: item.title, description: item.description, descriptionSource: item.descriptionSource, descriptionUpdatedAt: item.descriptionUpdatedAt };
     let changedTitle = false, changedDescription = false;
     if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changedTitle = true; }
-    if (!item.description && r.data.description) {
+    if ((!item.description || looksBlockedDescription(item.description)) && r.data.description) {
       item.description = r.data.description;
       item.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
       item.descriptionUpdatedAt = new Date().toISOString();
@@ -743,7 +743,7 @@ async function refetchQuiet(item) {
   catch { toast('取り直せませんでした'); return; }
   if (!r.ok) { if (r.reason !== 'login') markFetchFailed(item.id); toast(fetchFailureText(r.reason)); return; }
   let changed = false;
-  if (!item.description && r.data.description) {
+  if ((!item.description || looksBlockedDescription(item.description)) && r.data.description) {
     item.description = r.data.description;
     item.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
     item.descriptionUpdatedAt = new Date().toISOString();
@@ -1189,7 +1189,7 @@ async function enrichSavedLink(id) {
     latest.title = r.data.title;
     changed = true;
   }
-  if (!latest.description && r.data.description) {
+  if ((!latest.description || looksBlockedDescription(latest.description)) && r.data.description) {
     latest.description = r.data.description;
     latest.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
     latest.descriptionUpdatedAt = new Date().toISOString();
@@ -1216,7 +1216,8 @@ function saveLink() {
   if (isCategoryBlank(F.cat)) { askForCat(); return; }
   const born = isNewDrawer(F.cat);
   if (born) markBorn(F.cat);
-  const title = $('fTitle').value.trim() || hostOf(url);
+  const proposedTitle = $('fTitle').value.trim();
+  const title = (proposedTitle && !looksSuspicious({ title: proposedTitle })) ? proposedTitle : hostOf(url);
   const projectName = F.cat;
   let item;
   if (F.mode === 'edit') {
