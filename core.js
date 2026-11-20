@@ -927,6 +927,37 @@ async function fetchReaderMetadata(url, { signal } = {}) {
   });
 }
 
+// Same-origin metadata snapshots for public note articles that upstream services block.
+// This works without a Worker deployment or third-party quotas; uncached articles
+// continue through the normal retrieval pipeline.
+function bundledNoteKey(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || !/^(?:www\.)?note\.com$/i.test(url.hostname)) return '';
+    return url.pathname.match(/^\/[^/]+\/n\/(n[0-9a-f]{10,20})\/?$/i)?.[1] || '';
+  } catch { return ''; }
+}
+
+async function fetchBundledNoteMetadata(url, { signal } = {}) {
+  const key = bundledNoteKey(url);
+  if (!key) return null;
+  return withTimeoutSignal(2500, signal, async innerSignal => {
+    const response = await fetch('./metadata-cache/' + key + '.json', {
+      method: 'GET', credentials: 'omit', cache: 'no-store',
+      referrerPolicy: 'no-referrer', signal: innerSignal
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data?.key !== key || !data?.title || !data?.description) return null;
+    return {
+      url, title: cleanText(data.title, 240), description: cleanText(data.description, 1000),
+      domain: hostOf(url), provider: 'note', source: 'verified-note-cache',
+      descriptionSource: String(data.descriptionSource || 'verified-note-cache'),
+      confidence: 'high'
+    };
+  });
+}
+
 async function fetchResolverMetadata(url, { signal } = {}) {
   if (Date.now() < resolverUnavailableUntil) throw new Error('resolver_not_deployed');
   return withTimeoutSignal(RESOLVER_TIMEOUT, signal, async innerSignal => {
@@ -1112,6 +1143,19 @@ async function fetchPageMetadata(url, { signal, bulk = false, force = false } = 
         if (signal?.aborted) throw error;
         lastReason = error?.code === 'timeout' ? 'timeout' : 'network';
       }
+    }
+  }
+
+  if (bundledNoteKey(metadataUrl)) {
+    try {
+      const bundled = await fetchBundledNoteMetadata(metadataUrl, { signal });
+      if (bundled && !looksSuspicious(bundled)) {
+        best = mergeFetchedMetadata(best, bundled, url);
+        if (hasCompleteMetadata(best)) return conclude();
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      // Missing snapshots never prevent the regular resolver and Reader attempts.
     }
   }
 
