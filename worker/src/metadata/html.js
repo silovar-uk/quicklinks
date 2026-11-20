@@ -105,6 +105,11 @@ function paragraphDescription(paragraphs) {
 
 export async function extractHtmlMetadata(rawUrl) {
   const fetched = await fetchSafeHtml(rawUrl);
+  // Upstream CDNs can return a branded block page instead of the real article.
+  const sample = fetched.html.slice(0, 5000);
+  if (/(?:<title[^>]*>\s*(?:ERROR:\s*The request could not be satisfied|Request blocked)|Request blocked[\s\S]{0,600}CloudFront)/i.test(sample)) {
+    throw Object.assign(new Error("upstream_blocked"), { status: 502 });
+  }
   const meta = new MetaCollector();
   const title = new TextCollector(500);
   const articleH1 = new TextCollector(500);
