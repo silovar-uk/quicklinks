@@ -365,14 +365,20 @@ function isLoginHost(url) {
 }
 
 // タイトルがURLのまま(=まだ情報を取得していない)かどうか
+// ブロック画面は「記事タイトル/説明」として保存しない。
+const SUSPICIOUS_TITLE_RE = /^(?:ログイン|Sign in|Log in|Just a moment\.{0,3}|403 Forbidden|404 Not Found|Access Denied|Attention Required|Request blocked\b|ERROR:\s*The request could not be satisfied|The request could not be satisfied)/i;
+function looksBlockedDescription(value) {
+  const text = String(value || '').trim();
+  return /^(?:Request blocked\b|The request could not be satisfied\b|We can't connect to the server\b)/i.test(text)
+    && /(?:CloudFront|too much traffic|configuration error|can't connect to the server)/i.test(text.slice(0,1000));
+}
+function looksSuspicious(data) {
+  return SUSPICIOUS_TITLE_RE.test(String(data?.title || '').trim()) ||
+    looksBlockedDescription(data?.description);
+}
 function looksPlaceholder(title, url) {
   const t = String(title || '').trim();
-  return !t || t === hostOf(url) || /^https?:\/\//i.test(t) || /^(ログイン|Sign in|Log in)$/i.test(t);
-}
-// 取得結果がログイン画面・エラー画面らしいか(差分に出さず失敗として扱う)
-const SUSPICIOUS_TITLE_RE = /^(ログイン|Sign in|Log in|Just a moment\.\.\.|403 Forbidden|404 Not Found|Access Denied|Attention Required)/i;
-function looksSuspicious(data) {
-  return SUSPICIOUS_TITLE_RE.test(String(data?.title || '').trim());
+  return !t || t === hostOf(url) || /^https?:\/\//i.test(t) || SUSPICIOUS_TITLE_RE.test(t);
 }
 
 const AI_HOSTS = ['chatgpt.com', 'chat.openai.com', 'claude.ai', 'gemini.google.com', 'aistudio.google.com', 'notebooklm.google.com', 'perplexity.ai'];
@@ -735,12 +741,12 @@ try {
 
 function readPageMetadataCache(url) {
   const entry = pageMetadataCache[url];
-  if (!entry || timeValue(entry.savedAt) + METADATA_CACHE_TTL <= Date.now() || !hasCompleteMetadata(entry.data)) return null;
+  if (!entry || timeValue(entry.savedAt) + METADATA_CACHE_TTL <= Date.now() || !hasCompleteMetadata(entry.data) || looksSuspicious(entry.data)) return null;
   return entry.data;
 }
 
 function writePageMetadataCache(url, data) {
-  if (!hasCompleteMetadata(data)) return;
+  if (!hasCompleteMetadata(data) || looksSuspicious(data)) return;
   pageMetadataCache[url] = { data, savedAt: new Date().toISOString() };
   const now = Date.now();
   pageMetadataCache = Object.fromEntries(Object.entries(pageMetadataCache)
@@ -862,6 +868,11 @@ function isSafePublicReaderUrl(value) {
 function parseReaderMetadata(text, fallbackUrl) {
   const raw = String(text || '').slice(0, 150000);
   if (!raw || /^(?:error|request failed|internal server error|access denied)\b/i.test(raw.trim())) return null;
+  const firstPage = raw.slice(0, 4000);
+  // Reader が CloudFront のブロック画面をMarkdown化して返す場合がある。
+  if (/^Title:\s*(?:Request blocked\b|ERROR:\s*The request could not be satisfied|The request could not be satisfied)/im.test(firstPage) ||
+      (/(?:^|\n)(?:Request blocked\.?|The request could not be satisfied)(?:\s|$)/im.test(firstPage) &&
+       /(?:CloudFront|We can't connect to the server|too much traffic|configuration error)/i.test(firstPage))) return null;
   const titleMatch = raw.match(/^Title:\s*(.+)$/im);
   const title = cleanText(titleMatch?.[1] || '', 240);
   let body = raw.split(/\nMarkdown Content:\s*\n/i)[1] || '';
@@ -887,7 +898,7 @@ function parseReaderMetadata(text, fallbackUrl) {
     && !/^(?:navigation|目次|menu|cookie|privacy policy|sign in|log in|sign up|login|関連記事|おすすめ記事|著作権|ホーム|all rights reserved)/i.test(plain)
     && !/^(?:https?:\/\/|\|)/.test(plain));
   const description = cleanText(xPost || paragraphs[0]?.plain || '', 550);
-  if (!title && !description) return null;
+  if ((!title && !description) || looksSuspicious({ title, description })) return null;
   return {
     url: fallbackUrl, title, description, domain: hostOf(fallbackUrl),
     source: 'jina-reader', provider: 'Jina Reader',
