@@ -378,7 +378,8 @@ function looksSuspicious(data) {
 }
 function looksPlaceholder(title, url) {
   const t = String(title || '').trim();
-  return !t || t === hostOf(url) || /^https?:\/\//i.test(t) || SUSPICIOUS_TITLE_RE.test(t);
+  return !t || t === hostOf(url) || /^https?:\/\//i.test(t) || SUSPICIOUS_TITLE_RE.test(t) ||
+    (!!myEssaysArticleRoute(url) && /^My Essays(?:\s*[|｜-]\s*thinking archive)?$/i.test(t));
 }
 
 const AI_HOSTS = ['chatgpt.com', 'chat.openai.com', 'claude.ai', 'gemini.google.com', 'aistudio.google.com', 'notebooklm.google.com', 'perplexity.ai'];
@@ -638,7 +639,8 @@ function exactInputUrl(value) {
 function canonicalUrl(value) {
   try {
     const url = new URL(normalizeQuickUrl(value));
-    url.hash = '';
+    // Hash-router paths identify separate pages; ordinary in-page anchors do not.
+    if (!/^#(?:!\/|\/)/.test(url.hash)) url.hash = '';
     return url.href;
   } catch { return ''; }
 }
@@ -731,7 +733,7 @@ function hasCompleteMetadata(data) {
 }
 
 // 完全取得したページだけを7日間再利用。キャッシュはこの端末だけに保存し、同期対象にはしない。
-const METADATA_CACHE_KEY = 'quick-links-metadata-cache-v1';
+const METADATA_CACHE_KEY = 'quick-links-metadata-cache-v2';
 const METADATA_CACHE_TTL = 7 * DAY;
 let pageMetadataCache = {};
 try {
@@ -1110,12 +1112,119 @@ function endOfTodayIso() { const d = new Date(); d.setHours(23, 59, 59, 999); re
 
 // { ok:true, data } か { ok:false, reason:'timeout'|'rate'|'network'|'login'|'suspicious' } を返す。
 // signalがabortされたら例外をそのまま投げる(呼び出し側で無視させる)。bulk:trueはまとめて取り直すときの枠を守る
+// Resolve article routes from their public data instead of scraping the SPA shell.
+function myEssaysArticleRoute(value) {
+  try {
+    const u = new URL(value);
+    if (u.hostname !== 'silovar-uk.github.io' || !/^\/myessays\/(?:index\.html)?$/.test(u.pathname)) return null;
+    const match = u.hash.match(/^#\/essay\/([^?]+)(?:\?(.*))?$/);
+    if (!match) return null;
+    const id = decodeURIComponent(match[1]);
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}$/.test(id)) return null;
+    const lang = new URLSearchParams(match[2] || '').get('lang');
+    return { id, lang: lang === 'en' || lang === 'es' ? lang : 'ja', base: new URL('/myessays/', u.origin) };
+  } catch { return null; }
+}
+
+function parseArticleMetadata(markdown) {
+  const match = String(markdown).replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return {};
+  const data = {};
+  for (const line of match[1].split(/\r?\n/)) {
+    const m = line.match(/^(id|title|subtitle|abstract):\s*(.*)$/);
+    if (!m) continue;
+    try { data[m[1]] = JSON.parse(m[2]); }
+    catch { data[m[1]] = m[2].replace(/^['"]|['"]$/g, ''); }
+  }
+  return data;
+}
+
+async function fetchPublicArticleMetadata(url, { signal } = {}) {
+  const route = myEssaysArticleRoute(url);
+  if (!route) return null;
+  return withTimeoutSignal(12000, signal, async innerSignal => {
+    const get = async (path, json = true) => {
+      const res = await fetch(new URL(path, route.base).href, {signal: innerSignal, cache: 'no-store', credentials: 'omit'});
+      if (!res.ok) throw new Error('article HTTP ' + res.status);
+      return json ? res.json() : res.text();
+    };
+    let record;
+    if (route.lang !== 'ja') {
+      try {
+        const versions = await get('data/versions-index.json');
+        const path = (versions.articles?.[route.id] || versions[route.id])?.[route.lang + '-mix'];
+        if (typeof path === 'string' && /^(english|spanish)-mix\/[a-zA-Z0-9_-]+\.md$/.test(path)) {
+          const candidate = parseArticleMetadata(await get(path, false));
+          if (candidate.id === route.id && candidate.title) record = candidate;
+        }
+      } catch (e) { if (innerSignal.aborted) throw e; }
+    }
+    if (!record) {
+      try {
+        const catalog = await get('data/catalog.json');
+        record = catalog.essays?.find(x => x.id === route.id && x.title);
+      } catch (e) { if (innerSignal.aborted) throw e; }
+    }
+    // New articles can be present in the index before the generated catalog is rebuilt.
+    if (!record) {
+      const index = await get('data/index.json');
+      const paths = (index.essays || []).filter(p => typeof p === 'string' && /^essays\/[a-zA-Z0-9_-]+\.md$/.test(p));
+      const path = paths.find(p => p.endsWith('/' + route.id + '.md') || p.endsWith('-' + route.id + '.md'));
+      if (path) {
+        const candidate = parseArticleMetadata(await get(path, false));
+        if (candidate.id === route.id) record = candidate;
+      }
+    }
+    if (!record?.title) throw new Error('article_metadata_not_found');
+    return { url, title: cleanText(record.title, 240), description: cleanText(record.abstract || record.subtitle, 1000),
+      domain: hostOf(url), provider: 'My Essays', source: 'article-catalog', descriptionSource: 'article-catalog', confidence: 'high' };
+  });
+}
+
+// Other applications may publish a same-origin link-metadata.json next to the SPA.
+// Schema: {"version":1,"routes":{"#/article/example":{"title":"...","description":"..."}}}.
+// Only exact route matches count; never substitute a different article.
+async function fetchRouteManifestMetadata(url, {signal} = {}) {
+  const u = new URL(url);
+  if (u.origin !== location.origin || !/^#(?:!\/|\/)/.test(u.hash)) return null;
+  return withTimeoutSignal(5000, signal, async innerSignal => {
+    const endpoint = new URL('link-metadata.json', u);
+    const res = await fetch(endpoint.href, {signal:innerSignal, credentials:'omit', cache:'no-store'});
+    if (!res.ok) return null;
+    const manifest = await res.json();
+    if (manifest.version !== 1 || !Object.hasOwn(manifest.routes || {}, u.hash)) return null;
+    const entry = manifest.routes[u.hash];
+    if (typeof entry?.title !== 'string' || !entry.title.trim()) return null;
+    return {url, title:cleanText(entry.title,240), description:cleanText(entry.description,1000), domain:hostOf(url),
+      source:'route-manifest', descriptionSource:'route-manifest', confidence:'high'};
+  });
+}
+
 async function fetchPageMetadata(url, { signal, bulk = false, force = false } = {}) {
   if (isLoginHost(url)) return { ok: false, status: 'unavailable', reason: 'login' };
   if (!force) {
     const cached = readPageMetadataCache(url);
     if (cached) return { ok: true, status: 'complete', data: cached, cacheHit: true };
   }
+
+  // A known article must never be silently replaced with the site's homepage.
+  if (myEssaysArticleRoute(url)) {
+    try {
+      const data = await fetchPublicArticleMetadata(url, { signal });
+      if (hasCompleteMetadata(data)) writePageMetadataCache(url, data);
+      return metadataFetchResult(data);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      return {ok:false, status:'unavailable', reason:error?.code === 'timeout' ? 'timeout' : 'network'};
+    }
+  }
+  try {
+    const data = await fetchRouteManifestMetadata(url, {signal});
+    if (hasMetadata(data)) {
+      if (hasCompleteMetadata(data)) writePageMetadataCache(url, data);
+      return metadataFetchResult(data);
+    }
+  } catch (error) { if (signal?.aborted) throw error; }
 
   let best = { url, title: '', domain: hostOf(url), description: '', source: '' };
   const conclude = (reason = null) => {
