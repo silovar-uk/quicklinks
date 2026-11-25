@@ -608,7 +608,7 @@ function undoCare() {
 const BOOKMARKLET_TARGET = 'https://silovar-uk.github.io/quicklinks/';
 function createDirectBookmarkletCode() {
   const target = JSON.stringify(BOOKMARKLET_TARGET);
-  return `javascript:(()=>{const c=(v,n)=>String(v||'').replace(/\\s+/g,' ').trim().slice(0,n);const m=s=>document.querySelector(s)?.content||'';const u=location.href;if(!/^https?:/i.test(u)){alert('http / https のページだけ追加できます');return}const p={v:1,url:u,title:c(document.title,300),description:c(m('meta[name="description"]')||m('meta[property="og:description"]')||m('meta[name="twitter:description"]')||'',600)};location.href=${target}+'#add='+encodeURIComponent(JSON.stringify(p))})()`;
+  return `javascript:(()=>{const c=(v,n)=>String(v||'').replace(/\\s+/g,' ').trim().slice(0,n);const m=s=>document.querySelector(s)?.content||'';const p0=()=>[...document.querySelectorAll('article p,main p')].map(e=>e.innerText||'').find(t=>t.trim().length>=60)||'';const u=location.href;if(!/^https?:/i.test(u)){alert('http / https のページだけ追加できます');return}const p={v:1,url:u,title:c(document.title,300),description:c(m('meta[name="description"]')||m('meta[property="og:description"]')||m('meta[name="twitter:description"]')||p0(),600)};location.href=${target}+'#add='+encodeURIComponent(JSON.stringify(p))})()`;
 }
 // iPhone Safariの「WebページでJavaScriptを実行」用。共有元のページで実行し、URLフラグメント経由で本人のQuick Linksに渡す。
 function createSafariShortcutCode() {
@@ -617,7 +617,7 @@ const clean = (value, max) => String(value || '').replace(/\\s+/g, ' ').trim().s
 const payload = {
   v: 1, url: location.href,
   title: clean(document.title, 300),
-  description: clean(meta('meta[name="description"]') || meta('meta[property="og:description"]') || meta('meta[name="twitter:description"]'), 1000)
+  description: clean(meta('meta[name="description"]') || meta('meta[property="og:description"]') || meta('meta[name="twitter:description"]') || [...document.querySelectorAll('article p,main p')].map(e=>e.innerText||'').find(t=>t.trim().length>=60), 1000)
 };
 completion('https://silovar-uk.github.io/quicklinks/#add=' + encodeURIComponent(JSON.stringify(payload)));`;
 }
@@ -1075,8 +1075,11 @@ async function startFetch() {
     setStatus('warn', `<span class="grow">${fetchFailureText(r.reason)}</span><button class="btn" type="button" id="fRetry">再取得</button>`);
     return;
   }
-  const filledTitle = !$('fTitle').value && !!r.data.title;
-  const filledDescription = !$('fDescription').value && !!r.data.description;
+  const articleSource = r.data.source === 'article-catalog';
+  const bookmarkletTitle = F.bm && $('fTitle').value === F.bm.title;
+  const bookmarkletDescription = F.bm && $('fDescription').value === F.bm.description;
+  const filledTitle = (!$('fTitle').value || looksPlaceholder($('fTitle').value, url) || (articleSource && bookmarkletTitle)) && !!r.data.title;
+  const filledDescription = (!$('fDescription').value || (articleSource && bookmarkletDescription)) && !!r.data.description;
   if (filledTitle) $('fTitle').value = r.data.title;
   if (filledDescription) setDescriptionField(r.data.description, r.data.descriptionSource || r.data.source || r.data.provider || '');
   renderSaveTargetCard();
@@ -1166,7 +1169,14 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
   setCat(it ? it.projectName : (!['ALL', 'UNOPENED', 'FAV'].includes(U.drawer) ? U.drawer : ''));
   showSheet($('linkSheet'));
   renderSaveTargetCard();
-  if (bm) handleBookmarklet(bm);
+  if (bm) {
+    handleBookmarklet(bm);
+    // Older shortcuts may send generic site metadata. Resolve known articles by ID.
+    if (myEssaysArticleRoute(bm.url)) {
+      if (F.mode === 'edit') refetchInSheet();
+      else startFetch();
+    }
+  }
   else if (url) { checkDup(); startFetch(); }
   // スマホではキーボードを呼ばない(貼るボタンと引き出しを押すだけで済む。打つ欄は、押したときだけキーボードを出す)
   if (!hand()) $(mode === 'add' && !url && !bm ? 'fUrl' : 'fCat').focus();
@@ -1174,7 +1184,7 @@ function openLinkSheet({ mode = 'add', id = null, url = '', bm = null } = {}) {
 async function enrichSavedLink(id) {
   const item = find('link', id);
   if (!item || item.archived) return;
-  if (!looksPlaceholder(item.title, item.url) && item.description) return;
+  if (!looksPlaceholder(item.title, item.url) && item.description && (!myEssaysArticleRoute(item.url) || item.descriptionSource === 'article-catalog')) return;
 
   let r;
   try { r = await fetchPageMetadata(item.url); }
@@ -1189,7 +1199,7 @@ async function enrichSavedLink(id) {
     latest.title = r.data.title;
     changed = true;
   }
-  if ((!latest.description || looksBlockedDescription(latest.description)) && r.data.description) {
+  if ((!latest.description || looksBlockedDescription(latest.description) || (r.data.source === 'article-catalog' && latest.descriptionSource !== 'article-catalog')) && r.data.description) {
     latest.description = r.data.description;
     latest.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
     latest.descriptionUpdatedAt = new Date().toISOString();
