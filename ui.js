@@ -572,7 +572,7 @@ async function startCareRun() {
     const before = { id: item.id, title: item.title, description: item.description, descriptionSource: item.descriptionSource, descriptionUpdatedAt: item.descriptionUpdatedAt };
     let changedTitle = false, changedDescription = false;
     if (looksPlaceholder(item.title, item.url) && r.data.title) { item.title = r.data.title; changedTitle = true; }
-    if ((!item.description || looksBlockedDescription(item.description)) && r.data.description) {
+    if ((!item.description || looksBlockedDescription(item.description) || (r.data.source === 'article-catalog' && item.descriptionSource !== 'article-catalog')) && r.data.description) {
       item.description = r.data.description;
       item.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
       item.descriptionUpdatedAt = new Date().toISOString();
@@ -743,7 +743,7 @@ async function refetchQuiet(item) {
   catch { toast('取り直せませんでした'); return; }
   if (!r.ok) { if (r.reason !== 'login') markFetchFailed(item.id); toast(fetchFailureText(r.reason)); return; }
   let changed = false;
-  if ((!item.description || looksBlockedDescription(item.description)) && r.data.description) {
+  if ((!item.description || looksBlockedDescription(item.description) || (r.data.source === 'article-catalog' && item.descriptionSource !== 'article-catalog')) && r.data.description) {
     item.description = r.data.description;
     item.descriptionSource = String(r.data.descriptionSource || r.data.source || r.data.provider || '');
     item.descriptionUpdatedAt = new Date().toISOString();
