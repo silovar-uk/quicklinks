@@ -641,7 +641,7 @@ function canonicalUrl(value) {
     const url = new URL(normalizeQuickUrl(value));
     // Hash-router paths identify separate pages; ordinary in-page anchors do not.
     const article = myEssaysArticleRoute(url.href);
-    if (article) url.hash = '#/essay/' + encodeURIComponent(article.id) + '?lang=' + article.lang;
+    if (article) { url.pathname = '/myessays/'; url.hash = '#/essay/' + encodeURIComponent(article.id) + '?lang=' + article.lang; }
     else if (!/^#(?:!\/|\/)/.test(url.hash)) url.hash = '';
     return url.href;
   } catch { return ''; }
@@ -1118,12 +1118,13 @@ function endOfTodayIso() { const d = new Date(); d.setHours(23, 59, 59, 999); re
 function myEssaysArticleRoute(value) {
   try {
     const u = new URL(value);
-    if (u.hostname !== 'silovar-uk.github.io' || !/^\/myessays\/(?:index\.html)?$/.test(u.pathname)) return null;
-    const match = u.hash.match(/^#\/essay\/([^?]+)(?:\?(.*))?$/);
-    if (!match) return null;
-    const id = decodeURIComponent(match[1]);
+    if (u.hostname !== 'silovar-uk.github.io') return null;
+    const share = u.pathname.match(/^\/myessays\/share\/([A-Za-z0-9_-]+)(?:\.(en|es))?\.html$/);
+    const match = /^\/myessays\/(?:index\.html)?$/.test(u.pathname) ? u.hash.match(/^#\/essay\/([^?]+)(?:\?(.*))?$/) : null;
+    if (!match && !share) return null;
+    const id = decodeURIComponent((share || match)[1]);
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,199}$/.test(id)) return null;
-    const lang = new URLSearchParams(match[2] || '').get('lang');
+    const lang = share ? share[2] : new URLSearchParams(match[2] || '').get('lang');
     return { id, lang: lang === 'en' || lang === 'es' ? lang : 'ja', base: new URL('/myessays/', u.origin) };
   } catch { return null; }
 }
