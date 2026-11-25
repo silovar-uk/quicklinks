@@ -640,7 +640,9 @@ function canonicalUrl(value) {
   try {
     const url = new URL(normalizeQuickUrl(value));
     // Hash-router paths identify separate pages; ordinary in-page anchors do not.
-    if (!/^#(?:!\/|\/)/.test(url.hash)) url.hash = '';
+    const article = myEssaysArticleRoute(url.href);
+    if (article) url.hash = '#/essay/' + encodeURIComponent(article.id) + '?lang=' + article.lang;
+    else if (!/^#(?:!\/|\/)/.test(url.hash)) url.hash = '';
     return url.href;
   } catch { return ''; }
 }
@@ -1332,7 +1334,7 @@ function careCandidates() {
   const cutoff = Date.now() - 6 * 60 * 60 * 1000;
   const excluded = new Set(Object.keys(RF.failed || {}).filter(id => timeValue(RF.failed[id]) >= cutoff));
   const active = state.items.filter(item => !item.archived);
-  const need = active.filter(item => (!item.description || looksPlaceholder(item.title, item.url)) && !excluded.has(item.id));
+  const need = active.filter(item => (!item.description || looksPlaceholder(item.title, item.url) || (myEssaysArticleRoute(item.url) && item.descriptionSource !== 'article-catalog')) && !excluded.has(item.id));
   return {
     fetchable: need.filter(item => !isLoginHost(item.url)),
     login: need.filter(item => isLoginHost(item.url)),
